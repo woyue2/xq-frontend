@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { mockQuestions, mockComments, mockAnswers, userLikes, userFavorites } from '@/lib/mock-data';
 import type { Comment, DifficultyLevel } from '@/types';
-import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cn } from '@/lib/utils';
@@ -206,7 +207,7 @@ export function QuestionDetailPage() {
           {/* 标签行 */}
           <div className="flex flex-wrap items-center gap-2">
             {question.isGoodQuestion && (
-              <Badge className={UI_CONFIG.colors.goodQuestion}>好问题</Badge>
+              <GoodQuestionBadge />
             )}
             {question.tags?.map((tag, index) => (
               <Badge

@@ -58,12 +58,19 @@ export const mockQuestions: Question[] = [
     isGoodQuestion: true,
     subject: 'politics', // Mapping 'workplace' to a generic subject for now or 'politics' as closest
     topics: ['职场技巧', '人际关系'],
+    tags: ['职场', '人际关系'],
+    difficulty: 'medium',
     stats: {
       likes: 126,
       favorites: 45,
       comments: 23,
-      answers: 5
+      answers: 5,
+      views: 1024
     },
+    answerCount: 5,
+    viewCount: 1024,
+    likeCount: 126,
+    collectionCount: 45,
     status: 'approved',
     isPinned: true,
     aiResult: '无违规',
@@ -73,7 +80,7 @@ export const mockQuestions: Question[] = [
     id: 'q_pending_1',
     title: '数学问题：勾股定理如何证明？',
     content: '我记得有很多种方法，除了面积法还有什么？',
-    images: ['https://images.unsplash.com/photo-1509228468518-180dd482180c?w=400&h=300&fit=crop'],
+    images: ['https://placehold.co/400x300/EEE/31343C?text=Math+Image'],
     authorId: '1',
     authorName: '小明同学',
     isGoodQuestion: false,
@@ -86,6 +93,7 @@ export const mockQuestions: Question[] = [
       answers: 0
     },
     status: 'pending',
+    isPinned: false,
     aiResult: '无违规',
     createdAt: '2026-01-30T10:00:00',
   },
@@ -106,6 +114,7 @@ export const mockQuestions: Question[] = [
       answers: 3
     },
     status: 'approved',
+    isPinned: false,
     createdAt: '2024-11-16T10:30:00',
   },
   {
@@ -128,6 +137,7 @@ export const mockQuestions: Question[] = [
       answers: 7
     },
     status: 'approved',
+    isPinned: false,
     createdAt: '2024-11-14T15:20:00',
   },
   {
@@ -147,6 +157,7 @@ export const mockQuestions: Question[] = [
       answers: 4
     },
     status: 'approved',
+    isPinned: false,
     createdAt: '2024-11-13T09:15:00',
   },
 ];

@@ -17,7 +17,7 @@ vi.mock('@/hooks/useQuestions', () => ({
 
 
 vi.mock('@/lib/mock-data', async (importOriginal) => {
-    const actual = await importOriginal();
+    const actual = await importOriginal() as any;
     return {
         ...actual,
         currentUser: { id: 'u1', nickname: 'Teacher User', role: 'teacher' }, // Default to teacher for audit test
@@ -63,7 +63,19 @@ describe('Integration Tests (Super Brain)', () => {
             fetchNextPage: vi.fn(),
             hasNextPage: false,
             isFetchingNextPage: false,
-            isLoading: false
+            isLoading: false,
+            getQuestionById: (id: string) => ({
+                id: 'q1',
+                title: 'Integration Test Question',
+                content: 'Content',
+                authorId: 'u2',
+                authorName: 'Student',
+                createdAt: new Date().toISOString(),
+                stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
+                tags: [],
+                subject: 'math',
+                difficulty: 'easy'
+            })
         });
 
         // Reset Auth Store to Teacher

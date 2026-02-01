@@ -30,7 +30,8 @@ src/
 ```
 
 ### 1.3 命名规范
-*   **组件文件**: `PascalCase.tsx` (e.g., `QuestionCard.tsx`)
+*   **业务组件**: `PascalCase.tsx` (e.g., `QuestionCard.tsx`)
+*   **基础组件 (UI)**: `kebab-case.tsx` (e.g., `button.tsx`, `dialog.tsx`) - 仅限 `src/components/ui/` 目录
 *   **Hooks**: `camelCase.ts` 以 `use` 开头 (e.g., `useScroll.ts`)
 *   **工具函数**: `camelCase.ts` (e.g., `formatDate.ts`)
 *   **CSS 类名**: 使用 Tailwind Utility Classes，禁止写行内 `style={{}}`。

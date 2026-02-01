@@ -29,7 +29,7 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const question = mockQuestions.find((q) => q.id === questionId);
 

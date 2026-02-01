@@ -1,0 +1,47 @@
+/**
+ * Alignment Utility Classes
+ * 
+ * This file defines standard alignment classes to ensure design consistency across the application.
+ * While we primarily use Tailwind CSS utilities, these classes provide semantic aliases 
+ * for common alignment patterns specified in the design system.
+ * 
+ * Usage:
+ * - Use .align-center for vertical centering in flex containers
+ * - Use .gap-16 for standard 16px spacing
+ * - Use .gap-24 for standard 24px spacing
+ */
+
+/* Flexbox Alignment */
+.align-center {
+  @apply items-center;
+}
+
+.justify-center {
+  @apply justify-center;
+}
+
+.flex-center {
+  @apply flex items-center justify-center;
+}
+
+/* Spacing Standards */
+.gap-8 {
+  @apply gap-2; /* 8px */
+}
+
+.gap-16 {
+  @apply gap-4; /* 16px */
+}
+
+.gap-24 {
+  @apply gap-6; /* 24px */
+}
+
+.gap-32 {
+  @apply gap-8; /* 32px */
+}
+
+/* Layout Containers */
+.container-fluid {
+  @apply w-full max-w-[1920px] mx-auto px-4;
+}

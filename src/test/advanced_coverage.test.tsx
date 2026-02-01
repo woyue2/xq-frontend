@@ -89,7 +89,7 @@ describe('Advanced Coverage Tests', () => {
     describe('WL: Admin Edge Cases', () => {
         it('WL-008: Cannot add duplicate phone number', async () => {
             (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
-            render(<MemoryRouter><AdminManagementPage onNavigate={mockNavigate} /></MemoryRouter>);
+            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
 
             fireEvent.click(screen.getByText('添加'));
 

@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Heart, Star, MessageCircle, Share2, Pin, PinOff, Loader2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Loader2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { currentUser } from '@/lib/mock-data'; // Only for legacy check, should use store ideally
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -9,145 +7,13 @@ import { useNavigate } from 'react-router-dom';
 import { useQuestions } from '@/hooks/useQuestions';
 import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
 import { UI_CONFIG } from '@/config/ui-config';
-import { DIFFICULTY_LABELS, BADGE_LABELS, TOAST_MESSAGES, TIME_LABELS } from '@/config/app-constants';
+import { TOAST_MESSAGES } from '@/config/app-constants';
 import { cn } from '@/lib/utils';
 import type { Question, DifficultyLevel } from '@/types';
 
-// Swipeable Image Carousel Component
-function SwipeableImageCarousel({ 
-  images, 
-  onClick, 
-  overlay 
-}: { 
-  images: string[], 
-  onClick?: (e: React.MouseEvent) => void,
-  overlay?: React.ReactNode 
-}) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+import { QuestionCard } from '@/components/QuestionCard';
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isSwipe = Math.abs(distance) > 50;
-
-    if (isSwipe) {
-      if (distance > 0 && currentIndex < images.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-      } else if (distance < 0 && currentIndex > 0) {
-        setCurrentIndex(prev => prev - 1);
-      }
-    }
-    setTouchStart(0);
-    setTouchEnd(0);
-  };
-
-  const goToPrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
-  };
-
-  const goToNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentIndex < images.length - 1) setCurrentIndex(prev => prev + 1);
-  };
-
-  if (images.length === 0) return null;
-
-  return (
-    <div
-      ref={containerRef}
-      className="w-full aspect-video rounded-xl overflow-hidden relative group"
-      onClick={onClick}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Overlay Element (e.g. Pin Icon) - Absolute Positioned Top-Left */}
-      {overlay && (
-        <div className="absolute top-2 left-2 z-10">
-          {overlay}
-        </div>
-      )}
-
-      {/* Images */}
-      <div
-        className="flex transition-transform duration-300 ease-out h-full"
-        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-      >
-        {images.map((img, idx) => (
-          <img
-            key={idx}
-            src={img}
-            alt={`图片${idx + 1}`}
-            className="w-full h-full object-cover flex-shrink-0"
-          />
-        ))}
-      </div>
-
-      {/* Navigation Arrows (visible on hover for desktop) */}
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={goToPrev}
-            className={cn(
-              "absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity",
-              currentIndex === 0 ? "opacity-30 cursor-not-allowed" : "opacity-0 group-hover:opacity-100 hover:bg-black/60"
-            )}
-            disabled={currentIndex === 0}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={goToNext}
-            className={cn(
-              "absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity",
-              currentIndex === images.length - 1 ? "opacity-30 cursor-not-allowed" : "opacity-0 group-hover:opacity-100 hover:bg-black/60"
-            )}
-            disabled={currentIndex === images.length - 1}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </>
-      )}
-
-      {/* Dot Indicators */}
-      {images.length > 1 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-          {images.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={(e) => { e.stopPropagation(); setCurrentIndex(idx); }}
-              className={cn(
-                "w-1.5 h-1.5 rounded-full transition-all",
-                idx === currentIndex
-                  ? "bg-white w-4"
-                  : "bg-white/50 hover:bg-white/80"
-              )}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Image Count */}
-      {images.length > 1 && (
-        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
-          {currentIndex + 1}/{images.length}
-        </div>
-      )}
-    </div>
-  );
-}
+// Swipeable Image Carousel Component moved to @/components/ui/swipeable-image-carousel.tsx
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -250,35 +116,6 @@ export function HomePage() {
     }));
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) {
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      if (hours === 0) {
-        const minutes = Math.floor(diff / (1000 * 60));
-        return `${minutes}${TIME_LABELS.minutesAgo}`;
-      }
-      return `${hours}${TIME_LABELS.hoursAgo}`;
-    } else if (days < 7) {
-      return `${days}${TIME_LABELS.daysAgo}`;
-    } else {
-      return date.toLocaleDateString('zh-CN');
-    }
-  };
-
-  const getDifficultyConfig = (difficulty?: DifficultyLevel) => {
-    const configs = {
-      easy: { label: DIFFICULTY_LABELS.easy, className: UI_CONFIG.colors.difficulty.easy },
-      medium: { label: DIFFICULTY_LABELS.medium, className: UI_CONFIG.colors.difficulty.medium },
-      hard: { label: DIFFICULTY_LABELS.hard, className: UI_CONFIG.colors.difficulty.hard },
-    };
-    return difficulty ? configs[difficulty] : null;
-  };
-
   // Flatten pages
   const allQuestions = data?.pages.flatMap(p => p.items) || [];
   
@@ -366,156 +203,21 @@ export function HomePage() {
           </div>
         ) : (
           sortedQuestions.map((question) => {
-            const difficultyConfig = getDifficultyConfig(question.difficulty);
             const isPinned = getEffectivePinned(question);
+            const questionWithPinned = { ...question, isPinned };
             
             return (
-              <div
+              <QuestionCard
                 key={question.id}
-                onClick={() => navigate(`/question/${question.id}`)}
-                className="bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 active:scale-[0.99] border border-transparent hover:border-blue-50"
-              >
-                <div className="p-3 space-y-2">
-                  {/* Images - Swipeable Carousel */}
-                  {question.images && question.images.length > 0 && (
-                    <SwipeableImageCarousel
-                      images={question.images}
-                      // Render Pin badge as overlay on the image if question is pinned
-                      // This aligns with user request to show Pin on top-left of image
-                      overlay={isPinned && (
-                        <Badge className="bg-blue-600 text-white border-none flex items-center gap-1 min-h-[1.25rem] text-[10px] px-1.5 shadow-sm">
-                          <Pin className="w-2.5 h-2.5 fill-white" />
-                        </Badge>
-                      )}
-                    />
-                  )}
-
-                  {/* Topics (formerly Tags) */}
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    {/* Only render Pin here if there are no images, as fallback */}
-                    {isPinned && (!question.images || question.images.length === 0) && (
-                      <Badge className="bg-blue-600 text-white border-none flex items-center gap-1 min-h-[1.25rem] text-[10px] px-1.5">
-                        <Pin className="w-2.5 h-2.5 fill-white" />
-                      </Badge>
-                    )}
-                    {question.isGoodQuestion && (
-                      <Badge className={UI_CONFIG.colors.goodQuestion}>{BADGE_LABELS.goodQuestion}</Badge>
-                    )}
-                    {question.tags?.map((tag: string, idx: number) => (
-                      <Badge key={idx} variant="secondary" className="bg-gray-100 text-gray-600 border-none min-h-[1.25rem] text-[10px]">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {difficultyConfig && (
-                      <Badge className={cn(difficultyConfig.className, "border-none min-h-[1.25rem] text-[10px]")}>
-                        {difficultyConfig.label}
-                      </Badge>
-                    )}
-                  </div>
-                  {/* Subject Badge */}
-                  {!selectedSubject && (
-                    <Badge variant="outline" className="border-morandi-2 text-morandi-5 h-5 text-[10px] px-1.5 capitalize">
-                      {question.subject}
-                    </Badge>
-                  )}
-
-                  {/* Topics */}
-                  {question.topics?.slice(0, 2).map((topic, index) => (
-                    <Badge
-                      key={index}
-                      variant="secondary"
-                      className="bg-morandi-1/30 text-gray-600 hover:bg-morandi-1/50 h-5 text-[10px] px-1.5"
-                    >
-                      {topic}
-                    </Badge>
-                  ))}
-                </div>
-
-                {/* Title & Meta */}
-                <div className="space-y-1.5 px-3">
-                  <h3 className="text-sm font-bold text-gray-800 line-clamp-2 leading-relaxed">
-                    {question.title}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                    <Avatar className="w-4 h-4 border border-gray-100">
-                      <AvatarFallback className="text-[8px] bg-gray-50">{question.authorName[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="truncate max-w-[80px] font-medium">{question.authorName}</span>
-                    <span>·</span>
-                    <span className="whitespace-nowrap">{formatDate(question.createdAt)}</span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-4 p-3 pt-2 border-t border-gray-50 mt-1">
-                  <button
-                    onClick={(e) => handleLike(question.id, e)}
-                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-red-500 transition-colors group"
-                  >
-                    <Heart
-                      className={cn("w-3.5 h-3.5 transition-transform group-active:scale-125", likedQuestions.has(question.id) ? 'fill-red-500 text-red-500' : '')}
-                    />
-                    <span className={likedQuestions.has(question.id) ? 'text-red-500 font-bold' : ''}>
-                      {question.stats.likes + (likedQuestions.has(question.id) ? 1 : 0)}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={(e) => handleFavorite(question.id, e)}
-                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-yellow-500 transition-colors group"
-                  >
-                    <Star
-                      className={cn("w-3.5 h-3.5 transition-transform group-active:scale-125", favoritedQuestions.has(question.id) ? 'fill-yellow-500 text-yellow-500' : '')}
-                    />
-                    <span className={favoritedQuestions.has(question.id) ? 'text-yellow-500 font-bold' : ''}>
-                      {question.stats.favorites + (favoritedQuestions.has(question.id) ? 1 : 0)}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/question/${question.id}`);
-                    }}
-                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-blue-500 transition-colors"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>{question.stats.comments}</span>
-                  </button>
-
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toast.success('分享链接已复制'); }}
-                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-800 transition ml-auto"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* 教师专属置顶按钮 */}
-                  {user?.role === 'teacher' && (
-                    <button
-                      onClick={(e) => handleTogglePin(question, e)}
-                      className={cn(
-                        "flex items-center gap-1 text-[10px] transition-colors",
-                        isPinned
-                          ? "text-blue-600 hover:text-gray-500"
-                          : "text-gray-500 hover:text-blue-600"
-                      )}
-                    >
-                      {isPinned ? (
-                        <>
-                          <PinOff className="w-3.5 h-3.5" />
-                          <span>取消置顶</span>
-                        </>
-                      ) : (
-                        <>
-                          <Pin className="w-3.5 h-3.5" />
-                          <span>置顶</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
+                question={questionWithPinned}
+                isLiked={likedQuestions.has(question.id)}
+                isFavorited={favoritedQuestions.has(question.id)}
+                onLike={(e) => handleLike(question.id, e)}
+                onFavorite={(e) => handleFavorite(question.id, e)}
+                showSubject={!selectedSubject}
+                isAdmin={user?.role === 'teacher'}
+                onTogglePin={(e) => handleTogglePin(question, e)}
+              />
             );
           })
         )}

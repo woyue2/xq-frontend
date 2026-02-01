@@ -47,6 +47,8 @@ export interface Question {
   status: AuditStatus;
   isPinned: boolean;
   isGoodQuestion: boolean; // 优质问题标记
+  difficulty?: DifficultyLevel; // 难度
+  tags?: string[]; // 标签
   score?: number; // 1-5
   aiResult?: string;
   rejectReason?: string;
@@ -57,7 +59,14 @@ export interface Question {
     favorites: number;
     comments: number;
     answers: number;
+    views?: number;
   };
+  
+  // 扁平化计数 (兼容性)
+  answerCount?: number;
+  viewCount?: number;
+  likeCount?: number;
+  collectionCount?: number;
 
   // 关联作者
   authorId: string;

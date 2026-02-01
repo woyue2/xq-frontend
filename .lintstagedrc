@@ -1,0 +1,9 @@
+{
+  "*.{ts,tsx}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "src/**/*.{ts,tsx}": [
+    "node scripts/audit-code-standards.js"
+  ]
+}

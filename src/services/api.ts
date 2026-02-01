@@ -8,6 +8,34 @@ const api = axios.create({
     timeout: 10000,
 });
 
+// Mock Interceptor for behavior logging
+api.interceptors.request.use(async (config) => {
+    if (config.url === '/behavior/log' && config.method === 'post') {
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Log to console for debugging as per user requirement
+        try {
+            const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+            console.log('[Mock API] Behavior Logged:', payload);
+        } catch (e) {
+            console.log('[Mock API] Behavior Logged (Raw):', config.data);
+        }
+        
+        // Return a mock response adapter
+        config.adapter = async () => {
+            return {
+                data: { success: true, message: 'Logged successfully' },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config,
+            };
+        };
+    }
+    return config;
+});
+
 export interface QuestionParams {
     page?: number;
     limit?: number;
@@ -15,6 +43,7 @@ export interface QuestionParams {
     topic?: string;
     method?: string;
     search?: string;
+    authorId?: string;
 }
 
 export const questionService = {
@@ -77,4 +106,5 @@ export const questionService = {
     }
 };
 
+export { api };
 export default api;

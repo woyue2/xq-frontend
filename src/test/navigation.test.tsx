@@ -23,7 +23,7 @@ vi.mock('@/stores/useAuthStore', () => ({
 
 // Mock `mockQuestions` used in QuestionDetailPage (since it imports directly)
 vi.mock('@/lib/mock-data', async (importOriginal) => {
-    const actual = await importOriginal();
+    const actual = await importOriginal() as any;
     return {
         ...actual,
         mockQuestions: [
@@ -71,7 +71,19 @@ describe('Navigation Tests', () => {
             fetchNextPage: vi.fn(),
             hasNextPage: false,
             isFetchingNextPage: false,
-            isLoading: false
+            isLoading: false,
+            getQuestionById: (id: string) => ({
+                id: 'q1',
+                title: 'Test Question 1',
+                content: 'Content 1',
+                authorId: 'u1',
+                authorName: 'Author 1',
+                createdAt: new Date().toISOString(),
+                stats: { likes: 0, comments: 0, favorites: 0 },
+                tags: ['Math'],
+                topics: ['Algebra'],
+                subject: 'math'
+            })
         });
     });
 

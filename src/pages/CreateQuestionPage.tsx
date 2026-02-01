@@ -132,7 +132,7 @@ export function CreateQuestionPage() {
       images
     };
 
-    console.log('Submitting:', payload);
+    // console.log('Submitting:', payload);
 
     toast.success('问题已提交，AI 正在初筛中...');
     setTimeout(() => {

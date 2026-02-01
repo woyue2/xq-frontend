@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { mockQuestions, mockComments } from '@/lib/mock-data';
 import type { Question, Comment, AuditStatus } from '@/types';
-import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useNavigate } from 'react-router-dom';
 import { aiTextConfig } from '@/config/ai-text';
 

@@ -1,74 +1,143 @@
-# 知识星球问答小程序 - 前端需求文档 v1.0
+# 知识星球问答小程序 - 前端需求规格说明书 v1.0
 
-> **文档说明**：本文档基于 v4 代码库现状及“最强大脑”优化方案撰写，旨在定义一个 **接近原生 App 体验 (PWA)** 的现代化移动 Web 应用。
-
----
-
-## 1. 核心体验目标 (User Experience Goals)
-
-*   **App 质感**：支持 PWA 安装到桌面，隐藏浏览器地址栏，禁止随意缩放。
-*   **极致流畅**：核心交互（点赞/收藏）使用 **乐观更新 (Optimistic UI)**，实现零延迟反馈。
-*   **智能辅助**：提问时自动联想，审核结果可视化。
-*   **结构化**：科目 -> 考点 -> 方法 的多级筛选体系。
+> **文档状态**: 草稿
+> **版本**: v1.0
+> **最后更新**: 2026-02-02
 
 ---
 
-## 2. 功能模块需求
-
-### 2.1 认证与权限 (Auth & Permissions)
-*   **登录页**
-    *   手机号 + 验证码 登录（开发阶段 666666）。
-    *   **安全**：前端需实现 60s 倒计时锁。
-*   **权限控制**
-    *   **权限降级**：登录后需检查 `user.expiresAt`。
-    *   **逻辑**：
-        *   若 `now > expiresAt`，用户角色虽为 `student`，但前端通过 `usePermission` Hook 禁用“提问”和“评论”按钮，提示“课时已过期，请联系老师续费”。
-        *   老师角色永不过期。
-
-### 2.2 首页 (Home Feed)
-*   **布局**：顶部透明毛玻璃导航 (Glassmorphism Header) + 底部固定导航栏。
-*   **列表**：
-    *   **无限滚动 (Infinite Scroll)**：废弃分页器，滑到底部自动通过 React Query 加载下一页。
-    *   **骨架屏 (Skeleton)**：加载过程中展示闪烁占位符，而非转圈 Loading。
-*   **筛选器 (Taxonomy Filter)**：
-    *   **数据源**：读取 `src/config/taxonomy.ts`。
-    *   **交互**：点击“数学” -> 下方滑出“二次函数/勾股定理” -> 再点击出现“配方法/代数法”。
-    *   支持多选标签。
-
-### 2.3 提问系统 (Smart Ask)
-*   **结构化表单**：
-    1.  **科目选择**：大号胶囊按钮（数学 / 物理）。
-    2.  **考点/方法**：根据科目联动的 Tag 选择器。
-    3.  **标题输入**：**智能防重** —— 输入标题时，防抖 (Debounce) 调用搜索接口，若发现相似问题，在下方展示“猜你想找”卡片列表。
-    4.  **详情描述**：支持多图上传（OSS）。
-*   **提交反馈**：提交成功后跳转详情页，并在 Toast 中提示“AI 正在初筛中”。
-
-### 2.4 问题详情 (Question Detail)
-*   **内容展示**：
-    *   支持富文本/Markdown 渲染（公式支持 KaTeX）。
-    *   图片支持点击放大预览 (Lightbox)。
-    *   **录音播放**：自定义播放器样式，支持倍速播放。
-*   **互动区**：
-    *   点赞/收藏：**立即变色**，后台静默请求。
-    *   回答列表：按“老师推荐” > “点赞数”排序。
-
-### 2.5 个人中心 (Profile)
-*   **身份卡片**：展示头像、昵称、角色徽章、**课时有效期**。
-*   **数据概览**：提问数、获赞数。
-*   **设置**：退出登录（清除 Zustand Store 及 LocalStorage）。
+## 目录
+1. [引言](#1-引言)
+2. [埋点需求 (Tracking)](#2-埋点需求-tracking)
+3. [API 接口规范](#3-api-接口规范)
+4. [附录](#4-附录)
 
 ---
 
-## 3. 非功能性需求 (NFR)
+## 1. 引言
+本文档旨在规范前端开发中的数据埋点与前后端接口交互标准，确保数据采集的准确性与系统集成的稳定性。
 
-### 3.1 性能要求
-*   **Lighthouse**: Performance 分数 > 90。
-*   **首屏加载**: FCP (First Contentful Paint) < 1.5s。
-*   **交互延迟**: 点击响应 < 100ms。
+---
 
-### 3.2 兼容性
-*   **设备**: 兼容 iOS 14+ 及 Android 10+ 主流浏览器。
-*   **PWA**: 支持 iOS Safari "Add to Home Screen" 及 Android Chrome 安装。
+## 2. 埋点需求 (Tracking)
 
-### 3.3 埋点与监控 (预留)
-*   记录关键行为：`click_ask_btn`, `view_question_detail`, `share_success`。
+### 2.1 事件命名规范
+采用 `Object_Action_Phase` 格式，全小写，下划线分隔。
+- **Object**: 操作对象 (e.g., `question`, `button`, `page`)
+- **Action**: 动作 (e.g., `click`, `view`, `submit`)
+- **Phase**: 阶段 (可选, e.g., `success`, `fail`)
+
+**示例**:
+- `good_question_badge_click`
+- `question_create_submit_success`
+- `home_page_view`
+
+### 2.2 核心埋点事件表
+
+| 事件ID | 事件名称 | 触发时机 | 自定义属性 (Metadata) | 采样率 |
+|---|---|---|---|---|
+| `page_view` | 页面访问 | 路由切换完成时 | `path`, `referrer` | 100% |
+| `good_question_click` | 好问题点击 | 点击“好问题”徽章 | `questionId`, `sourcePage` | 100% |
+| `question_like` | 问题点赞 | 点击点赞按钮 | `questionId`, `isLike` (bool) | 100% |
+| `diagnostic_run` | 诊断运行 | 点击开始诊断 | `mode` | 10% |
+
+### 2.3 技术要求
+1.  **上报策略**:
+    - 实时上报: 关键交互 (Click)
+    - 批量上报: 曝光类 (View)，每 10 条或 30秒 上报一次
+2.  **失败重试**:
+    - 网络异常时，存入 `localStorage`
+    - 网络恢复或下次启动时重试，最大重试 3 次
+3.  **隐私合规**:
+    - 禁止上报 PII (个人敏感信息) 如手机号明文
+    - 用户 ID 需脱敏或使用 Hash
+
+### 2.4 字段映射表 (与神策/Google Analytics)
+| 内部字段 | Sensors Analytics | Google Analytics 4 |
+|---|---|---|
+| `type` | `event` | `event_name` |
+| `metadata.questionId` | `question_id` | `item_id` |
+| `timestamp` | `time` | `timestamp_micros` |
+
+---
+
+## 3. API 接口规范
+
+### 3.1 基础规范
+- **Base URL**: `/api/v1`
+- **Protocol**: HTTPS
+- **Data Format**: JSON
+- **Date Format**: ISO 8601 (`YYYY-MM-DDTHH:mm:ssZ`)
+
+### 3.2 通用 Headers
+```http
+Content-Type: application/json
+Authorization: Bearer <token>
+X-Client-Version: 1.0.0
+X-Request-ID: <uuid>
+```
+
+### 3.3 接口定义详情
+
+#### 3.3.1 行为日志上报
+- **URL**: `/behavior/log`
+- **Method**: `POST`
+- **描述**: 上报用户行为埋点
+- **幂等性**: 否 (每次点击都是新事件)
+
+**Request Example**:
+```json
+{
+  "type": "good_question_click",
+  "timestamp": 1706832000000,
+  "metadata": {
+    "questionId": "q123",
+    "source": "home"
+  }
+}
+```
+
+**Response Example**:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { "logId": "l_999" }
+}
+```
+
+#### 3.3.2 获取问题列表
+- **URL**: `/questions`
+- **Method**: `GET`
+- **Params**: `page`, `limit`, `subject`
+
+### 3.4 错误码处理
+| Code | Message | 处理策略 |
+|---|---|---|
+| 200 | Success | 正常渲染 |
+| 401 | Unauthorized | 跳转登录页 |
+| 403 | Forbidden | 提示“无权限” |
+| 500 | Server Error | 提示“服务繁忙，请稍后” |
+
+### 3.5 联调计划
+- **Mock 阶段**: 前端使用 MSW 或 Local Mock (已完成)
+- **联调时间**: 2026-02-05 至 2026-02-10
+- **后端负责人**: 张三 (Backend Lead)
+- **前端负责人**: 李四 (Frontend Lead)
+
+---
+
+## 4. 附录
+
+### 4.1 术语表
+- **PV**: Page View
+- **UV**: Unique Visitor
+- **SSOT**: Single Source of Truth
+
+### 4.2 版本历史
+```mermaid
+timeline
+    title 文档变更历史
+    2026-02-01 : v0.1 初始化
+    2026-02-02 : v1.0 增加埋点与API章节
+```

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 
 export function MyQuestionsPage() {
     const navigate = useNavigate();
@@ -36,17 +37,25 @@ export function MyQuestionsPage() {
             {/* 统计信息 */}
             <div className="bg-white rounded-3xl p-6 mb-4 shadow-sm">
                 <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
+                    <div className="flex flex-col justify-center items-center h-full p-2 rounded-xl">
                         <div className="text-2xl font-bold text-gray-800">{myQuestions.length}</div>
                         <div className="text-sm text-gray-500 mt-1">全部提问</div>
                     </div>
-                    <div>
+                    <div 
+                        data-testid="stat-approved"
+                        className="cursor-pointer hover:bg-gray-50 rounded-xl p-2 transition flex flex-col justify-center items-center h-full"
+                        onClick={() => navigate('/my-questions/status/approved')}
+                    >
                         <div className="text-2xl font-bold text-green-600">
                             {myQuestions.filter(q => q.status === 'approved').length}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">已通过</div>
                     </div>
-                    <div>
+                    <div 
+                        data-testid="stat-pending"
+                        className="cursor-pointer hover:bg-gray-50 rounded-xl p-2 transition flex flex-col justify-center items-center h-full"
+                        onClick={() => navigate('/my-questions/status/pending')}
+                    >
                         <div className="text-2xl font-bold text-blue-600">
                             {myQuestions.filter(q => q.status === 'pending').length}
                         </div>
@@ -89,61 +98,40 @@ export function MyQuestionsPage() {
                                         {statusBadge.label}
                                     </Badge>
                                     {question.isGoodQuestion && (
-                                        <Badge className="bg-red-50 text-red-600 border-0 px-3 py-0.5 rounded-full text-xs">
-                                            好问题
-                                        </Badge>
-                                    )}
-                                    {question.isPinned && (
-                                        <Badge className="bg-purple-50 text-purple-600 border-0 px-3 py-0.5 rounded-full text-xs">
-                                            置顶
-                                        </Badge>
+                                        <GoodQuestionBadge />
                                     )}
                                     {difficultyBadge && (
                                         <Badge className={`${difficultyBadge.className} border-0 px-3 py-0.5 rounded-full text-xs`}>
                                             {difficultyBadge.label}
                                         </Badge>
                                     )}
+                                    <span className="text-xs text-gray-400 ml-auto">
+                                        {new Date(question.createdAt).toLocaleDateString()}
+                                    </span>
                                 </div>
 
                                 {/* 标题 */}
-                                <h3 className="font-medium text-gray-800 mb-2 line-clamp-2">{question.title}</h3>
+                                <h3 className="text-base font-bold text-gray-800 mb-2 line-clamp-2">
+                                    {question.title}
+                                </h3>
 
-                                {/* 内容预览 */}
-                                {question.content && (
-                                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{question.content}</p>
-                                )}
-
-                                {/* 标签 */}
-                                {question.topics && question.topics.length > 0 && (
-                                    <div className="flex gap-2 mb-3 flex-wrap">
-                                        {question.topics.map((topic: string, idx: number) => (
-                                            <span
-                                                key={idx}
-                                                className="px-2 py-1 bg-morandi-1/30 text-gray-600 rounded-full text-xs"
-                                            >
-                                                #{topic}
-                                            </span>
-                                        ))}
+                                {/* 底部信息 */}
+                                <div className="flex items-center justify-between text-xs text-gray-400 mt-3">
+                                    <div className="flex items-center gap-3">
+                                        <span>{question.subject}</span>
+                                        <span>•</span>
+                                        <span>{question.answerCount || 0} 回答</span>
                                     </div>
-                                )}
-
-                                {/* 底部统计 */}
-                                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1">
-                                            <Heart className="w-4 h-4" />
-                                            <span>{question.stats.likes}</span>
+                                            <Star className="w-3 h-3" />
+                                            <span>{question.collectionCount || 0}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <Star className="w-4 h-4" />
-                                            <span>{question.stats.favorites}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <MessageSquare className="w-4 h-4" />
-                                            <span>{question.stats.answers}</span>
+                                            <Heart className="w-3 h-3" />
+                                            <span>{question.likeCount || 0}</span>
                                         </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-gray-300" />
                                 </div>
                             </div>
                         );

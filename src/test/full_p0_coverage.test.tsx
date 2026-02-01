@@ -53,6 +53,17 @@ describe('Full P0 Test Coverage', () => {
             isLoading: false,
             fetchNextPage: vi.fn(),
             hasNextPage: false,
+            getQuestionById: vi.fn().mockReturnValue({
+                id: 'q1',
+                title: 'Mock Question Title',
+                authorId: 'u1',
+                authorName: 'Mock User',
+                authorAvatar: '',
+                createdAt: new Date().toISOString(),
+                stats: { likes: 0, comments: 0, favorites: 0 },
+                tags: ['Math'],
+                images: ['img1.jpg']
+            }),
         });
     });
 
