@@ -26,6 +26,7 @@ export interface User {
   // 学生专属
   grade?: string;
   age?: number;
+  school?: string;
 }
 
 // 问题实体

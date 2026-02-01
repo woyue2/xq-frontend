@@ -1,7 +1,7 @@
 export const DIFFICULTY_LABELS = {
-  easy: '简单',
-  medium: '中等',
-  hard: '难题',
+  easy: { label: '简单', className: 'bg-green-100 text-green-700' },
+  medium: { label: '中等', className: 'bg-yellow-100 text-yellow-700' },
+  hard: { label: '难题', className: 'bg-red-100 text-red-700' },
 } as const;
 
 export const BADGE_LABELS = {

@@ -28,6 +28,7 @@ export const mockUsers: User[] = [
     nickname: '小明同学',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming',
     role: 'student',
+    school: '星河中学',
   },
   {
     id: '2',
@@ -43,6 +44,32 @@ export const mockUsers: User[] = [
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=parent',
     role: 'parent',
   },
+];
+
+export const mockChildren = [
+  {
+    id: 'child_1',
+    name: '王小宝',
+    age: 8,
+    grade: '二年级',
+    school: '星河小学',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=child1',
+    boundAt: '2024-01-01T10:00:00',
+    parentId: '3'
+  },
+  // Automatically generated default children for all parents
+  ...mockUsers
+    .filter(u => u.role === 'parent' && u.id !== '3') // Avoid duplicate for id 3
+    .map((u, index) => ({
+      id: `child_auto_${u.id}`,
+      name: `${u.nickname}的孩子`,
+      age: 7 + index,
+      grade: `${index + 1}年级`,
+      school: '默认小学',
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=child_${u.id}`,
+      boundAt: new Date().toISOString(),
+      parentId: u.id
+    }))
 ];
 
 // 模拟问题数据

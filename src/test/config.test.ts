@@ -6,9 +6,13 @@ describe('App Constants Configuration', () => {
     expect(DIFFICULTY_LABELS).toHaveProperty('medium');
     expect(DIFFICULTY_LABELS).toHaveProperty('hard');
     
-    expect(DIFFICULTY_LABELS.easy).toBe('简单');
-    expect(DIFFICULTY_LABELS.medium).toBe('中等');
-    expect(DIFFICULTY_LABELS.hard).toBe('难题');
+    expect(DIFFICULTY_LABELS.easy.label).toBe('简单');
+    expect(DIFFICULTY_LABELS.medium.label).toBe('中等');
+    expect(DIFFICULTY_LABELS.hard.label).toBe('难题');
+
+    expect(DIFFICULTY_LABELS.easy.className).toBeDefined();
+    expect(DIFFICULTY_LABELS.medium.className).toBeDefined();
+    expect(DIFFICULTY_LABELS.hard.className).toBeDefined();
   });
 
   test('BADGE_LABELS should have correct keys', () => {

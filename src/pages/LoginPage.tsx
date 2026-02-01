@@ -18,6 +18,8 @@ import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
+import { parentService } from '@/services/parentService';
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuthStore();
@@ -32,9 +34,19 @@ export function LoginPage() {
   // 学生注册专用字段
   const [grade, setGrade] = useState('');
   const [age, setAge] = useState('');
+  const [school, setSchool] = useState('');
+
+  // 家长注册专用字段
+  const [childName, setChildName] = useState('');
+  const [childPhone, setChildPhone] = useState('');
+  const [childCode, setChildCode] = useState('');
+  const [childSchool, setChildSchool] = useState('');
+  const [childCountdown, setChildCountdown] = useState(0);
 
   // 判断是否为学生邀请码
   const isStudentInvite = !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
+  // 判断是否为家长邀请码
+  const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
 
   const handleGetCode = () => {
     if (!phone || phone.length !== 11) {
@@ -56,7 +68,29 @@ export function LoginPage() {
     toast.success('验证码已发送');
   };
 
-  const handleSubmit = () => {
+  const handleGetChildCode = () => {
+    if (!childPhone || childPhone.length !== 11) {
+      toast.error('请输入正确的孩子手机号');
+      return;
+    }
+
+    setChildCountdown(60);
+    const timer = setInterval(() => {
+      setChildCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // 调用发送验证码接口
+    parentService.sendBindSms(childPhone);
+    toast.success('验证码已发送');
+  };
+
+  const handleSubmit = async () => {
     // 表单验证
     if (!phone || phone.length !== 11) {
       toast.error('请输入正确的手机号');
@@ -93,6 +127,26 @@ export function LoginPage() {
         toast.error('请输入有效年龄（10-18岁）');
         return;
       }
+      if (!school) {
+        toast.error('请输入学校名称');
+        return;
+      }
+    }
+
+    // 家长注册需要绑定孩子信息
+    if (isParentInvite) {
+      if (!childName) {
+        toast.error('请输入孩子姓名');
+        return;
+      }
+      if (!childPhone || childPhone.length !== 11) {
+        toast.error('请输入正确的孩子手机号');
+        return;
+      }
+      if (!childCode) {
+        toast.error('请输入孩子验证码');
+        return;
+      }
     }
 
     // 模拟登录/注册
@@ -122,6 +176,7 @@ export function LoginPage() {
         ...(isStudentInvite && {
           grade,
           age: parseInt(age),
+          school,
         }),
       };
 
@@ -131,12 +186,29 @@ export function LoginPage() {
 
     if (user) {
       login(user, 'mock-jwt-token');
+      
+      // 如果是家长注册，执行绑定逻辑
+      if (isParentInvite) {
+        try {
+          await parentService.bindChild({
+            childName,
+            phone: childPhone,
+            code: childCode,
+            school: childSchool
+          });
+          toast.success('自动绑定孩子成功');
+        } catch (error) {
+          console.error('自动绑定失败:', error);
+          toast.error('自动绑定孩子失败，请稍后重试');
+        }
+      }
+
       toast.success('登录成功');
       navigate('/');
     }
   };
 
-  const canSubmit = phone.length === 11 && code && (isLogin || (inviteCode && (!isStudentInvite || (grade && age))));
+  const canSubmit = phone.length === 11 && code && (isLogin || (inviteCode && (!isStudentInvite || (grade && age && school))));
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -265,7 +337,88 @@ export function LoginPage() {
                   max="18"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="school">学校 *</Label>
+                <Input
+                  id="school"
+                  type="text"
+                  placeholder="请输入学校名称"
+                  value={school}
+                  onChange={(e) => setSchool(e.target.value)}
+                />
+              </div>
             </>
+          )}
+
+          {/* 家长专属字段（仅注册且使用家长邀请码时显示） */}
+          {isParentInvite && (
+            <div className="space-y-4 border-t pt-4 mt-2">
+              <p className="text-sm font-medium text-gray-700">绑定孩子信息</p>
+              
+              <div className="space-y-2">
+                <Label htmlFor="childName">孩子姓名 *</Label>
+                <Input
+                  id="childName"
+                  placeholder="请输入孩子姓名"
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="childSchool">孩子学校</Label>
+                <Input
+                  id="childSchool"
+                  data-testid="childSchool"
+                  placeholder="请输入孩子学校（选填）"
+                  value={childSchool}
+                  onChange={(e) => setChildSchool(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="childPhone">孩子手机号 *</Label>
+                <div className="relative">
+                  <Input
+                    id="childPhone"
+                    type="tel"
+                    placeholder="请输入孩子手机号"
+                    value={childPhone}
+                    onChange={(e) => setChildPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    className="pr-8"
+                  />
+                  {childPhone && (
+                    <button
+                      onClick={() => setChildPhone('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="childCode">验证码 *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="childCode"
+                    placeholder="请输入验证码"
+                    value={childCode}
+                    onChange={(e) => setChildCode(e.target.value)}
+                  />
+                  <Button
+                    onClick={handleGetChildCode}
+                    disabled={childCountdown > 0 || !childPhone || childPhone.length !== 11}
+                    variant="outline"
+                    className="whitespace-nowrap"
+                  >
+                    {childCountdown > 0 ? `${childCountdown}秒` : '获取验证码'}
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* 提交按钮 */}
@@ -284,6 +437,9 @@ export function LoginPage() {
                 setInviteCode('');
                 setGrade('');
                 setAge('');
+                setChildName('');
+                setChildPhone('');
+                setChildCode('');
               }}
               variant="outline"
               className="w-full h-12"

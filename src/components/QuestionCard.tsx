@@ -19,6 +19,8 @@ interface QuestionCardProps {
     onShare?: (e: React.MouseEvent) => void;
     showSubject?: boolean;
     isAdmin?: boolean;
+    isPinned?: boolean;
+    onPin?: (e: React.MouseEvent) => void;
     onTogglePin?: (e: React.MouseEvent) => void;
 }
 
@@ -26,16 +28,20 @@ export function QuestionCard({
     question, 
     isLiked = false, 
     isFavorited = false, 
+    isPinned: propIsPinned,
     onLike, 
     onFavorite,
     onShare,
     showSubject = true,
     isAdmin = false,
+    onPin,
     onTogglePin
 }: QuestionCardProps) {
     const navigate = useNavigate();
-    const isPinned = question.isPinned;
+    const isPinned = propIsPinned !== undefined ? propIsPinned : question.isPinned;
     const difficultyConfig = DIFFICULTY_LABELS[question.difficulty as DifficultyLevel];
+    const handlePin = onPin || onTogglePin;
+    const showPin = !!onPin || (isAdmin && !!onTogglePin);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -176,13 +182,13 @@ export function QuestionCard({
                     <Share2 className="w-3.5 h-3.5" />
                 </button>
 
-                {isAdmin && onTogglePin && (
+                {showPin && handlePin && (
                     <button
                         className={cn(
                             "flex items-center gap-1 text-[10px] transition-colors",
                             isPinned ? "text-blue-600 hover:text-gray-500" : "text-gray-500 hover:text-blue-600"
                         )}
-                        onClick={(e) => { e.stopPropagation(); onTogglePin(e); }}
+                        onClick={(e) => { e.stopPropagation(); handlePin(e); }}
                     >
                         {isPinned ? (
                             <>

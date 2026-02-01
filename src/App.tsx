@@ -16,6 +16,8 @@ import { MyAnswersPage } from '@/pages/MyAnswersPage';
 import { MyFavoritesPage } from '@/pages/MyFavoritesPage';
 import { MyLikesPage } from '@/pages/MyLikesPage';
 import { DiagnosticPage } from '@/pages/DiagnosticPage';
+import { ParentQuestionPage } from '@/pages/ParentQuestionPage';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Toaster } from "@/components/ui/sonner";
 
 // Initialize QueryClient
@@ -30,35 +32,38 @@ const queryClient = new QueryClient({
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
-          </Route>
+    <ErrorBoundary fallback={<div className="flex items-center justify-center min-h-screen text-red-500">应用加载失败，请刷新页面</div>}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+            </Route>
 
-          {/* Protected Routes (Main Layout) */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/create" element={<CreateQuestionPage />} />
-            <Route path="/question/:id" element={<QuestionDetailPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/audit" element={<AuditPage />} />
-            <Route path="/admin" element={<AdminManagementPage />} />
-            <Route path="/my-questions" element={<MyQuestionsPage />} />
-            <Route path="/my-questions/status/:status" element={<StatusListPage />} />
-            <Route path="/good-questions" element={<GoodQuestionsPage />} />
-            <Route path="/my-answers" element={<MyAnswersPage />} />
-            <Route path="/my-favorites" element={<MyFavoritesPage />} />
-            <Route path="/my-likes" element={<MyLikesPage />} />
-            <Route path="/diagnostic" element={<DiagnosticPage />} />
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-        <Toaster position="top-center" />
-      </BrowserRouter>
-    </QueryClientProvider>
+            {/* Protected Routes (Main Layout) */}
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/create" element={<CreateQuestionPage />} />
+              <Route path="/question/:id" element={<QuestionDetailPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/parent/questions/:childId" element={<ParentQuestionPage />} />
+              <Route path="/audit" element={<AuditPage />} />
+              <Route path="/admin" element={<AdminManagementPage />} />
+              <Route path="/my-questions" element={<MyQuestionsPage />} />
+              <Route path="/my-questions/status/:status" element={<StatusListPage />} />
+              <Route path="/good-questions" element={<GoodQuestionsPage />} />
+              <Route path="/my-answers" element={<MyAnswersPage />} />
+              <Route path="/my-favorites" element={<MyFavoritesPage />} />
+              <Route path="/my-likes" element={<MyLikesPage />} />
+              <Route path="/diagnostic" element={<DiagnosticPage />} />
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+          <Toaster position="top-center" />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

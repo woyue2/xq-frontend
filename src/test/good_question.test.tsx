@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GoodQuestionBadge } from '@/components/ui/GoodQuestionBadge';
+import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { BrowserRouter } from 'react-router-dom';
 import { api } from '@/services/api';
 import { featureFlags } from '@/config/feature-flags';

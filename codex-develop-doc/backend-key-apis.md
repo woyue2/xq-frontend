@@ -1,0 +1,478 @@
+# 知识星球问答小程序 - 后端关键接口草稿（Codex 工作稿）
+
+> 本文档给出关键接口的「近似最终版」草稿，落地时需与 `后端需求文档-完整版.md` 与 `后端-测试用例.md` 逐项对照确认。
+
+---
+
+## 1. 全局约定
+
+- Base URL：`/api`（如需版本控制，可 `/api/v1`，保持前后端一致）。
+- 统一响应格式：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {},
+  "timestamp": 1706832000000
+}
+```
+
+- 错误响应：
+
+```json
+{
+  "code": 403,
+  "message": "会员已过期",
+  "error": "MEMBER_EXPIRED",
+  "timestamp": 1706832000000
+}
+```
+
+- 通用请求头：
+  - `Authorization: Bearer <token>`（需要鉴权时）。
+  - `Content-Type: application/json`。
+  - `X-Client-Version`, `X-Platform` 等可选头部。
+
+---
+
+## 2. 鉴权与用户
+
+### 2.1 发送验证码 `POST /api/auth/send-code`
+
+- 描述：向指定手机号发送登录验证码。
+- 鉴权：无需。
+- 请求体：
+
+```json
+{
+  "phone": "13800138000",
+  "type": "login"
+}
+```
+
+- 响应示例（200）：
+
+```json
+{
+  "code": 200,
+  "message": "验证码已发送",
+  "data": {
+    "phone": "13800138000",
+    "expireIn": 300,
+    "cooldown": 60
+  },
+  "timestamp": 1706832000000
+}
+```
+
+- 典型错误：
+  - `400/VALIDATION_ERROR`：手机号格式非法。
+  - `429/RATE_LIMITED`：单 IP 或单手机号请求过于频繁。
+
+### 2.2 登录 `POST /api/auth/login`
+
+- 描述：使用手机号 + 验证码完成登录，签发 JWT。
+- 请求体：
+
+```json
+{
+  "phone": "13800138000",
+  "code": "123456"
+}
+```
+
+- 响应示例（200）：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "user_123",
+      "phone": "13800138000",
+      "nickname": "张三",
+      "avatar": "https://...",
+      "role": "student",
+      "expiresAt": "2026-03-01T00:00:00.000Z",
+      "permissions": ["question:create", "question:like", "question:favorite"]
+    }
+  },
+  "timestamp": 1706832000000
+}
+```
+
+- 典型错误：
+  - `400/VALIDATION_ERROR`：参数缺失或验证码格式不合法。
+  - `403/WHITELIST_REQUIRED`：手机号不在白名单。
+  - `401/INVALID_CODE`：验证码错误或过期。
+
+### 2.3 获取当前用户 `GET /api/auth/me`
+
+- 描述：基于 JWT 获取当前用户信息。
+- 鉴权：需要。
+- 响应示例（200）：同登录接口中 `data.user`。
+
+---
+
+## 3. 白名单与课时
+
+### 3.1 获取白名单列表 `GET /api/admin/whitelist`
+
+- 鉴权：管理员。
+- 查询参数：
+  - `page`, `limit`
+  - `phone`（可选）
+  - `role`（可选）
+
+- 响应示例（200）：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": "wl_1",
+        "phone": "13800138000",
+        "name": "张三",
+        "role": "student",
+        "grade": "初一",
+        "expiresAt": "2026-03-01T00:00:00.000Z",
+        "isRegistered": true,
+        "userId": "user_123"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  },
+  "timestamp": 1706832000000
+}
+```
+
+### 3.2 新增白名单 `POST /api/admin/whitelist`
+
+- 请求体：
+
+```json
+{
+  "phone": "13800138000",
+  "name": "张三",
+  "role": "student",
+  "grade": "初一",
+  "expiresAt": "2026-03-01T00:00:00.000Z"
+}
+```
+
+- 响应：返回新增记录。
+
+### 3.3 更新白名单记录 `PATCH /api/admin/whitelist/:id`
+
+- 用于修改有效期、角色、年级等。
+
+### 3.4 删除白名单记录 `DELETE /api/admin/whitelist/:id`
+
+- 软删除或逻辑禁用，避免误删。
+
+---
+
+## 4. 问题 / 回答 / 评论
+
+### 4.1 获取问题列表 `GET /api/questions`
+
+- 查询参数：
+  - `page`, `limit`
+  - `subject`（可选）
+  - `status`（可选：approved/pending 等）
+  - `keyword`（可选：标题/内容关键词）
+
+- 响应示例（200）：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": "q_1",
+        "title": "函数图像相关问题",
+        "content": "已知函数 y=...",
+        "subject": "math",
+        "topics": ["二次函数", "抛物线"],
+        "methods": ["配方法"],
+        "author": {
+          "id": "user_123",
+          "nickname": "张三"
+        },
+        "status": "approved",
+        "isGoodQuestion": true,
+        "likesCount": 10,
+        "favoritesCount": 5,
+        "commentsCount": 3,
+        "answersCount": 2,
+        "createdAt": "2026-02-01T00:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  },
+  "timestamp": 1706832000000
+}
+```
+
+### 4.2 获取问题详情 `GET /api/questions/:id`
+
+- 响应包含问题详情、图片/音频列表以及统计信息。
+
+### 4.3 创建问题 `POST /api/questions`
+
+- 鉴权：学生（有效期内）或教师。
+- 请求体示例：
+
+```json
+{
+  "title": "函数图像相关问题",
+  "content": "题目原文描述...",
+  "subject": "math",
+  "topics": ["二次函数", "抛物线"],
+  "methods": ["配方法"],
+  "images": ["https://..."],
+  "audios": [
+    {
+      "url": "https://...",
+      "duration": 30
+    }
+  ]
+}
+```
+
+- 响应示例（200）：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "q_1",
+    "status": "pending"
+  },
+  "timestamp": 1706832000000
+}
+```
+
+- 业务逻辑：
+  - 创建问题记录与附属图片/音频记录。
+  - 异步推送 AI 审核任务（不要阻塞 HTTP 响应）。
+
+### 4.4 回答与评论接口（示例）
+
+- `POST /api/questions/:id/answers`
+  - 请求体：`{ "content": "详细解答...", "images": [...], "audios": [...] }`
+- `GET /api/questions/:id/answers`
+- `POST /api/questions/:id/comments`
+- `GET /api/questions/:id/comments`
+
+---
+
+## 5. 点赞与收藏
+
+### 5.1 点赞 `POST /api/interactions/like`
+
+- 请求体：
+
+```json
+{
+  "targetType": "question",
+  "targetId": "q_1"
+}
+```
+
+- 响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "liked": true,
+    "likesCount": 11
+  },
+  "timestamp": 1706832000000
+}
+```
+
+### 5.2 取消点赞 `DELETE /api/interactions/like`
+
+- 请求体同上。
+
+### 5.3 收藏与取消收藏
+
+- `POST /api/interactions/favorite`
+- `DELETE /api/interactions/favorite`
+
+---
+
+## 6. 审核与 AI 回调
+
+### 6.1 审核队列 `GET /api/admin/audit-queue`
+
+- 查询参数：`page`, `limit`, `type`（question/answer/comment）等。
+
+### 6.2 审核操作
+
+- `POST /api/admin/audit/:id/approve`
+- `POST /api/admin/audit/:id/reject`
+
+### 6.3 AI 回调 `POST /api/internal/ai-check`
+
+- 描述：AI 服务/队列调用的内部接口，用于更新问题/回答的 `ai_result` 与状态。
+- 请求体（示例）：
+
+```json
+{
+  "targetType": "question",
+  "targetId": "q_1",
+  "result": {
+    "safe": true,
+    "score": 0.98,
+    "labels": ["math", "study"]
+  }
+}
+```
+
+- 逻辑：
+  - 更新对应记录的 `ai_result` 字段（结构化 JSON）。
+  - `safe=true` → `status=approved`。
+  - `safe=false` → `status=rejected`，必要时写入 `reject_reason`。
+
+---
+
+## 7. 行为埋点
+
+### 7.1 上报行为 `POST /api/behavior/log`
+
+- 请求体：
+
+```json
+{
+  "type": "click_good_question",
+  "timestamp": 1706832000000,
+  "metadata": {
+    "sourcePage": "/question/123",
+    "questionId": "q_1"
+  }
+}
+```
+
+- 响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "Logged successfully",
+  "data": {
+    "id": "log_abc123",
+    "receivedAt": 1706832000100
+  },
+  "timestamp": 1706832000100
+}
+```
+
+---
+
+## 8. 文件上传签名
+
+### 8.1 获取上传签名 `GET /api/upload/signature`
+
+- 查询参数：
+  - `type`：`"image"` | `"audio"`。
+
+- 响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "uploadUrl": "https://oss-bucket.oss-cn-xxx.aliyuncs.com/",
+    "key": "questions/q_1/img_123.png",
+    "policy": "base64-encoded-policy",
+    "signature": "signature",
+    "expireAt": 1706832300000
+  },
+  "timestamp": 1706832000000
+}
+```
+
+---
+
+## 9. 通知接口
+
+> 具体字段以需求文档为准，这里提供一个可实现的草稿。
+
+### 9.1 获取通知列表 `GET /api/notifications`
+
+- 查询参数：`page`, `limit`, `unread`（可选）。
+
+### 9.2 获取未读数量 `GET /api/notifications/unread-count`
+
+- 响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "unreadCount": 5
+  },
+  "timestamp": 1706832000000
+}
+```
+
+### 9.3 标记已读 `POST /api/notifications/read`
+
+- 请求体：
+
+```json
+{
+  "ids": ["n_1", "n_2"]
+}
+```
+
+---
+
+## 10. 错误码分组建议（摘录）
+
+> 详细表格建议在 `后端需求文档-完整版.md` 中维护，这里仅给出分组草稿。
+
+- 认证与鉴权
+  - `UNAUTHORIZED`（401）：未登录或 Token 无效。
+  - `FORBIDDEN`（403）：无权限访问资源。
+  - `MEMBER_EXPIRED`（403）：会员课时已过期。
+  - `WHITELIST_REQUIRED`（403）：手机号不在白名单。
+
+- 参数与资源
+  - `VALIDATION_ERROR`（400）：参数校验失败。
+  - `RESOURCE_NOT_FOUND`（404）：资源不存在。
+
+- 业务
+  - `QUESTION_STATUS_INVALID`（400/409）：问题状态不允许当前操作。
+  - `ANSWER_STATUS_INVALID`（400/409）：回答状态不允许当前操作。
+
+- 系统与安全
+  - `RATE_LIMITED`（429）：请求过于频繁。
+  - `INTERNAL_SERVER_ERROR`（500）：未预期错误。
+
+---
+
+> 实际实现时，需将本文件与：
+> - `后端需求文档-完整版.md`
+> - `后端-测试用例.md`
+> 做逐行对照，确保路径、字段、错误码与测试用例完全一致。
+

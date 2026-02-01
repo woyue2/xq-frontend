@@ -1,0 +1,67 @@
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { ArrowLeft } from 'lucide-react';
+import { QuestionList } from '@/components/QuestionList';
+import { QuestionFilter } from '@/components/QuestionFilter';
+import { parentService } from '@/services/parentService';
+
+export function ParentQuestionPage() {
+  const { childId } = useParams<{ childId: string }>();
+  const navigate = useNavigate();
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState('');
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading
+  } = useInfiniteQuery({
+    queryKey: ['parent-questions', childId, selectedSubject, selectedTopic],
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!childId) throw new Error('Child ID is required');
+      const res = await parentService.getChildQuestions(childId, {
+        page: pageParam,
+        limit: 10,
+        subject: selectedSubject,
+        topic: selectedTopic
+      });
+      return res.data.data;
+    },
+    getNextPageParam: (lastPage) => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
+    initialPageParam: 1,
+    enabled: !!childId
+  });
+
+  const allQuestions = data?.pages.flatMap(p => p.items) || [];
+
+  return (
+    <div className="flex flex-col gap-4 pb-4 px-4 pt-4">
+      <div className="flex items-center gap-2 mb-2">
+         <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+         </button>
+         <h1 className="text-lg font-bold">孩子提问列表</h1>
+      </div>
+
+      <QuestionFilter 
+        selectedSubject={selectedSubject}
+        setSelectedSubject={setSelectedSubject}
+        selectedTopic={selectedTopic}
+        setSelectedTopic={setSelectedTopic}
+      />
+
+      <QuestionList
+        questions={allQuestions}
+        isLoading={isLoading}
+        hasNextPage={!!hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={fetchNextPage}
+        showDetailButton={true}
+        onDetailClick={(id) => navigate(`/question/${id}`)}
+      />
+    </div>
+  );
+}

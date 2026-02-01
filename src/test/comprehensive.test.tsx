@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { parentService } from '@/services/parentService';
 
 // --- Page Imports ---
 import { AdminManagementPage } from '@/pages/AdminManagementPage';
@@ -71,7 +72,7 @@ vi.mock('@/lib/mock-data', () => {
         mockAnswers: { '1': [] },
         userLikes: new Set(),
         userFavorites: new Set(),
-        validInviteCodes: ['STUDENT2024']
+        validInviteCodes: ['ZHISHIXINGQIU2024', 'STUDENT2024', 'TEACHER2024', 'PARENT2024']
     };
 });
 
@@ -162,7 +163,121 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
 
             await waitFor(() => expect(loginMock).toHaveBeenCalled());
         });
+
+        it('AUTH-002: Student Registration with School', async () => {
+            const loginMock = vi.fn();
+            (useAuthStore as any).mockReturnValue({ user: null, login: loginMock });
+            render(<MemoryRouter><LoginPage /></MemoryRouter>);
+
+            // Switch to Register
+            const switchBtn = screen.getByText('快速注册'); 
+            fireEvent.click(switchBtn);
+
+            // Now in Register mode
+            const phoneInput = screen.getAllByPlaceholderText('请输入11位手机号')[0];
+            fireEvent.change(phoneInput, { target: { value: '13800138000' } });
+
+            const codeInput = screen.getByPlaceholderText('请输入验证码');
+            fireEvent.change(codeInput, { target: { value: '123456' } });
+
+            const inviteInput = screen.getByPlaceholderText('需输入有效邀请码方可注册');
+            fireEvent.change(inviteInput, { target: { value: 'STUDENT2024' } });
+
+            // Expect student fields to appear
+            await waitFor(() => expect(screen.getByText('年级 *')).toBeDefined());
+
+            // Fill student fields
+            // Select grade (it's a Select component, might need specific handling or just finding by label)
+            // For shadcn Select, we usually click trigger then option.
+            // Simplified: fireEvent on hidden input or use getByLabelText if possible.
+            // Let's try to find the SelectTrigger.
+            const gradeTrigger = screen.getByText('请选择年级');
+            fireEvent.click(gradeTrigger);
+            // Wait for content to open and click option
+            await waitFor(() => expect(screen.getByText('初一')).toBeDefined());
+            fireEvent.click(screen.getByText('初一'));
+            
+            // We can try to just assert the fields are there.
+            
+            const ageInput = screen.getByPlaceholderText('请输入年龄（10-18岁）');
+            fireEvent.change(ageInput, { target: { value: '15' } });
+
+            const schoolInput = screen.getByPlaceholderText('请输入学校名称');
+            fireEvent.change(schoolInput, { target: { value: 'Test School' } });
+
+            // Submit
+            const submitBtn = screen.getByText('注册'); // Button text changes to "注册"
+            fireEvent.click(submitBtn);
+
+            await waitFor(() => expect(loginMock).toHaveBeenCalled());
+        });
+
+        it('AUTH-003: Parent Registration with Child Binding', async () => {
+            const loginMock = vi.fn();
+            (useAuthStore as any).mockReturnValue({ 
+                user: null, 
+                login: loginMock, 
+                isAuthenticated: false 
+            });
+
+            // Mock parentService.bindChild using spyOn
+            const bindChildSpy = vi.spyOn(parentService, 'bindChild').mockResolvedValue({ code: 200, message: 'Success', data: {} } as any);
+
+            render(<MemoryRouter><LoginPage /></MemoryRouter>);
+
+            // Switch to Register
+            const switchBtn = screen.getByText('快速注册');
+            fireEvent.click(switchBtn);
+
+            // Fill basic info
+            const phoneInput = screen.getByPlaceholderText('请输入11位手机号');
+            fireEvent.change(phoneInput, { target: { value: '13900139003' } });
+
+            const codeInput = screen.getByPlaceholderText('请输入验证码');
+            fireEvent.change(codeInput, { target: { value: '123456' } });
+
+            const inviteInput = screen.getByPlaceholderText('需输入有效邀请码方可注册');
+            fireEvent.change(inviteInput, { target: { value: 'PARENT2024' } });
+
+            // Wait for Parent fields to appear
+            await waitFor(() => expect(screen.getByText('绑定孩子信息')).toBeDefined());
+
+            // Fill child info
+            const childNameInput = screen.getByPlaceholderText('请输入孩子姓名');
+            fireEvent.change(childNameInput, { target: { value: 'Test Child' } });
+
+            const childPhoneInput = screen.getByPlaceholderText('请输入孩子手机号');
+            fireEvent.change(childPhoneInput, { target: { value: '13812345678' } });
+
+            const codeInputs = screen.getAllByPlaceholderText('请输入验证码');
+            fireEvent.change(codeInputs[1], { target: { value: '654321' } });
+
+            // Use findBy to wait for the element to appear
+            const childSchoolInput = await screen.findByTestId('childSchool');
+            fireEvent.change(childSchoolInput, { target: { value: 'Child School' } });
+
+            // Submit
+            const submitBtn = screen.getByText('注册');
+            fireEvent.click(submitBtn);
+
+            // Verify bindChild called
+            await waitFor(() => expect(bindChildSpy).toHaveBeenCalled());
+
+            // Verify arguments if called
+            expect(bindChildSpy).toHaveBeenCalledWith(expect.objectContaining({
+                childName: 'Test Child',
+                phone: '13812345678',
+                school: 'Child School'
+            }));
+
+            // Verify login called
+            await waitFor(() => expect(loginMock).toHaveBeenCalled());
+            
+            // Clean up spy
+            bindChildSpy.mockRestore();
+        });
     });
+
 
     // 3. STU
     describe('STU: Student Capabilities', () => {

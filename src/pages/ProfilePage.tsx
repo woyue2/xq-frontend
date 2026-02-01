@@ -1,6 +1,12 @@
-import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2 } from 'lucide-react';
+import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2, Baby, Phone, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,12 +25,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { UI_CONFIG } from '@/config/ui-config';
 import { aiTextConfig } from '@/config/ai-text';
+import { parentService } from '@/services/parentService';
+import type { ChildInfo } from '@/types/parent';
+import { Label } from '@/components/ui/label';
 
 const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -49,6 +58,76 @@ export function ProfilePage() {
   const [showNicknameDialog, setShowNicknameDialog] = useState(false);
   const [newNickname, setNewNickname] = useState('');
   const [isSubmittingNickname, setIsSubmittingNickname] = useState(false);
+
+  // 家长绑定相关状态
+  const [children, setChildren] = useState<ChildInfo[]>([]);
+  const [showBindDialog, setShowBindDialog] = useState(false);
+  const [bindName, setBindName] = useState('');
+  const [bindPhone, setBindPhone] = useState('');
+  const [bindCode, setBindCode] = useState('');
+  const [bindSchool, setBindSchool] = useState('');
+  const [bindCountdown, setBindCountdown] = useState(0);
+
+  // 加载绑定孩子列表
+  useEffect(() => {
+    if (currentUser?.role === 'parent') {
+      loadChildren();
+    }
+  }, [currentUser]);
+
+  const loadChildren = async () => {
+    try {
+      const res = await parentService.getChildren();
+      if (res.data.code === 200) {
+        setChildren(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load children', error);
+    }
+  };
+
+  const handleGetBindCode = () => {
+    if (!bindPhone || bindPhone.length !== 11) {
+      toast.error('请输入正确的手机号');
+      return;
+    }
+    setBindCountdown(60);
+    const timer = setInterval(() => {
+      setBindCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    parentService.sendBindSms(bindPhone);
+    toast.success('验证码已发送');
+  };
+
+  const handleBindChild = async () => {
+    if (!bindName || !bindPhone || !bindCode) {
+      toast.error('请填写完整信息');
+      return;
+    }
+    try {
+      await parentService.bindChild({
+        childName: bindName,
+        phone: bindPhone,
+        code: bindCode,
+        school: bindSchool
+      });
+      toast.success('绑定成功');
+      setShowBindDialog(false);
+      setBindName('');
+      setBindPhone('');
+      setBindCode('');
+      setBindSchool('');
+      loadChildren();
+    } catch (error) {
+      // Error handled by interceptor usually
+    }
+  };
 
   // 模拟AI审核API调用
   const simulateAIReview = async (content: string): Promise<{ passed: boolean, reason?: string }> => {
@@ -89,8 +168,13 @@ export function ProfilePage() {
   };
 
   // Redirect if not logged in
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login');
+    }
+  }, [currentUser, navigate]);
+
   if (!currentUser) {
-    navigate('/login');
     return null;
   }
 
@@ -221,6 +305,68 @@ export function ProfilePage() {
 
         {/* 功能入口区域 */}
         <div className="space-y-3">
+          {/* 家长专属：我的孩子 */}
+          {currentUser?.role === 'parent' && (
+            <div className="bg-white rounded-3xl shadow-sm overflow-hidden p-4">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-orange-50">
+                    <Baby className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <span className="font-medium text-gray-700">我的孩子</span>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setShowBindDialog(true)} className="h-8 rounded-full">
+                  <Plus className="w-4 h-4 mr-1" />
+                  添加
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {children.length === 0 ? (
+                  <div className="text-center py-4 text-gray-400 text-sm bg-gray-50 rounded-xl">
+                    暂无绑定的孩子
+                  </div>
+                ) : (
+                  children.map((child) => (
+                    <div key={child.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10 border border-white shadow-sm">
+                          <AvatarImage src={child.avatar} />
+                          <AvatarFallback>{child.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-sm text-gray-800">{child.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {child.school && <span className="mr-2">{child.school}</span>}
+                            {child.grade}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => navigate(`/parent/questions/${child.id}`)}
+                        >
+                          查看提问
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 px-2 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          onClick={() => toast.info('如需解绑请联系班主任')}
+                        >
+                          解绑
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden p-2">
             {menuItems
               .filter((item) => item.visible)
@@ -357,6 +503,67 @@ export function ProfilePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 绑定孩子对话框 */}
+      <Dialog open={showBindDialog} onOpenChange={setShowBindDialog}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">绑定孩子</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>孩子姓名</Label>
+              <Input
+                value={bindName}
+                onChange={(e) => setBindName(e.target.value)}
+                placeholder="请输入孩子姓名"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>学校（选填）</Label>
+              <Input
+                value={bindSchool}
+                onChange={(e) => setBindSchool(e.target.value)}
+                placeholder="请输入学校名称"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>手机号</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={bindPhone}
+                  onChange={(e) => setBindPhone(e.target.value)}
+                  placeholder="请输入手机号"
+                  maxLength={11}
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleGetBindCode}
+                  disabled={bindCountdown > 0 || !bindPhone}
+                  className="whitespace-nowrap w-24"
+                >
+                  {bindCountdown > 0 ? `${bindCountdown}s` : '获取验证码'}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>验证码</Label>
+              <Input
+                value={bindCode}
+                onChange={(e) => setBindCode(e.target.value)}
+                placeholder="请输入验证码"
+                maxLength={6}
+              />
+            </div>
+            <Button
+              onClick={handleBindChild}
+              className="w-full bg-morandi-5 hover:bg-morandi-5/90 rounded-xl mt-4"
+            >
+              确认绑定
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
