@@ -8,6 +8,10 @@ import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { AuditPage } from '@/pages/AuditPage';
+import { AdminManagementPage } from '@/pages/AdminManagementPage';
+import { MyQuestionsPage } from '@/pages/MyQuestionsPage';
+import { MyFavoritesPage } from '@/pages/MyFavoritesPage';
+import { MyLikesPage } from '@/pages/MyLikesPage';
 import { Toaster } from '@/app/components/ui/sonner';
 
 // Initialize QueryClient
@@ -37,6 +41,10 @@ export default function App() {
             <Route path="/question/:id" element={<QuestionDetailPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/audit" element={<AuditPage />} />
+            <Route path="/admin" element={<AdminManagementPage />} />
+            <Route path="/my-questions" element={<MyQuestionsPage />} />
+            <Route path="/my-favorites" element={<MyFavoritesPage />} />
+            <Route path="/my-likes" element={<MyLikesPage />} />
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

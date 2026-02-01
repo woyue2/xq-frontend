@@ -1,4 +1,4 @@
-import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users } from 'lucide-react';
+import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import {
@@ -17,10 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/app/components/ui/dialog';
+import { Input } from '@/app/components/ui/input';
+import { Button } from '@/app/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { UI_CONFIG } from '@/config/ui-config';
 
 const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -42,6 +45,47 @@ export function ProfilePage() {
   const { user: currentUser, logout, updateUser } = useAuthStore();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  const [showNicknameDialog, setShowNicknameDialog] = useState(false);
+  const [newNickname, setNewNickname] = useState('');
+  const [isSubmittingNickname, setIsSubmittingNickname] = useState(false);
+
+  // 模拟AI审核API调用
+  const simulateAIReview = async (content: string): Promise<{ passed: boolean, reason?: string }> => {
+    await new Promise(resolve => setTimeout(resolve, 1500)); // 模拟API延迟
+    // 简单模拟：检查敏感词
+    const sensitiveWords = ['admin', '管理员', '系统', '官方', '客服'];
+    if (sensitiveWords.some(w => content.toLowerCase().includes(w))) {
+      return { passed: false, reason: '昵称包含敏感词，请修改后重试' };
+    }
+    if (content.length < 2) {
+      return { passed: false, reason: '昵称至少需要2个字符' };
+    }
+    if (content.length > 20) {
+      return { passed: false, reason: '昵称最多20个字符' };
+    }
+    return { passed: true };
+  };
+
+  const handleUpdateNickname = async () => {
+    if (!newNickname.trim()) {
+      toast.error('请输入昵称');
+      return;
+    }
+    setIsSubmittingNickname(true);
+    try {
+      const result = await simulateAIReview(newNickname);
+      if (result.passed) {
+        updateUser({ nickname: newNickname });
+        toast.success('昵称已更新');
+        setShowNicknameDialog(false);
+        setNewNickname('');
+      } else {
+        toast.error(result.reason || '昵称审核未通过');
+      }
+    } finally {
+      setIsSubmittingNickname(false);
+    }
+  };
 
   // Redirect if not logged in
   if (!currentUser) {
@@ -51,11 +95,11 @@ export function ProfilePage() {
 
   const getRoleBadge = (role: string) => {
     const roleMap: Record<string, { label: string; className: string }> = {
-      student: { label: '学生', className: 'bg-[#BDE0FE]' },
-      teacher: { label: '老师（有权限）', className: 'bg-[#D5BDAF]' },
-      parent: { label: '家长', className: 'bg-[#CDB4DB]' },
+      student: { label: '学生', className: UI_CONFIG.colors.roles.student },
+      teacher: { label: '老师（有权限）', className: UI_CONFIG.colors.roles.teacher },
+      parent: { label: '家长', className: UI_CONFIG.colors.roles.parent },
     };
-    return roleMap[role] || { label: '未知', className: 'bg-gray-500' };
+    return roleMap[role] || { label: '未知', className: 'bg-morandi-gray1' };
   };
 
   const roleBadge = getRoleBadge(currentUser.role);
@@ -82,14 +126,14 @@ export function ProfilePage() {
     {
       icon: ShieldCheck,
       label: '审核管理',
-      color: 'text-indigo-500',
+      color: 'text-teal-600',
       visible: currentUser.role === 'teacher',
       onClick: () => navigate('/audit'),
     },
     {
       icon: Users,
       label: '用户白名单',
-      color: 'text-purple-500',
+      color: 'text-cyan-600',
       visible: currentUser.role === 'teacher',
       onClick: () => navigate('/admin'),
     },
@@ -98,21 +142,21 @@ export function ProfilePage() {
       label: '我的点赞',
       color: 'text-red-500',
       visible: true,
-      onClick: () => toast.success('查看我的点赞'),
+      onClick: () => navigate('/my-likes'),
     },
     {
       icon: Star,
       label: '我的收藏',
       color: 'text-yellow-500',
       visible: true,
-      onClick: () => toast.success('查看我的收藏'),
+      onClick: () => navigate('/my-favorites'),
     },
     {
       icon: MessageSquare,
       label: '我的提问',
       color: 'text-blue-500',
       visible: currentUser.role === 'student' || currentUser.role === 'teacher',
-      onClick: () => toast.success('查看我的提问'),
+      onClick: () => navigate('/my-questions'),
     },
     {
       icon: Edit3,
@@ -153,7 +197,18 @@ export function ProfilePage() {
             </div>
 
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">{currentUser?.nickname || '未登录'}</h2>
+              <div
+                className="flex items-center justify-center gap-2 cursor-pointer group"
+                onClick={() => {
+                  setNewNickname(currentUser?.nickname || '');
+                  setShowNicknameDialog(true);
+                }}
+              >
+                <h2 className="text-2xl font-bold text-gray-800 group-hover:text-morandi-5 transition-colors">
+                  {currentUser?.nickname || '未登录'}
+                </h2>
+                <Pencil className="w-4 h-4 text-gray-400 group-hover:text-morandi-5 transition-colors" />
+              </div>
               {roleBadge && (
                 <Badge className={`${roleBadge.className} text-white border-0 px-4 py-1 rounded-full`}>
                   {roleBadge.label}
@@ -172,6 +227,7 @@ export function ProfilePage() {
                 <button
                   key={index}
                   onClick={item.onClick}
+                  data-testid={`menu-item-${item.label.replace(/\s/g, '-')}`}
                   className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-b-0 active:scale-[0.98]"
                 >
                   <div className={`p-2 rounded-2xl bg-opacity-10 ${item.color.replace('text', 'bg')}`}>
@@ -216,6 +272,44 @@ export function ProfilePage() {
         </div>
       </div>
 
+      {/* 昵称编辑对话框 (含AI审核) */}
+      <Dialog open={showNicknameDialog} onOpenChange={setShowNicknameDialog}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">修改昵称</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Input
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+                placeholder="请输入新昵称 (2-20字符)"
+                maxLength={20}
+                disabled={isSubmittingNickname}
+                className="rounded-xl"
+              />
+              <p className="text-xs text-gray-400 text-center">
+                昵称需要经过内容审核，请遵守社区规范
+              </p>
+            </div>
+            <Button
+              onClick={handleUpdateNickname}
+              disabled={isSubmittingNickname || !newNickname.trim()}
+              className="w-full bg-morandi-5 hover:bg-morandi-5/90 rounded-xl"
+            >
+              {isSubmittingNickname ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  审核中...
+                </>
+              ) : (
+                '确认修改'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 头像选择对话框 */}
       <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl">
@@ -227,12 +321,12 @@ export function ProfilePage() {
               <button
                 key={idx}
                 onClick={() => handleSelectAvatar(url)}
-                className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${currentUser?.avatar === url ? 'border-[#D5BDAF]' : 'border-transparent'
+                className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${currentUser?.avatar === url ? 'border-morandi-5' : 'border-transparent'
                   }`}
               >
                 <img src={url} alt={`avatar-${idx}`} className="w-full h-full object-cover" />
                 {currentUser?.avatar === url && (
-                  <div className="absolute inset-0 bg-[#D5BDAF] bg-opacity-20 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-morandi-5 bg-opacity-20 flex items-center justify-center">
                     <Check className="w-6 h-6 text-white drop-shadow-md" />
                   </div>
                 )}

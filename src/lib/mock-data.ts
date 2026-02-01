@@ -214,6 +214,8 @@ export const mockComments: Record<string, Comment[]> = {
   ],
 };
 
+
+
 // 用户点赞、收藏数据
 export const userLikes = new Set<string>(['1', '3']);
 export const userFavorites = new Set<string>(['1', '2']);

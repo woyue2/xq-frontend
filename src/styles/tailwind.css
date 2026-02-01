@@ -2,3 +2,17 @@
 @source '../**/*.{js,ts,jsx,tsx}';
 
 @import 'tw-animate-css';
+
+@theme {
+  --color-morandi-1: #CCD5AE;
+  --color-morandi-2: #E9EDC9;
+  --color-morandi-3: #FEFAE0;
+  --color-morandi-4: #FAEDCD;
+  --color-morandi-5: #D4A373;
+  --color-morandi-gray1: #E8E8E4;
+  --color-morandi-gray2: #D8E2DC;
+  --color-morandi-gray3: #ECE4DB;
+  --color-morandi-skin1: #FFE5D9;
+  --color-morandi-skin2: #FFD7BA;
+  --color-morandi-skin3: #FEC89A;
+}

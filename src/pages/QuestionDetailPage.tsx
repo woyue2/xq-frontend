@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Input } from '@/app/components/ui/input';
@@ -10,13 +10,19 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cn } from '@/lib/utils';
+import { ImageCarousel } from '@/app/components/ui/image-carousel';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuestions } from '@/hooks/useQuestions';
+import { UI_CONFIG } from '@/config/ui-config';
+import { Pin } from 'lucide-react';
 
 export function QuestionDetailPage() {
   const { id: questionId } = useParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
+  const { getQuestionById } = useQuestions();
 
-  const question = mockQuestions.find((q) => q.id === questionId);
+  const question = getQuestionById(questionId || '');
   // Safe fallbacks if questionId is undefined
   const safeQuestionId = questionId || '';
   const answers = mockAnswers[safeQuestionId] || [];
@@ -29,6 +35,7 @@ export function QuestionDetailPage() {
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
 
   if (!question) {
     return (
@@ -41,9 +48,9 @@ export function QuestionDetailPage() {
 
   const getDifficultyConfig = (difficulty?: DifficultyLevel) => {
     const configs = {
-      easy: { label: '简单', className: 'bg-[#BDE0FE] text-blue-700' },
-      medium: { label: '中等', className: 'bg-[#FFC8DD] text-pink-700' },
-      hard: { label: '难题', className: 'bg-[#FFAFCC] text-red-700' },
+      easy: { label: '简单', className: UI_CONFIG.colors.difficulty.easy },
+      medium: { label: '中等', className: UI_CONFIG.colors.difficulty.medium },
+      hard: { label: '难题', className: UI_CONFIG.colors.difficulty.hard },
     };
     return difficulty ? configs[difficulty] : null;
   };
@@ -161,28 +168,35 @@ export function QuestionDetailPage() {
 
   const isQuestionAuthor = currentUser?.id === question.authorId;
 
-  return (
-    <div className="flex flex-col gap-4">
-      {/* 顶部导航栏 - Now handled by MainLayout if needed, but for detail page back button is nice */}
-      {/* Since MainLayout has a header, having another header might be redundant but Detail page usually has Back button. */}
-      {/* We can hide MainLayout header for detail pages or just keep the back button style inside content */}
 
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="flex flex-col gap-4"
+    >
+      {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
+          className="p-2 hover:bg-gray-100 rounded-full transition"
+          data-testid="back-button"
         >
           <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
+        </motion.button>
         <div className="flex flex-col items-center flex-1">
           <h1 className="text-base font-bold text-gray-800">问题详情</h1>
         </div>
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={handleShare}
-          className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
+          className="p-2 hover:bg-gray-100 rounded-full transition"
         >
           <Share2 className="w-5 h-5 text-gray-600" />
-        </button>
+        </motion.button>
       </div>
 
       {/* 内容区域 */}
@@ -192,12 +206,12 @@ export function QuestionDetailPage() {
           {/* 标签行 */}
           <div className="flex flex-wrap items-center gap-2">
             {question.isGoodQuestion && (
-              <Badge className="bg-[#FFAFCC] text-white border-none">好问题</Badge>
+              <Badge className={UI_CONFIG.colors.goodQuestion}>好问题</Badge>
             )}
             {question.tags?.map((tag, index) => (
               <Badge
                 key={index}
-                className="bg-[#BDE0FE] text-gray-700 border-none hover:bg-[#A2D2FF]"
+                className="bg-morandi-1 text-gray-700 border-none hover:bg-morandi-2"
               >
                 {tag}
               </Badge>
@@ -246,11 +260,11 @@ export function QuestionDetailPage() {
 
           {/* 录音播放区域 */}
           {question.audioUrl && (
-            <div className="bg-[#F5EBE0] rounded-2xl p-4">
+            <div className="bg-morandi-4 rounded-2xl p-4">
               <div className="flex items-center gap-3">
                 <button
                   onClick={handlePlayAudio}
-                  className="w-12 h-12 bg-[#D5BDAF] hover:bg-[#B59D8F] text-white rounded-full flex items-center justify-center transition shadow-sm active:scale-90 flex-shrink-0"
+                  className="w-12 h-12 bg-morandi-5 hover:bg-morandi-5/80 text-white rounded-full flex items-center justify-center transition shadow-sm active:scale-90 flex-shrink-0"
                 >
                   {isPlayingAudio ? (
                     <Pause className="w-5 h-5 fill-white" />
@@ -261,34 +275,25 @@ export function QuestionDetailPage() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-[#8C786E]" />
-                      <span className="text-xs font-medium text-[#8C786E]">语音说明</span>
+                      <Volume2 className="w-4 h-4 text-morandi-5" />
+                      <span className="text-xs font-medium text-morandi-5">语音说明</span>
                     </div>
-                    {/* Speed Control */}
-                    <div className="flex gap-1">
-                      {[1.0, 1.5, 2.0].map((rate) => (
-                        <button
-                          key={rate}
-                          onClick={() => setPlaybackRate(rate)}
-                          className={cn(
-                            "text-[10px] px-1.5 py-0.5 rounded transition-colors",
-                            playbackRate === rate
-                              ? "bg-[#8C786E] text-white font-bold"
-                              : "text-[#8C786E] hover:bg-[#8C786E]/10"
-                          )}
-                        >
-                          {rate}x
-                        </button>
-                      ))}
-                    </div>
+                    {/* Speed Pop-up Trigger */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(true); }}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-white/60 hover:bg-white text-morandi-5 rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
+                      data-testid="audio-speed-trigger"
+                    >
+                      倍速 {playbackRate}x
+                    </button>
                   </div>
                   <div className="h-1.5 bg-white bg-opacity-50 rounded-full overflow-hidden">
                     <div
-                      className={`h-full bg-[#D5BDAF] transition-all duration-300 ${isPlayingAudio ? 'w-1/2' : 'w-0'}`}
+                      className={`h-full bg-morandi-5 transition-all duration-300 ${isPlayingAudio ? 'w-1/2' : 'w-0'}`}
                     />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-[#8C786E]">00:45</span>
+                <span className="text-xs font-bold text-morandi-5">00:45</span>
               </div>
             </div>
           )}
@@ -302,31 +307,34 @@ export function QuestionDetailPage() {
 
           {/* Actions Bar */}
           <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-6">
-            <div className="flex gap-6">
+            <div className="flex items-center gap-6">
               <button
+                data-testid="like-btn"
                 onClick={handleLike}
-                className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 transition-colors group"
+                className={cn("flex items-center gap-1 transition-colors", liked ? "text-pink-500" : "text-gray-400")}
               >
-                <Heart className={cn("w-5 h-5 transition-transform group-active:scale-125", isLiked ? "fill-red-500 text-red-500" : "")} />
-                <span className={cn("text-sm", isLiked ? "text-red-500 font-medium" : "")}>
-                  {question.stats.likes + (isLiked ? 1 : 0)}
-                </span>
+                <Heart className={cn("w-6 h-6", liked && "fill-current")} />
+                <span className="text-xs">{question.stats.likes + (liked ? 1 : 0)}</span>
               </button>
+
               <button
+                data-testid="favorite-btn"
                 onClick={handleFavorite}
-                className="flex items-center gap-1.5 text-gray-500 hover:text-yellow-500 transition-colors group"
+                className={cn("flex items-center gap-1 transition-colors", favorited ? "text-amber-400" : "text-gray-400")}
               >
-                <Star className={cn("w-5 h-5 transition-transform group-active:scale-125", isFavorited ? "fill-yellow-500 text-yellow-500" : "")} />
-                <span className={cn("text-sm", isFavorited ? "text-yellow-500 font-medium" : "")}>
-                  {question.stats.favorites + (isFavorited ? 1 : 0)}
-                </span>
+                <Star className={cn("w-6 h-6", favorited && "fill-current")} />
+                <span className="text-xs">{question.stats.favorites + (favorited ? 1 : 0)}</span>
               </button>
-              <button className="flex items-center gap-1.5 text-gray-500 hover:text-indigo-500 transition-colors">
-                <MessageCircle className="w-5 h-5" />
-                <span className="text-sm">{question.stats.comments}</span>
+
+              <button className="flex items-center gap-1 text-gray-400">
+                <MessageSquare className="w-6 h-6" />
+                <span className="text-xs">{question.stats.comments}</span>
+              </button>
+
+              <button onClick={handleShare} className="text-gray-400">
+                <Share2 className="w-6 h-6" />
               </button>
             </div>
-
             {currentUser?.role === 'teacher' && (
               <button
                 onClick={handleAnswer}
@@ -377,11 +385,11 @@ export function QuestionDetailPage() {
                   )}
 
                   {answer.audioUrl && (
-                    <div className="bg-[#BDE0FE] bg-opacity-20 rounded-2xl p-3 border border-[#BDE0FE] border-opacity-30">
+                    <div className="bg-morandi-1 bg-opacity-20 rounded-2xl p-3 border border-morandi-1 border-opacity-30">
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => handlePlayAnswerAudio(answer.id)}
-                          className="w-10 h-10 bg-[#A2D2FF] text-white rounded-full flex items-center justify-center shadow-sm active:scale-90 transition"
+                          className="w-10 h-10 bg-morandi-1 text-gray-700 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition"
                         >
                           {playingAnswerId === answer.id ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 ml-0.5 fill-white" />}
                         </button>
@@ -453,7 +461,7 @@ export function QuestionDetailPage() {
             {(isQuestionAuthor || currentUser?.role === 'teacher') && (
               <div className="space-y-2 pt-2 border-t border-gray-50">
                 {commentImage && (
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#D5BDAF]">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-morandi-5">
                     <ImageWithFallback src={commentImage} alt="preview" className="w-full h-full object-cover" />
                     <button
                       onClick={() => setCommentImage(null)}
@@ -467,6 +475,7 @@ export function QuestionDetailPage() {
                   <button
                     onClick={handleAddImage}
                     className="p-2.5 bg-gray-100 text-gray-500 rounded-2xl hover:bg-gray-200 transition active:scale-90"
+                    data-testid="add-image-btn"
                   >
                     <Camera className="w-5 h-5" />
                   </button>
@@ -475,7 +484,7 @@ export function QuestionDetailPage() {
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="说点什么..."
-                      className="bg-gray-50 border-none rounded-2xl h-10 pr-10 text-xs focus-visible:ring-1 focus-visible:ring-[#D5BDAF]"
+                      className="bg-gray-50 border-none rounded-2xl h-10 pr-10 text-xs focus-visible:ring-1 focus-visible:ring-morandi-5"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -485,7 +494,7 @@ export function QuestionDetailPage() {
                     />
                     <button
                       onClick={handleSubmitComment}
-                      className="absolute right-2 top-1.5 p-1.5 text-[#D5BDAF] hover:text-[#B59D8F] transition active:scale-75"
+                      className="absolute right-2 top-1.5 p-1.5 text-morandi-5 hover:text-morandi-5/80 transition active:scale-75"
                     >
                       <Send className="w-4 h-4 fill-current" />
                     </button>
@@ -497,19 +506,60 @@ export function QuestionDetailPage() {
         </div>
       </div>
 
-      {/* 图片预览模态框 */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <img
-            src={selectedImage}
-            alt="预览"
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
-      )}
-    </div>
+      {/* Audio Speed Selection Pop-up (Drawer style) */}
+      <AnimatePresence>
+        {showSpeedMenu && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSpeedMenu(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 pb-10 z-[120] shadow-2xl"
+            >
+              <div className="w-12 h-1.5 bg-gray-100 rounded-full mx-auto mb-6" />
+              <h3 className="text-lg font-bold text-gray-800 mb-6 text-center">选择播放倍速</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
+                  <button
+                    key={rate}
+                    onClick={() => { setPlaybackRate(rate); setShowSpeedMenu(false); toast.success(`倍速已切换为 ${rate}x`); }}
+                    className={cn(
+                      "flex items-center justify-center h-14 rounded-2xl text-base font-bold transition-all",
+                      playbackRate === rate
+                        ? "bg-blue-600 text-white shadow-lg scale-[1.02]"
+                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 active:scale-95"
+                    )}
+                  >
+                    {rate}x {rate === 1.0 && '(正常)'}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowSpeedMenu(false)}
+                className="w-full mt-6 h-14 rounded-2xl bg-gray-100 text-gray-500 font-bold active:scale-95 transition-all"
+              >
+                取消
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 图片预览模态框 (Carousel) */}
+      <ImageCarousel
+        images={question.images || []}
+        initialIndex={question.images?.indexOf(selectedImage || '') || 0}
+        open={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
+    </motion.div>
   );
 }

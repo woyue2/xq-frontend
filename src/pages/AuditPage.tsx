@@ -123,7 +123,7 @@ export const AuditPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#EDEDE9]">
+    <div className="flex flex-col h-screen bg-[#EDEDE9]" data-testid="audit-page">
       {/* 顶部导航栏 */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
         <button
