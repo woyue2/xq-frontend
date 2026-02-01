@@ -1,73 +1,48 @@
-import { useEffect, useState } from 'react';
-import { Toaster } from '@/app/components/ui/sonner';
-import { LoginPage } from '@/pages/LoginPage';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MainLayout } from '@/layouts/MainLayout';
+import { AuthLayout } from '@/layouts/AuthLayout';
 import { HomePage } from '@/pages/HomePage';
+import { LoginPage } from '@/pages/LoginPage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
-import { AnswerQuestionPage } from '@/pages/AnswerQuestionPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { AuditPage } from '@/pages/AuditPage';
-import { AdminManagementPage } from '@/pages/AdminManagementPage';
-import { currentUser, restoreUser } from '@/lib/mock-data';
+import { Toaster } from '@/app/components/ui/sonner';
 
-type PageType = 'login' | 'home' | 'create' | 'detail' | 'answer' | 'profile' | 'audit' | 'admin';
-
-interface PageData {
-  questionId?: string;
-}
+// Initialize QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<PageType>('login');
-  const [pageData, setPageData] = useState<PageData>({});
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // 尝试从本地存储恢复用户登录状态
-    restoreUser();
-    if (currentUser) {
-      setIsLoggedIn(true);
-      setCurrentPage('home');
-    }
-  }, []);
-
-  const handleNavigate = (page: string, data?: any) => {
-    setCurrentPage(page as PageType);
-    if (data) {
-      setPageData(data);
-    }
-  };
-
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    setCurrentPage('home');
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentPage('login');
-  };
-
   return (
-    <div className="min-h-screen">
-      {currentPage === 'login' && <LoginPage onLogin={handleLogin} />}
-      {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
-      {currentPage === 'create' && <CreateQuestionPage onNavigate={handleNavigate} />}
-      {currentPage === 'detail' && pageData.questionId && (
-        <QuestionDetailPage questionId={pageData.questionId} onNavigate={handleNavigate} />
-      )}
-      {currentPage === 'answer' && pageData.questionId && (
-        <AnswerQuestionPage questionId={pageData.questionId} onNavigate={handleNavigate} />
-      )}
-      {currentPage === 'profile' && (
-        <ProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />
-      )}
-      {currentPage === 'audit' && (
-        <AuditPage onNavigate={handleNavigate} />
-      )}
-      {currentPage === 'admin' && (
-        <AdminManagementPage onNavigate={handleNavigate} />
-      )}
-      <Toaster position="top-center" />
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+          </Route>
+
+          {/* Protected Routes (Main Layout) */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/create" element={<CreateQuestionPage />} />
+            <Route path="/question/:id" element={<QuestionDetailPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/audit" element={<AuditPage />} />
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+        <Toaster position="top-center" />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }

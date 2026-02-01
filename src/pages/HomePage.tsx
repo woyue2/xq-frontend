@@ -1,61 +1,60 @@
-import { useState } from 'react';
-import { Search, Plus, Heart, Star, MessageCircle, Share2, Edit3, Volume2, Pin, PinOff } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
+import { useState, useEffect, useRef } from 'react';
+import { Heart, Star, MessageCircle, Share2, Pin, PinOff, Loader2, Filter } from 'lucide-react';
 import { Badge } from '@/app/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { toast } from 'sonner';
-import { mockQuestions, currentUser, userLikes, userFavorites } from '@/lib/mock-data';
+import { currentUser } from '@/lib/mock-data'; // Only for legacy check, should use store ideally
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useNavigate } from 'react-router-dom';
+import { useQuestions } from '@/hooks/useQuestions';
+import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
+import { cn } from '@/lib/utils';
 import type { Question, DifficultyLevel } from '@/types';
 
-interface HomePageProps {
-  onNavigate: (page: string, data?: any) => void;
-}
+export function HomePage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
 
-export function HomePage({ onNavigate }: HomePageProps) {
-  const [questions, setQuestions] = useState<Question[]>(
-    [...mockQuestions].sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    })
-  );
-  const [likedQuestions, setLikedQuestions] = useState(new Set(userLikes));
-  const [favoritedQuestions, setFavoritedQuestions] = useState(new Set(userFavorites));
+  // Filter States
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
 
-  const handleTogglePin = (questionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentUser?.role !== 'teacher') {
-      toast.error('只有老师可以置顶问题');
-      return;
+  // Data Fetching
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading
+  } = useQuestions({
+    subject: selectedSubject,
+    topic: selectedTopic
+  });
+
+  // Infinite Scroll Observer
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
     }
 
-    setQuestions(prev => {
-      const next = prev.map(q => {
-        if (q.id === questionId) {
-          const newStatus = !q.isPinned;
-          toast.success(newStatus ? '已置顶' : '已取消置顶');
-          return { ...q, isPinned: newStatus };
-        }
-        return q;
-      });
-      
-      // Re-sort
-      return [...next].sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-    });
-  };
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const getDifficultyConfig = (difficulty?: DifficultyLevel) => {
-    const configs = {
-      easy: { label: '简单', className: 'bg-[#BDE0FE] text-blue-700' },
-      medium: { label: '中等', className: 'bg-[#FFC8DD] text-pink-700' },
-      hard: { label: '难题', className: 'bg-[#FFAFCC] text-red-700' },
-    };
-    return difficulty ? configs[difficulty] : null;
-  };
+
+  // Local Interaction States (Optimistic UI handled locally for demo)
+  const [likedQuestions, setLikedQuestions] = useState(new Set<string>());
+  const [favoritedQuestions, setFavoritedQuestions] = useState(new Set<string>());
 
   const handleLike = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,31 +82,13 @@ export function HomePage({ onNavigate }: HomePageProps) {
     setFavoritedQuestions(newFavorites);
   };
 
-  const handleComment = (questionId: string, e: React.MouseEvent) => {
+  const handleTogglePin = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onNavigate('detail', { questionId });
-  };
-
-  const handleAnswer = (questionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentUser?.role === 'teacher') {
-      onNavigate('answer', { questionId });
-    } else {
-      toast.error('暂无回答权限');
+    if (user?.role !== 'teacher') {
+      toast.error('只有老师可以置顶问题');
+      return;
     }
-  };
-
-  const handleShare = (question: Question, e: React.MouseEvent) => {
-    e.stopPropagation();
-    toast.success('分享链接已复制');
-  };
-
-  const handleCreateQuestion = () => {
-    if (currentUser?.role === 'student' || currentUser?.role === 'teacher') {
-      onNavigate('create');
-    } else {
-      toast.error('暂无提问权限');
-    }
+    toast.success('置顶状态已更新');
   };
 
   const formatDate = (dateStr: string) => {
@@ -115,7 +96,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
+
     if (days === 0) {
       const hours = Math.floor(diff / (1000 * 60 * 60));
       if (hours === 0) {
@@ -130,165 +111,204 @@ export function HomePage({ onNavigate }: HomePageProps) {
     }
   };
 
+  const getDifficultyConfig = (difficulty?: DifficultyLevel) => {
+    const configs = {
+      easy: { label: '简单', className: 'bg-[#BDE0FE] text-blue-700' },
+      medium: { label: '中等', className: 'bg-[#FFC8DD] text-pink-700' },
+      hard: { label: '难题', className: 'bg-[#FFAFCC] text-red-700' },
+    };
+    return difficulty ? configs[difficulty] : null;
+  };
+
+  // Flatten pages
+  const allQuestions = data?.pages.flatMap(p => p.items) || [];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* 顶部导航栏 */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex flex-col">
-            <h1 className="text-xl">初中知识问答</h1>
-            <p className="text-[10px] text-[#D5BDAF] font-medium leading-none mt-0.5">好好学习，天天向上</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="p-2 hover:bg-gray-100 rounded-full transition">
-              <Search className="w-5 h-5 text-gray-600" />
-            </button>
-            <button 
-              onClick={() => onNavigate('profile')}
-              className="p-1 hover:bg-gray-100 rounded-full transition"
+    <div className="flex flex-col gap-4 pb-4">
+      {/* 1. Taxonomy Filters */}
+      <div className="sticky top-[3.5rem] z-40 bg-gray-50/95 backdrop-blur py-2 -mx-4 px-4 space-y-2 transition-all">
+        {/* Subject Filter (Capsules) */}
+        <div className="flex overflow-x-auto gap-2 scrollbar-hide pb-1">
+          <button
+            onClick={() => { setSelectedSubject(''); setSelectedTopic(''); }}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border",
+              !selectedSubject
+                ? "bg-gray-800 text-white border-gray-800 shadow-md"
+                : "bg-white text-gray-600 border-gray-200"
+            )}
+          >
+            全部
+          </button>
+          {SUBJECT_OPTIONS.map((sub) => (
+            <button
+              key={sub.value}
+              onClick={() => { setSelectedSubject(sub.value); setSelectedTopic(''); }}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border",
+                selectedSubject === sub.value
+                  ? "bg-blue-600 text-white border-blue-600 shadow-md transform scale-105"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-blue-200"
+              )}
             >
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={currentUser?.avatar} />
-                <AvatarFallback>{currentUser?.nickname?.[0] || '我'}</AvatarFallback>
-              </Avatar>
+              {sub.label}
             </button>
-          </div>
+          ))}
         </div>
+
+        {/* Topic Filter (Only if subject selected) */}
+        {selectedSubject && TAXONOMY[selectedSubject] && (
+          <div className="flex overflow-x-auto gap-2 scrollbar-hide animate-in slide-in-from-top-1 fade-in duration-300 border-t border-gray-200 pt-2">
+            <div className="flex items-center text-xs text-gray-400 px-1">
+              <Filter className="w-3 h-3 mr-1" />
+              考点:
+            </div>
+            {TAXONOMY[selectedSubject].topics.map((topic) => (
+              <button
+                key={topic}
+                onClick={() => setSelectedTopic(selectedTopic === topic ? '' : topic)}
+                className={cn(
+                  "px-3 py-1 rounded-md text-[10px] whitespace-nowrap transition-colors",
+                  selectedTopic === topic
+                    ? "bg-blue-100 text-blue-700 font-bold"
+                    : "bg-white text-gray-500 hover:bg-gray-100"
+                )}
+              >
+                {topic}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 问题列表 */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6 pb-24">
-        <div className="space-y-4">
-          {questions.map((question) => {
+      {/* 2. Question List */}
+      <div className="space-y-4 min-h-[50vh]">
+        {isLoading ? (
+          // Skeleton Loader
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg p-4 space-y-3 animate-pulse">
+              <div className="h-40 bg-gray-200 rounded-lg w-full" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+            </div>
+          ))
+        ) : allQuestions.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+            <p>暂无相关问题</p>
+          </div>
+        ) : (
+          allQuestions.map((question) => {
             const difficultyConfig = getDifficultyConfig(question.difficulty);
-            
             return (
               <div
                 key={question.id}
-                onClick={() => onNavigate('detail', { questionId: question.id })}
-                className="bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
+                onClick={() => navigate(`/question/${question.id}`)}
+                className="bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 active:scale-[0.99] border border-transparent hover:border-blue-50"
               >
                 <div className="p-3 space-y-2">
-                  {/* 缩略图区域 - 移到上方 */}
+                  {/* Images */}
                   {question.images && question.images.length > 0 && (
-                    <div className="w-full aspect-video rounded-lg overflow-hidden relative">
+                    <div className="w-full aspect-video rounded-xl overflow-hidden relative">
                       <img
                         src={question.images[0]}
-                        alt="问题缩略图"
-                        className="w-full h-full object-cover"
+                        alt="thumbnail"
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                       />
                       {question.images.length > 1 && (
-                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                        <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
                           +{question.images.length - 1}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* 标签行 */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  {/* Topics (formerly Tags) */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
                     {question.isPinned && (
-                      <Badge className="bg-[#D5BDAF] text-white border-none flex items-center gap-1">
-                        <Pin className="w-3 h-3 fill-white" /> 置顶
+                      <Badge className="bg-[#D5BDAF] text-white border-none flex items-center gap-1 h-5 text-[10px] px-1.5">
+                        <Pin className="w-2.5 h-2.5 fill-white" /> 置顶
                       </Badge>
                     )}
                     {question.isGoodQuestion && (
-                      <Badge className="bg-red-500 text-white border-none">
+                      <Badge className="bg-red-500 text-white border-none h-5 text-[10px] px-1.5">
                         好问题
                       </Badge>
                     )}
-                    {question.tags?.map((tag, index) => (
+
+                    {/* Subject Badge */}
+                    {!selectedSubject && (
+                      <Badge variant="outline" className="border-blue-200 text-blue-400 h-5 text-[10px] px-1.5 capitalize">
+                        {question.subject}
+                      </Badge>
+                    )}
+
+                    {/* Topics */}
+                    {question.topics?.slice(0, 2).map((topic, index) => (
                       <Badge
                         key={index}
                         variant="secondary"
-                        className="bg-[#BDE0FE] text-gray-700 hover:bg-[#A2D2FF]"
+                        className="bg-[#BDE0FE]/30 text-gray-600 hover:bg-[#BDE0FE]/50 h-5 text-[10px] px-1.5"
                       >
-                        {tag}
+                        {topic}
                       </Badge>
                     ))}
-                    {difficultyConfig && (
-                      <Badge
-                        variant="secondary"
-                        className={difficultyConfig.className}
-                      >
-                        {difficultyConfig.label}
-                      </Badge>
-                    )}
                   </div>
 
-                  {/* 问题标题和作者信息 */}
-                  <div className="space-y-1">
-                    <h3 className="text-base line-clamp-2">
+                  {/* Title & Meta */}
+                  <div className="space-y-1.5">
+                    <h3 className="text-sm font-bold text-gray-800 line-clamp-2 leading-relaxed">
                       {question.title}
                     </h3>
-                    {/* 提问信息 - 紧凑布局 */}
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                      <Avatar className="w-3.5 h-3.5">
-                        <AvatarFallback className="text-[8px]">{question.authorName[0]}</AvatarFallback>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                      <Avatar className="w-4 h-4 border border-gray-100">
+                        <AvatarFallback className="text-[8px] bg-gray-50">{question.authorName[0]}</AvatarFallback>
                       </Avatar>
-                      <span className="truncate max-w-[80px]">{question.authorName}</span>
+                      <span className="truncate max-w-[80px] font-medium">{question.authorName}</span>
                       <span>·</span>
                       <span className="whitespace-nowrap">{formatDate(question.createdAt)}</span>
                     </div>
                   </div>
 
-                  {/* 互动按钮区 */}
-                  <div className="flex items-center gap-4 pt-2 border-t">
+                  {/* Actions */}
+                  <div className="flex items-center gap-4 pt-2 border-t border-gray-50 mt-1">
                     <button
                       onClick={(e) => handleLike(question.id, e)}
-                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-red-500 transition"
+                      className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-red-500 transition-colors group"
                     >
-                      <Heart 
-                        className={`w-3.5 h-3.5 ${likedQuestions.has(question.id) ? 'fill-red-500 text-red-500' : ''}`} 
+                      <Heart
+                        className={cn("w-3.5 h-3.5 transition-transform group-active:scale-125", likedQuestions.has(question.id) ? 'fill-red-500 text-red-500' : '')}
                       />
-                      <span className={likedQuestions.has(question.id) ? 'text-red-500' : ''}>
-                        {question.likes + (likedQuestions.has(question.id) ? 1 : 0)}
+                      <span className={likedQuestions.has(question.id) ? 'text-red-500 font-bold' : ''}>
+                        {question.stats.likes + (likedQuestions.has(question.id) ? 1 : 0)}
                       </span>
                     </button>
 
                     <button
                       onClick={(e) => handleFavorite(question.id, e)}
-                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-yellow-500 transition"
+                      className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-yellow-500 transition-colors group"
                     >
-                      <Star 
-                        className={`w-3.5 h-3.5 ${favoritedQuestions.has(question.id) ? 'fill-yellow-500 text-yellow-500' : ''}`} 
+                      <Star
+                        className={cn("w-3.5 h-3.5 transition-transform group-active:scale-125", favoritedQuestions.has(question.id) ? 'fill-yellow-500 text-yellow-500' : '')}
                       />
-                      <span className={favoritedQuestions.has(question.id) ? 'text-yellow-500' : ''}>
-                        {question.favorites + (favoritedQuestions.has(question.id) ? 1 : 0)}
+                      <span className={favoritedQuestions.has(question.id) ? 'text-yellow-500 font-bold' : ''}>
+                        {question.stats.favorites + (favoritedQuestions.has(question.id) ? 1 : 0)}
                       </span>
                     </button>
 
                     <button
-                      onClick={(e) => handleComment(question.id, e)}
-                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-[#CDB4DB] transition"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/question/${question.id}`);
+                      }}
+                      className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-[#CDB4DB] transition-colors"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      <span>{question.comments}</span>
+                      <span>{question.stats.comments}</span>
                     </button>
 
-                    {currentUser?.role === 'teacher' && (
-                      <button
-                        onClick={(e) => handleAnswer(question.id, e)}
-                        className="flex items-center gap-1 text-xs text-[#A2D2FF] hover:text-[#BDE0FE] transition"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>回答</span>
-                      </button>
-                    )}
-
-                    {currentUser?.role === 'teacher' && (
-                      <button
-                        onClick={(e) => handleTogglePin(question.id, e)}
-                        className={`flex items-center gap-1 text-xs transition ${question.isPinned ? 'text-[#D5BDAF]' : 'text-gray-600 hover:text-[#D5BDAF]'}`}
-                      >
-                        {question.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
-                        <span>{question.isPinned ? '取消置顶' : '置顶'}</span>
-                      </button>
-                    )}
-
                     <button
-                      onClick={(e) => handleShare(question, e)}
-                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 transition ml-auto"
+                      onClick={(e) => { e.stopPropagation(); toast.success('分享链接已复制'); }}
+                      className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-800 transition ml-auto"
                     >
                       <Share2 className="w-3.5 h-3.5" />
                     </button>
@@ -296,19 +316,16 @@ export function HomePage({ onNavigate }: HomePageProps) {
                 </div>
               </div>
             );
-          })}
-        </div>
-      </div>
+          })
+        )}
 
-      {/* 底部固定提问按钮 */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20">
-        <Button
-          onClick={handleCreateQuestion}
-          size="lg"
-          className="w-16 h-16 rounded-full bg-[#D5BDAF] hover:bg-[#B59D8F] shadow-lg active:scale-90 transition-all border-none"
-        >
-          <Plus className="w-8 h-8 text-white" />
-        </Button>
+        {/* Loading Indicator for Infinite Scroll */}
+        <div ref={observerTarget} className="h-10 flex items-center justify-center w-full">
+          {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-gray-400" />}
+          {!hasNextPage && !isLoading && allQuestions.length > 0 && (
+            <span className="text-[10px] text-gray-300">没有更多内容了</span>
+          )}
+        </div>
       </div>
     </div>
   );

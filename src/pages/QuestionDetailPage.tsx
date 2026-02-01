@@ -1,35 +1,40 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Input } from '@/app/components/ui/input';
 import { toast } from 'sonner';
-import { mockQuestions, mockComments, mockAnswers, currentUser, userLikes, userFavorites } from '@/lib/mock-data';
+import { mockQuestions, mockComments, mockAnswers, userLikes, userFavorites } from '@/lib/mock-data';
 import type { Comment, DifficultyLevel } from '@/types';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { cn } from '@/lib/utils';
 
-interface QuestionDetailPageProps {
-  questionId: string;
-  onNavigate: (page: string, data?: any) => void;
-}
+export function QuestionDetailPage() {
+  const { id: questionId } = useParams();
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
 
-export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPageProps) {
   const question = mockQuestions.find((q) => q.id === questionId);
-  const answers = mockAnswers[questionId] || [];
-  const [comments, setComments] = useState<Comment[]>(mockComments[questionId] || []);
+  // Safe fallbacks if questionId is undefined
+  const safeQuestionId = questionId || '';
+  const answers = mockAnswers[safeQuestionId] || [];
+  const [comments, setComments] = useState<Comment[]>(mockComments[safeQuestionId] || []);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
-  const [liked, setLiked] = useState(userLikes.has(questionId));
-  const [favorited, setFavorited] = useState(userFavorites.has(questionId));
+  const [liked, setLiked] = useState(userLikes.has(safeQuestionId));
+  const [favorited, setFavorited] = useState(userFavorites.has(safeQuestionId));
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   if (!question) {
     return (
-      <div className="min-h-screen bg-[#EDEDE9] flex items-center justify-center">
+      <div className="min-h-screen bg-[#EDEDE9] flex items-center justify-center flex-col gap-4">
         <p className="text-gray-500">问题不存在</p>
+        <button onClick={() => navigate('/')} className="text-blue-500 underline">返回首页</button>
       </div>
     );
   }
@@ -61,7 +66,8 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
 
   const handleAnswer = () => {
     if (currentUser?.role === 'teacher') {
-      onNavigate('answer', { questionId });
+      // Future: Navigate to answer page
+      toast.info('Answer page implementation pending');
     } else {
       toast.error('暂无回答权限');
     }
@@ -80,13 +86,19 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
   };
 
   const handleSubmitComment = () => {
+    if (!currentUser) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+
     if (!newComment.trim() && !commentImage) {
       toast.error('请输入评论内容或上传图片');
       return;
     }
 
     // 提问者和回答者（教师）可以评论
-    const canComment = currentUser?.id === question.authorId || currentUser?.role === 'teacher';
+    const canComment = currentUser.id === question.authorId || currentUser.role === 'teacher';
     if (!canComment) {
       toast.error('仅提问者和回答者可评论');
       return;
@@ -132,7 +144,7 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
+
     if (days === 0) {
       const hours = Math.floor(diff / (1000 * 60 * 60));
       if (hours === 0) {
@@ -150,31 +162,31 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
   const isQuestionAuthor = currentUser?.id === question.authorId;
 
   return (
-    <div className="min-h-screen bg-[#EDEDE9] flex flex-col pb-20">
-      {/* 顶部导航栏 */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => onNavigate('home')}
-            className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div className="flex flex-col items-center flex-1">
-            <h1 className="text-lg font-bold text-gray-800">问题详情</h1>
-            <p className="text-[9px] text-[#D5BDAF] font-bold leading-none">好好学习，天天向上</p>
-          </div>
-          <button
-            onClick={handleShare}
-            className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
-          >
-            <Share2 className="w-5 h-5 text-gray-600" />
-          </button>
+    <div className="flex flex-col gap-4">
+      {/* 顶部导航栏 - Now handled by MainLayout if needed, but for detail page back button is nice */}
+      {/* Since MainLayout has a header, having another header might be redundant but Detail page usually has Back button. */}
+      {/* We can hide MainLayout header for detail pages or just keep the back button style inside content */}
+
+      <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <div className="flex flex-col items-center flex-1">
+          <h1 className="text-base font-bold text-gray-800">问题详情</h1>
         </div>
+        <button
+          onClick={handleShare}
+          className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
+        >
+          <Share2 className="w-5 h-5 text-gray-600" />
+        </button>
       </div>
 
       {/* 内容区域 */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-4 space-y-3">
+      <div className="w-full space-y-3 pb-20">
         {/* 问题内容卡片 */}
         <div className="bg-white rounded-3xl shadow-sm p-4 space-y-4">
           {/* 标签行 */}
@@ -238,7 +250,7 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
               <div className="flex items-center gap-3">
                 <button
                   onClick={handlePlayAudio}
-                  className="w-12 h-12 bg-[#D5BDAF] hover:bg-[#B59D8F] text-white rounded-full flex items-center justify-center transition shadow-sm active:scale-90"
+                  className="w-12 h-12 bg-[#D5BDAF] hover:bg-[#B59D8F] text-white rounded-full flex items-center justify-center transition shadow-sm active:scale-90 flex-shrink-0"
                 >
                   {isPlayingAudio ? (
                     <Pause className="w-5 h-5 fill-white" />
@@ -247,12 +259,31 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
                   )}
                 </button>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Volume2 className="w-4 h-4 text-[#8C786E]" />
-                    <span className="text-xs font-medium text-[#8C786E]">语音说明</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-[#8C786E]" />
+                      <span className="text-xs font-medium text-[#8C786E]">语音说明</span>
+                    </div>
+                    {/* Speed Control */}
+                    <div className="flex gap-1">
+                      {[1.0, 1.5, 2.0].map((rate) => (
+                        <button
+                          key={rate}
+                          onClick={() => setPlaybackRate(rate)}
+                          className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded transition-colors",
+                            playbackRate === rate
+                              ? "bg-[#8C786E] text-white font-bold"
+                              : "text-[#8C786E] hover:bg-[#8C786E]/10"
+                          )}
+                        >
+                          {rate}x
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="h-1.5 bg-white bg-opacity-50 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className={`h-full bg-[#D5BDAF] transition-all duration-300 ${isPlayingAudio ? 'w-1/2' : 'w-0'}`}
                     />
                   </div>
@@ -269,34 +300,32 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
             </div>
           )}
 
-          {/* 互动行 */}
-          <div className="flex items-center gap-6 pt-2">
-            <button
-              onClick={handleLike}
-              className="flex items-center gap-1.5 text-sm transition active:scale-75"
-            >
-              <Heart className={`w-5 h-5 ${liked ? 'fill-red-400 text-red-400' : 'text-gray-400'}`} />
-              <span className={`font-medium ${liked ? 'text-red-400' : 'text-gray-400'}`}>
-                {question.likes + (liked ? 1 : 0)}
-              </span>
-            </button>
-
-            <button
-              onClick={handleFavorite}
-              className="flex items-center gap-1.5 text-sm transition active:scale-75"
-            >
-              <Star className={`w-5 h-5 ${favorited ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-              <span className={`font-medium ${favorited ? 'text-yellow-400' : 'text-gray-400'}`}>
-                {question.favorites + (favorited ? 1 : 0)}
-              </span>
-            </button>
-
-            <div className="flex items-center gap-1.5 text-sm text-gray-400">
-              <MessageCircle className="w-5 h-5" />
-              <span className="font-medium">{comments.length}</span>
+          {/* Actions Bar */}
+          <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-6">
+            <div className="flex gap-6">
+              <button
+                onClick={handleLike}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 transition-colors group"
+              >
+                <Heart className={cn("w-5 h-5 transition-transform group-active:scale-125", isLiked ? "fill-red-500 text-red-500" : "")} />
+                <span className={cn("text-sm", isLiked ? "text-red-500 font-medium" : "")}>
+                  {question.stats.likes + (isLiked ? 1 : 0)}
+                </span>
+              </button>
+              <button
+                onClick={handleFavorite}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-yellow-500 transition-colors group"
+              >
+                <Star className={cn("w-5 h-5 transition-transform group-active:scale-125", isFavorited ? "fill-yellow-500 text-yellow-500" : "")} />
+                <span className={cn("text-sm", isFavorited ? "text-yellow-500 font-medium" : "")}>
+                  {question.stats.favorites + (isFavorited ? 1 : 0)}
+                </span>
+              </button>
+              <button className="flex items-center gap-1.5 text-gray-500 hover:text-indigo-500 transition-colors">
+                <MessageCircle className="w-5 h-5" />
+                <span className="text-sm">{question.stats.comments}</span>
+              </button>
             </div>
-
-            <div className="flex-1" />
 
             {currentUser?.role === 'teacher' && (
               <button
@@ -316,7 +345,7 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
               <h3 className="text-md font-bold text-gray-800">全部回答</h3>
               <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-100">{answers.length}个回答</Badge>
             </div>
-            
+
             <div className="space-y-6">
               {answers.filter(a => a.status === 'approved').map((answer) => (
                 <div key={answer.id} className="space-y-3 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0">
@@ -426,7 +455,7 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
                 {commentImage && (
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#D5BDAF]">
                     <ImageWithFallback src={commentImage} alt="preview" className="w-full h-full object-cover" />
-                    <button 
+                    <button
                       onClick={() => setCommentImage(null)}
                       className="absolute top-0.5 right-0.5 bg-black bg-opacity-50 text-white rounded-full p-0.5 active:scale-75 transition"
                     >
@@ -435,7 +464,7 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={handleAddImage}
                     className="p-2.5 bg-gray-100 text-gray-500 rounded-2xl hover:bg-gray-200 transition active:scale-90"
                   >
@@ -454,7 +483,7 @@ export function QuestionDetailPage({ questionId, onNavigate }: QuestionDetailPag
                         }
                       }}
                     />
-                    <button 
+                    <button
                       onClick={handleSubmitComment}
                       className="absolute right-2 top-1.5 p-1.5 text-[#D5BDAF] hover:text-[#B59D8F] transition active:scale-75"
                     >

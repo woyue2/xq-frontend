@@ -46,6 +46,7 @@ export const mockUsers: User[] = [
 ];
 
 // 模拟问题数据
+// 模拟问题数据
 export const mockQuestions: Question[] = [
   {
     id: '1',
@@ -55,12 +56,14 @@ export const mockQuestions: Question[] = [
     authorId: '1',
     authorName: 'Melody Zhang',
     isGoodQuestion: true,
-    tags: ['职场技巧', '人际关系'],
-    difficulty: 'medium',
-    likes: 126,
-    favorites: 45,
-    comments: 23,
-    answers: 5,
+    subject: 'politics', // Mapping 'workplace' to a generic subject for now or 'politics' as closest
+    topics: ['职场技巧', '人际关系'],
+    stats: {
+      likes: 126,
+      favorites: 45,
+      comments: 23,
+      answers: 5
+    },
     status: 'approved',
     isPinned: true,
     aiResult: '无违规',
@@ -74,12 +77,14 @@ export const mockQuestions: Question[] = [
     authorId: '1',
     authorName: '小明同学',
     isGoodQuestion: false,
-    tags: ['勾股定理', '几何证明'],
-    difficulty: 'medium',
-    likes: 0,
-    favorites: 0,
-    comments: 0,
-    answers: 0,
+    subject: 'math',
+    topics: ['勾股定理', '几何证明'],
+    stats: {
+      likes: 0,
+      favorites: 0,
+      comments: 0,
+      answers: 0
+    },
     status: 'pending',
     aiResult: '无违规',
     createdAt: '2026-01-30T10:00:00',
@@ -92,12 +97,14 @@ export const mockQuestions: Question[] = [
     authorId: '1',
     authorName: '小明同学',
     isGoodQuestion: false,
-    tags: ['二次函数', '配方法'],
-    difficulty: 'medium',
-    likes: 45,
-    favorites: 12,
-    comments: 8,
-    answers: 3,
+    subject: 'math',
+    topics: ['二次函数', '配方法'],
+    stats: {
+      likes: 45,
+      favorites: 12,
+      comments: 8,
+      answers: 3
+    },
     status: 'approved',
     createdAt: '2024-11-16T10:30:00',
   },
@@ -112,12 +119,14 @@ export const mockQuestions: Question[] = [
     authorId: '1',
     authorName: '小明同学',
     isGoodQuestion: true,
-    tags: ['浮力', '密度计算'],
-    difficulty: 'hard',
-    likes: 89,
-    favorites: 34,
-    comments: 15,
-    answers: 7,
+    subject: 'physics',
+    topics: ['浮力', '密度计算'],
+    stats: {
+      likes: 89,
+      favorites: 34,
+      comments: 15,
+      answers: 7
+    },
     status: 'approved',
     createdAt: '2024-11-14T15:20:00',
   },
@@ -129,12 +138,14 @@ export const mockQuestions: Question[] = [
     authorId: '1',
     authorName: '小红',
     isGoodQuestion: false,
-    tags: ['英语时态', '语法'],
-    difficulty: 'easy',
-    likes: 67,
-    favorites: 23,
-    comments: 12,
-    answers: 4,
+    subject: 'english',
+    topics: ['英语时态', '语法'],
+    stats: {
+      likes: 67,
+      favorites: 23,
+      comments: 12,
+      answers: 4
+    },
     status: 'approved',
     createdAt: '2024-11-13T09:15:00',
   },

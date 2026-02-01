@@ -11,35 +11,35 @@ import {
 } from '@/app/components/ui/select';
 import { toast } from 'sonner';
 import { Eye, EyeOff, X } from 'lucide-react';
-import { mockUsers, setCurrentUser, validInviteCodes } from '@/lib/mock-data';
+import { mockUsers, validInviteCodes } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useNavigate } from 'react-router-dom';
 
-interface LoginPageProps {
-  onLogin: () => void;
-}
+export function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuthStore();
 
-export function LoginPage({ onLogin }: LoginPageProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  
+
   // 学生注册专用字段
   const [grade, setGrade] = useState('');
   const [age, setAge] = useState('');
 
   // 判断是否为学生邀请码
   const isStudentInvite = !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
-  const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
 
   const handleGetCode = () => {
     if (!phone || phone.length !== 11) {
       toast.error('请输入正确的手机号');
       return;
     }
-    
+
     setCountdown(60);
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -50,7 +50,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         return prev - 1;
       });
     }, 1000);
-    
+
     toast.success('验证码已发送');
   };
 
@@ -60,17 +60,17 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       toast.error('请输入正确的手机号');
       return;
     }
-    
+
     if (!code) {
       toast.error('请输入验证码');
       return;
     }
-    
+
     if (!isLogin && !inviteCode) {
       toast.error('请输入邀请码');
       return;
     }
-    
+
     if (!isLogin && !validInviteCodes.includes(inviteCode)) {
       toast.error('邀请码无效');
       return;
@@ -95,12 +95,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
     // 模拟登录/注册
     let user = mockUsers.find((u) => u.phone === phone);
-    
+
     if (!user && isLogin) {
       toast.error('账号不存在，请先注册');
       return;
     }
-    
+
     if (!user && !isLogin) {
       // 注册新用户
       const roleMap: Record<string, UserRole> = {
@@ -109,7 +109,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         'TEACHER2024': 'teacher',
         'PARENT2024': 'parent',
       };
-      
+
       user = {
         id: String(mockUsers.length + 1),
         phone,
@@ -122,22 +122,22 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           age: parseInt(age),
         }),
       };
-      
+
       mockUsers.push(user);
       toast.success('注册成功');
     }
-    
+
     if (user) {
-      setCurrentUser(user);
+      login(user, 'mock-jwt-token');
       toast.success('登录成功');
-      onLogin();
+      navigate('/');
     }
   };
 
   const canSubmit = phone.length === 11 && code && (isLogin || (inviteCode && (!isStudentInvite || (grade && age))));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
+    <div className="flex flex-col min-h-screen">
       {/* 顶部标题栏 */}
       <div className="bg-white shadow-sm py-4">
         <h1 className="text-center text-xl">
@@ -146,8 +146,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       </div>
 
       {/* 中间内容区 */}
-      <div className="flex-1 flex flex-col justify-center px-6 pb-20">
-        <div className="w-full max-w-md mx-auto space-y-6">
+      <div className="flex-1 flex flex-col justify-center pb-10">
+        <div className="w-full space-y-6">
           {/* Logo区域 */}
           <div className="text-center mb-8">
             <div className="w-20 h-20 bg-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-2xl">

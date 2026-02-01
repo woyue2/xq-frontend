@@ -1,7 +1,6 @@
 import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
-import { Button } from '@/app/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,12 +19,8 @@ import {
 } from '@/app/components/ui/dialog';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { currentUser, setCurrentUser } from '@/lib/mock-data';
-
-interface ProfilePageProps {
-  onNavigate: (page: string) => void;
-  onLogout: () => void;
-}
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useNavigate } from 'react-router-dom';
 
 const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -42,9 +37,17 @@ const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=shiyan',
 ];
 
-export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
+export function ProfilePage() {
+  const navigate = useNavigate();
+  const { user: currentUser, logout, updateUser } = useAuthStore();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+
+  // Redirect if not logged in
+  if (!currentUser) {
+    navigate('/login');
+    return null;
+  }
 
   const getRoleBadge = (role: string) => {
     const roleMap: Record<string, { label: string; className: string }> = {
@@ -55,26 +58,24 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
     return roleMap[role] || { label: '未知', className: 'bg-gray-500' };
   };
 
-  const roleBadge = currentUser ? getRoleBadge(currentUser.role) : null;
+  const roleBadge = getRoleBadge(currentUser.role);
 
   const handleSwitchAccount = () => {
     toast.success('切换账号');
-    onLogout();
+    logout();
+    navigate('/login');
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
+    logout();
     toast.success('已退出登录');
-    onLogout();
+    navigate('/login');
   };
 
   const handleSelectAvatar = (url: string) => {
-    if (currentUser) {
-      const updatedUser = { ...currentUser, avatar: url };
-      setCurrentUser(updatedUser);
-      toast.success('头像已更新');
-      setShowAvatarDialog(false);
-    }
+    updateUser({ avatar: url });
+    toast.success('头像已更新');
+    setShowAvatarDialog(false);
   };
 
   const menuItems = [
@@ -82,15 +83,15 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
       icon: ShieldCheck,
       label: '审核管理',
       color: 'text-indigo-500',
-      visible: currentUser?.role === 'teacher',
-      onClick: () => onNavigate('audit'),
+      visible: currentUser.role === 'teacher',
+      onClick: () => navigate('/audit'),
     },
     {
       icon: Users,
       label: '用户白名单',
       color: 'text-purple-500',
-      visible: currentUser?.role === 'teacher',
-      onClick: () => onNavigate('admin'),
+      visible: currentUser.role === 'teacher',
+      onClick: () => navigate('/admin'),
     },
     {
       icon: Heart,
@@ -110,37 +111,34 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
       icon: MessageSquare,
       label: '我的提问',
       color: 'text-blue-500',
-      visible: currentUser?.role === 'student' || currentUser?.role === 'teacher',
+      visible: currentUser.role === 'student' || currentUser.role === 'teacher',
       onClick: () => toast.success('查看我的提问'),
     },
     {
       icon: Edit3,
       label: '我的回答',
       color: 'text-green-500',
-      visible: currentUser?.role === 'teacher',
+      visible: currentUser.role === 'teacher',
       onClick: () => toast.success('查看我的回答'),
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#EDEDE9] pb-10">
-      {/* 顶部导航栏 */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center">
-          <button
-            onClick={() => onNavigate('home')}
-            className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <h1 className="text-xl flex-1 text-center font-bold text-gray-800">个人中心</h1>
-          <div className="w-9" />
-        </div>
-      </div>
+    <div className="flex flex-col pb-10">
+      {/* 顶部导航栏 - MainLayout covers this, but Profile often has its own style. 
+          For consistency with design, we'll hide MainLayout's header for Profile or just allow double headers?
+          Actually MainLayout is usually sticky. Profile header here is redundant.
+          Let's remove the redundant header but keep the content structure roughly same.
+       */}
+      {/* <div className="bg-white shadow-sm mb-4">...</div> */}
 
-      <div className="max-w-5xl mx-auto">
+      {/* Re-adding a simple back button header just for "Feel" if needed, but MainLayout handles navigation.
+          Let's just show content.
+      */}
+
+      <div className="w-full">
         {/* 个人信息区域 */}
-        <div className="bg-white p-8 relative overflow-hidden m-4 rounded-3xl shadow-sm">
+        <div className="bg-white p-8 relative overflow-hidden mb-4 rounded-3xl shadow-sm">
           <div className="relative flex flex-col items-center gap-4">
             <div className="relative group cursor-pointer" onClick={() => setShowAvatarDialog(true)}>
               <Avatar className="w-24 h-24 border-4 border-[#F5EBE0] shadow-md transition-transform active:scale-95">
@@ -153,7 +151,7 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
                 <Camera className="w-4 h-4 text-gray-500" />
               </div>
             </div>
-            
+
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">{currentUser?.nickname || '未登录'}</h2>
               {roleBadge && (
@@ -166,7 +164,7 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
         </div>
 
         {/* 功能入口区域 */}
-        <div className="p-4 space-y-3">
+        <div className="space-y-3">
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden p-2">
             {menuItems
               .filter((item) => item.visible)
@@ -197,7 +195,7 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
               <span className="flex-1 text-left font-medium text-gray-700">切换账号</span>
               <ChevronRight className="w-5 h-5 text-gray-300" />
             </button>
-            
+
             <button
               onClick={() => setShowLogoutDialog(true)}
               className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition active:scale-[0.98]"
@@ -229,9 +227,8 @@ export function ProfilePage({ onNavigate, onLogout }: ProfilePageProps) {
               <button
                 key={idx}
                 onClick={() => handleSelectAvatar(url)}
-                className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${
-                  currentUser?.avatar === url ? 'border-[#D5BDAF]' : 'border-transparent'
-                }`}
+                className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${currentUser?.avatar === url ? 'border-[#D5BDAF]' : 'border-transparent'
+                  }`}
               >
                 <img src={url} alt={`avatar-${idx}`} className="w-full h-full object-cover" />
                 {currentUser?.avatar === url && (

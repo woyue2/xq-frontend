@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Label } from '@/app/components/ui/label';
+import { Badge } from '@/app/components/ui/badge';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -14,16 +15,61 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+import { useNavigate } from 'react-router-dom';
+import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { isMemberActive } from '@/lib/permissions';
+import { useDebounce } from '@/hooks/useDebounce';
+import { mockQuestions } from '@/lib/mock-data';
 
-interface CreateQuestionPageProps {
-  onNavigate: (page: string) => void;
-}
+export function CreateQuestionPage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
 
-export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
+  // Permission Check
+  useEffect(() => {
+    if (user && !isMemberActive(user)) {
+      toast.error('您的会员已过期，请联系老师续费');
+      navigate('/');
+    }
+  }, [user, navigate]);
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [showExitDialog, setShowExitDialog] = useState(false);
+
+  // Structured input state
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [selectedMethod, setSelectedMethod] = useState<string>('');
+
+  // Derived options based on subject
+  const currentSubjectConfig = selectedSubject ? TAXONOMY[selectedSubject] : null;
+
+  const [similarQuestions, setSimilarQuestions] = useState<typeof mockQuestions>([]);
+  const debouncedTitle = useDebounce(title, 500);
+
+  // Smart Search Effect
+  useEffect(() => {
+    if (debouncedTitle.length > 2) {
+      // Mock Search Logic: Filter questions that contain the title keywords
+      const hits = mockQuestions.filter(q =>
+        q.title.includes(debouncedTitle) ||
+        q.topics?.some(t => debouncedTitle.includes(t))
+      ).slice(0, 3);
+      setSimilarQuestions(hits);
+    } else {
+      setSimilarQuestions([]);
+    }
+  }, [debouncedTitle]);
 
   const handleImageUpload = () => {
     if (images.length >= 3) {
@@ -46,11 +92,22 @@ export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
     if (title || content || images.length > 0) {
       setShowExitDialog(true);
     } else {
-      onNavigate('home');
+      navigate('/');
     }
   };
 
   const handleSubmit = () => {
+    // Double check permission on submit
+    if (user && !isMemberActive(user)) {
+      toast.error('您的会员已过期，无法提问');
+      return;
+    }
+
+    if (!selectedSubject) {
+      toast.error('请选择科目');
+      return;
+    }
+
     if (!title.trim()) {
       toast.error('请输入问题标题');
       return;
@@ -67,13 +124,25 @@ export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
     }
 
     // 模拟提交审核
-    toast.success('问题已提交，等待审核');
+    const payload = {
+      title,
+      content,
+      subject: selectedSubject,
+      tags: [selectedTopic, selectedMethod].filter(Boolean),
+      images
+    };
+
+    console.log('Submitting:', payload);
+
+    toast.success('问题已提交，AI 正在初筛中...');
     setTimeout(() => {
-      onNavigate('home');
+      navigate('/');
     }, 1000);
   };
 
-  const canSubmit = title.trim().length > 0;
+  const canSubmit = title.trim().length > 0 && selectedSubject;
+
+  if (!user) return null; // Should be handled by layout but safe guard
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -98,31 +167,114 @@ export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
       </div>
 
       {/* 编辑区域 */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6 text-sm">
         <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-          {/* 问题标题 */}
+          {/* 1. 科目选择 (Taxonomy) */}
+          <div className="space-y-3">
+            <Label className="text-base font-bold">选择科目 <span className="text-red-500">*</span></Label>
+            <div className="flex gap-2">
+              {SUBJECT_OPTIONS.map((sub) => (
+                <button
+                  key={sub.value}
+                  onClick={() => {
+                    setSelectedSubject(sub.value);
+                    setSelectedTopic('');
+                    setSelectedMethod('');
+                  }}
+                  className={`px-4 py-2 rounded-full border transition-all ${selectedSubject === sub.value
+                    ? 'bg-blue-500 text-white border-blue-500 shadow-md'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. 考点与方法联动 (Dynamic Chips) */}
+          {currentSubjectConfig && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-2">
+                <Label className="text-gray-500">核心考点 (Topic)</Label>
+                <Select value={selectedTopic} onValueChange={setSelectedTopic}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择考点" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currentSubjectConfig.topics.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-500">解题方法 (Method)</Label>
+                <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="尝试了什么方法？" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currentSubjectConfig.methods.map(m => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+
+
+            // ... render part ...
+
+          {/* 3. 问题标题 */}
           <div className="space-y-2">
-            <Label htmlFor="title">
+            <Label htmlFor="title" className="text-base font-bold">
               问题标题 <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="title"
-              placeholder="请输入问题标题（必填，最多100字）"
+              placeholder="一句话描述你的问题（必填，最多100字）"
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 100))}
-              className="min-h-[80px] resize-none"
+              className="min-h-[60px] resize-none text-base"
             />
+
+            {/* 智能防重 - 猜你想找 */}
+            {similarQuestions.length > 0 && (
+              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-center gap-2 text-xs text-amber-600 font-bold">
+                  <span className="bg-amber-100 px-1.5 py-0.5 rounded">AI 智能拦截</span>
+                  <span>发现相似问题，看看有没有你想要的答案？</span>
+                </div>
+                <div className="space-y-2">
+                  {similarQuestions.map(q => (
+                    <div
+                      key={q.id}
+                      className="flex items-center justify-between text-sm bg-white p-2 rounded border border-amber-100 cursor-pointer hover:bg-amber-50 transition"
+                      onClick={() => window.open(`/question/${q.id}`, '_blank')}
+                    >
+                      <span className="truncate flex-1 text-gray-700">{q.title}</span>
+                      <span className="text-xs text-gray-400 whitespace-nowrap ml-2">{q.stats.answers}个回答</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="text-sm text-gray-500 text-right">
               {title.length}/100
             </div>
           </div>
 
-          {/* 问题详情 */}
+          {/* 4. 问题详情 */}
           <div className="space-y-2">
-            <Label htmlFor="content">问题详情（可选）</Label>
+            <Label htmlFor="content" className="text-base font-bold">问题详情</Label>
             <Textarea
               id="content"
-              placeholder="请输入问题详情（可选，最多500字）"
+              placeholder="请输入详细描述，支持公式和符号...（可选，最多500字）"
               value={content}
               onChange={(e) => setContent(e.target.value.slice(0, 500))}
               className="min-h-[120px] resize-none"
@@ -132,9 +284,9 @@ export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
             </div>
           </div>
 
-          {/* 图片上传区 */}
+          {/* 5. 图片上传区 */}
           <div className="space-y-2">
-            <Label>上传图片（最多3张）</Label>
+            <Label className="font-bold">上传图片（最多3张）</Label>
             <div className="flex flex-wrap gap-3">
               {/* 已上传图片预览 */}
               {images.map((image, index) => (
@@ -167,9 +319,9 @@ export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
           </div>
 
           {/* 审核提示 */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              ⚠️ 问题及图片将通过AI+人工审核，违规内容将不予展示
+          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+            <p className="text-sm text-indigo-800">
+              💡 AI 小贴士：准确选择 <b>科目</b> 和 <b>考点</b> 能让老师更快回答哦！
             </p>
           </div>
         </div>
@@ -186,7 +338,7 @@ export function CreateQuestionPage({ onNavigate }: CreateQuestionPageProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onNavigate('home')}>
+            <AlertDialogAction onClick={() => navigate('/')}>
               确认放弃
             </AlertDialogAction>
           </AlertDialogFooter>
