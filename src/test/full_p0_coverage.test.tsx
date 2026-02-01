@@ -38,7 +38,7 @@ vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 // Mock Carousel
-vi.mock('@/app/components/ui/image-carousel', () => ({
+vi.mock('@/components/ui/image-carousel', () => ({
     ImageCarousel: ({ open }: any) => open ? <div data-testid="image-carousel">Carousel Open</div> : null
 }));
 

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare } from 'lucide-react';
-import { Badge } from '@/app/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { Input } from '@/app/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { mockQuestions, mockComments, mockAnswers, userLikes, userFavorites } from '@/lib/mock-data';
 import type { Comment, DifficultyLevel } from '@/types';
@@ -10,7 +10,7 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cn } from '@/lib/utils';
-import { ImageCarousel } from '@/app/components/ui/image-carousel';
+import { ImageCarousel } from '@/components/ui/image-carousel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuestions } from '@/hooks/useQuestions';
 import { UI_CONFIG } from '@/config/ui-config';
@@ -396,6 +396,13 @@ export function QuestionDetailPage() {
                         <div className="flex-1 h-1 bg-white bg-opacity-50 rounded-full overflow-hidden">
                           <div className={`h-full bg-[#A2D2FF] transition-all duration-300 ${playingAnswerId === answer.id ? 'w-1/2' : 'w-0'}`} />
                         </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(true); }}
+                          className="px-2 py-0.5 bg-white/60 hover:bg-white text-[#1D4ED8] rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
+                          data-testid={`answer-speed-trigger-${answer.id}`}
+                        >
+                          {playbackRate}x
+                        </button>
                         <span className="text-[10px] font-bold text-[#1D4ED8]">01:20</span>
                       </div>
                     </div>

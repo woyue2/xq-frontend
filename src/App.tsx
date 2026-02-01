@@ -10,9 +10,10 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { AuditPage } from '@/pages/AuditPage';
 import { AdminManagementPage } from '@/pages/AdminManagementPage';
 import { MyQuestionsPage } from '@/pages/MyQuestionsPage';
+import { MyAnswersPage } from '@/pages/MyAnswersPage';
 import { MyFavoritesPage } from '@/pages/MyFavoritesPage';
 import { MyLikesPage } from '@/pages/MyLikesPage';
-import { Toaster } from '@/app/components/ui/sonner';
+import { Toaster } from "@/components/ui/sonner";
 
 // Initialize QueryClient
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/audit" element={<AuditPage />} />
             <Route path="/admin" element={<AdminManagementPage />} />
             <Route path="/my-questions" element={<MyQuestionsPage />} />
+            <Route path="/my-answers" element={<MyAnswersPage />} />
             <Route path="/my-favorites" element={<MyFavoritesPage />} />
             <Route path="/my-likes" element={<MyLikesPage />} />
             {/* Fallback */}

@@ -9,10 +9,10 @@ import {
   MessageSquare,
   ThumbsUp
 } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { Badge } from '@/app/components/ui/badge';
-import { Checkbox } from '@/app/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -20,13 +20,14 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription
-} from '@/app/components/ui/dialog';
-import { Input } from '@/app/components/ui/input';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { mockQuestions, mockComments } from '@/lib/mock-data';
 import type { Question, Comment, AuditStatus } from '@/types';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useNavigate } from 'react-router-dom';
+import { aiTextConfig } from '@/config/ai-text';
 
 export const AuditPage = () => {
   const navigate = useNavigate();
@@ -78,8 +79,12 @@ export const AuditPage = () => {
       }));
     }
 
-    const statusText = status === 'approved' ? '已通过' : status === 'rejected' ? '已驳回' : '已封禁';
-    toast.success(`审核完成：${statusText}`);
+    const statusText = status === 'approved' 
+      ? aiTextConfig.auditMessages.statusApproved 
+      : status === 'rejected' 
+        ? aiTextConfig.auditMessages.statusRejected 
+        : aiTextConfig.auditMessages.statusBanned;
+    toast.success(`${aiTextConfig.auditMessages.auditComplete}：${statusText}`);
   };
 
   const openRejectDialog = (id: string, type: 'question' | 'comment') => {

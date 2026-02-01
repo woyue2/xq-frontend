@@ -1,6 +1,6 @@
 import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { Badge } from '@/app/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,20 +10,21 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/app/components/ui/dialog';
-import { Input } from '@/app/components/ui/input';
-import { Button } from '@/app/components/ui/button';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { UI_CONFIG } from '@/config/ui-config';
+import { aiTextConfig } from '@/config/ai-text';
 
 const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -55,13 +56,13 @@ export function ProfilePage() {
     // 简单模拟：检查敏感词
     const sensitiveWords = ['admin', '管理员', '系统', '官方', '客服'];
     if (sensitiveWords.some(w => content.toLowerCase().includes(w))) {
-      return { passed: false, reason: '昵称包含敏感词，请修改后重试' };
+      return { passed: false, reason: aiTextConfig.auditMessages.nicknameSensitive };
     }
     if (content.length < 2) {
-      return { passed: false, reason: '昵称至少需要2个字符' };
+      return { passed: false, reason: aiTextConfig.auditMessages.nicknameTooShort };
     }
     if (content.length > 20) {
-      return { passed: false, reason: '昵称最多20个字符' };
+      return { passed: false, reason: aiTextConfig.auditMessages.nicknameTooLong };
     }
     return { passed: true };
   };
@@ -76,11 +77,11 @@ export function ProfilePage() {
       const result = await simulateAIReview(newNickname);
       if (result.passed) {
         updateUser({ nickname: newNickname });
-        toast.success('昵称已更新');
+        toast.success(aiTextConfig.auditMessages.nicknameUpdated);
         setShowNicknameDialog(false);
         setNewNickname('');
       } else {
-        toast.error(result.reason || '昵称审核未通过');
+        toast.error(result.reason || aiTextConfig.auditMessages.nicknameRejected);
       }
     } finally {
       setIsSubmittingNickname(false);
@@ -163,7 +164,7 @@ export function ProfilePage() {
       label: '我的回答',
       color: 'text-green-500',
       visible: currentUser.role === 'teacher',
-      onClick: () => toast.success('查看我的回答'),
+      onClick: () => navigate('/my-answers'),
     },
   ];
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Heart, Star, MessageCircle, Share2, Pin, PinOff, Loader2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Badge } from '@/app/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { currentUser } from '@/lib/mock-data'; // Only for legacy check, should use store ideally
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -9,11 +9,20 @@ import { useNavigate } from 'react-router-dom';
 import { useQuestions } from '@/hooks/useQuestions';
 import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
 import { UI_CONFIG } from '@/config/ui-config';
+import { DIFFICULTY_LABELS, BADGE_LABELS, TOAST_MESSAGES, TIME_LABELS } from '@/config/app-constants';
 import { cn } from '@/lib/utils';
 import type { Question, DifficultyLevel } from '@/types';
 
 // Swipeable Image Carousel Component
-function SwipeableImageCarousel({ images, onClick }: { images: string[], onClick?: (e: React.MouseEvent) => void }) {
+function SwipeableImageCarousel({ 
+  images, 
+  onClick, 
+  overlay 
+}: { 
+  images: string[], 
+  onClick?: (e: React.MouseEvent) => void,
+  overlay?: React.ReactNode 
+}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
@@ -64,6 +73,13 @@ function SwipeableImageCarousel({ images, onClick }: { images: string[], onClick
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Overlay Element (e.g. Pin Icon) - Absolute Positioned Top-Left */}
+      {overlay && (
+        <div className="absolute top-2 left-2 z-10">
+          {overlay}
+        </div>
+      )}
+
       {/* Images */}
       <div
         className="flex transition-transform duration-300 ease-out h-full"
@@ -176,17 +192,17 @@ export function HomePage() {
   // Local Interaction States (Optimistic UI handled locally for demo)
   const [likedQuestions, setLikedQuestions] = useState(new Set<string>());
   const [favoritedQuestions, setFavoritedQuestions] = useState(new Set<string>());
-  const [pinnedQuestions, setPinnedQuestions] = useState(new Set<string>());
+  const [pinnedStates, setPinnedStates] = useState<Record<string, boolean>>({});
 
   const handleLike = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newLikes = new Set(likedQuestions);
     if (newLikes.has(questionId)) {
       newLikes.delete(questionId);
-      toast.success('已取消点赞');
+      toast.success(TOAST_MESSAGES.unliked);
     } else {
       newLikes.add(questionId);
-      toast.success('点赞成功');
+      toast.success(TOAST_MESSAGES.liked);
     }
     setLikedQuestions(newLikes);
   };
@@ -196,29 +212,42 @@ export function HomePage() {
     const newFavorites = new Set(favoritedQuestions);
     if (newFavorites.has(questionId)) {
       newFavorites.delete(questionId);
-      toast.success('已取消收藏');
+      toast.success(TOAST_MESSAGES.unfavorited);
     } else {
       newFavorites.add(questionId);
-      toast.success('收藏成功');
+      toast.success(TOAST_MESSAGES.favorited);
     }
     setFavoritedQuestions(newFavorites);
   };
 
-  const handleTogglePin = (questionId: string, e: React.MouseEvent) => {
+  const getEffectivePinned = (question: Question) => {
+    return pinnedStates[question.id] ?? question.isPinned;
+  };
+
+  const handleTogglePin = (question: Question, e: React.MouseEvent) => {
     e.stopPropagation();
     if (user?.role !== 'teacher') {
-      toast.error('只有老师可以置顶问题');
+      toast.error(TOAST_MESSAGES.onlyTeacherCanPin);
       return;
     }
-    const newPinned = new Set(pinnedQuestions);
-    if (newPinned.has(questionId)) {
-      newPinned.delete(questionId);
-      toast.success('已取消置顶');
+    
+    // Note: Backend integration required
+    // See FRONTEND-CODING_STANDARDS.md Section 3.3 for PWA/Optimistic update protocol
+    // Currently implementing optimistic UI update only.
+    // In production, this should make a POST request to /api/questions/:id/pin
+    
+    const isPinned = getEffectivePinned(question);
+    
+    if (isPinned) {
+      toast.success(TOAST_MESSAGES.unpinned);
     } else {
-      newPinned.add(questionId);
-      toast.success('已置顶');
+      toast.success(TOAST_MESSAGES.pinned);
     }
-    setPinnedQuestions(newPinned);
+    
+    setPinnedStates(prev => ({
+      ...prev,
+      [question.id]: !isPinned
+    }));
   };
 
   const formatDate = (dateStr: string) => {
@@ -231,11 +260,11 @@ export function HomePage() {
       const hours = Math.floor(diff / (1000 * 60 * 60));
       if (hours === 0) {
         const minutes = Math.floor(diff / (1000 * 60));
-        return `${minutes}分钟前`;
+        return `${minutes}${TIME_LABELS.minutesAgo}`;
       }
-      return `${hours}小时前`;
+      return `${hours}${TIME_LABELS.hoursAgo}`;
     } else if (days < 7) {
-      return `${days}天前`;
+      return `${days}${TIME_LABELS.daysAgo}`;
     } else {
       return date.toLocaleDateString('zh-CN');
     }
@@ -243,15 +272,24 @@ export function HomePage() {
 
   const getDifficultyConfig = (difficulty?: DifficultyLevel) => {
     const configs = {
-      easy: { label: '简单', className: UI_CONFIG.colors.difficulty.easy },
-      medium: { label: '中等', className: UI_CONFIG.colors.difficulty.medium },
-      hard: { label: '难题', className: UI_CONFIG.colors.difficulty.hard },
+      easy: { label: DIFFICULTY_LABELS.easy, className: UI_CONFIG.colors.difficulty.easy },
+      medium: { label: DIFFICULTY_LABELS.medium, className: UI_CONFIG.colors.difficulty.medium },
+      hard: { label: DIFFICULTY_LABELS.hard, className: UI_CONFIG.colors.difficulty.hard },
     };
     return difficulty ? configs[difficulty] : null;
   };
 
   // Flatten pages
   const allQuestions = data?.pages.flatMap(p => p.items) || [];
+  
+  // Sort questions: Pinned first, then by original order (assuming date desc)
+  const sortedQuestions = [...allQuestions].sort((a, b) => {
+    const aPinned = getEffectivePinned(a);
+    const bPinned = getEffectivePinned(b);
+    
+    if (aPinned === bPinned) return 0;
+    return aPinned ? -1 : 1;
+  });
 
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -322,13 +360,15 @@ export function HomePage() {
               <div className="h-3 bg-gray-200 rounded w-1/2" />
             </div>
           ))
-        ) : allQuestions.length === 0 ? (
+        ) : sortedQuestions.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <p>暂无相关问题</p>
           </div>
         ) : (
-          allQuestions.map((question) => {
+          sortedQuestions.map((question) => {
             const difficultyConfig = getDifficultyConfig(question.difficulty);
+            const isPinned = getEffectivePinned(question);
+            
             return (
               <div
                 key={question.id}
@@ -340,19 +380,26 @@ export function HomePage() {
                   {question.images && question.images.length > 0 && (
                     <SwipeableImageCarousel
                       images={question.images}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      // Render Pin badge as overlay on the image if question is pinned
+                      // This aligns with user request to show Pin on top-left of image
+                      overlay={isPinned && (
+                        <Badge className="bg-blue-600 text-white border-none flex items-center gap-1 min-h-[1.25rem] text-[10px] px-1.5 shadow-sm">
+                          <Pin className="w-2.5 h-2.5 fill-white" />
+                        </Badge>
+                      )}
                     />
                   )}
 
                   {/* Topics (formerly Tags) */}
                   <div className="flex flex-wrap items-center gap-2 mb-3">
-                    {(question.isPinned || pinnedQuestions.has(question.id)) && (
+                    {/* Only render Pin here if there are no images, as fallback */}
+                    {isPinned && (!question.images || question.images.length === 0) && (
                       <Badge className="bg-blue-600 text-white border-none flex items-center gap-1 min-h-[1.25rem] text-[10px] px-1.5">
-                        <Pin className="w-2.5 h-2.5 fill-white" /> 置顶
+                        <Pin className="w-2.5 h-2.5 fill-white" />
                       </Badge>
                     )}
                     {question.isGoodQuestion && (
-                      <Badge className={UI_CONFIG.colors.goodQuestion}>好问题</Badge>
+                      <Badge className={UI_CONFIG.colors.goodQuestion}>{BADGE_LABELS.goodQuestion}</Badge>
                     )}
                     {question.tags?.map((tag: string, idx: number) => (
                       <Badge key={idx} variant="secondary" className="bg-gray-100 text-gray-600 border-none min-h-[1.25rem] text-[10px]">
@@ -446,15 +493,15 @@ export function HomePage() {
                   {/* 教师专属置顶按钮 */}
                   {user?.role === 'teacher' && (
                     <button
-                      onClick={(e) => handleTogglePin(question.id, e)}
+                      onClick={(e) => handleTogglePin(question, e)}
                       className={cn(
                         "flex items-center gap-1 text-[10px] transition-colors",
-                        (question.isPinned || pinnedQuestions.has(question.id))
+                        isPinned
                           ? "text-blue-600 hover:text-gray-500"
                           : "text-gray-500 hover:text-blue-600"
                       )}
                     >
-                      {(question.isPinned || pinnedQuestions.has(question.id)) ? (
+                      {isPinned ? (
                         <>
                           <PinOff className="w-3.5 h-3.5" />
                           <span>取消置顶</span>

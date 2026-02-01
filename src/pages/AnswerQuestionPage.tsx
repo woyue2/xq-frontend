@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { ArrowLeft, Upload, X, Mic, Square, Play, Pause } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Textarea } from '@/app/components/ui/textarea';
-import { Label } from '@/app/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -13,7 +13,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { mockQuestions } from '@/lib/mock-data';
 
 interface AnswerQuestionPageProps {

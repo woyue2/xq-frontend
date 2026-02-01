@@ -1,5 +1,5 @@
 import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
-import { Badge } from '@/app/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, 
   Plus, 
@@ -14,10 +15,10 @@ import {
   Minus,
   Edit
 } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
-import { Badge } from '@/app/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription
-} from '@/app/components/ui/dialog';
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,14 +36,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/app/components/ui/select';
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 
@@ -57,11 +58,8 @@ interface WhitelistUser {
   expiresAt?: string; // 课时过期时间（学生和家长共享）
 }
 
-interface AdminManagementPageProps {
-  onNavigate: (page: string) => void;
-}
-
-export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
+export function AdminManagementPage() {
+  const navigate = useNavigate();
   // 模拟白名单数据
   const [whitelist, setWhitelist] = useState<WhitelistUser[]>([
     {
@@ -121,6 +119,7 @@ export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
   const [expiryDialogOpen, setExpiryDialogOpen] = useState(false);
   const [expiryTarget, setExpiryTarget] = useState<WhitelistUser | null>(null);
   const [expiryMonths, setExpiryMonths] = useState(1);
+  const [customExpiryDate, setCustomExpiryDate] = useState('');
 
   // 二次确认对话框
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -217,13 +216,16 @@ export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
   const handleManageExpiry = (user: WhitelistUser) => {
     setExpiryTarget(user);
     setExpiryMonths(1);
+    // 默认显示当前有效期，如果没有则显示当前计算的有效期
+    setCustomExpiryDate(user.expiresAt || calculateNewExpiry(1));
     setExpiryDialogOpen(true);
   };
 
   // 第一步：预览新的过期时间
   const handleExpirySubmit = () => {
     if (expiryTarget) {
-      const newExpiry = calculateNewExpiry(expiryMonths);
+      // 优先使用自定义日期
+      const newExpiry = customExpiryDate || calculateNewExpiry(expiryMonths);
       setPendingExpiry({ user: expiryTarget, date: newExpiry });
       setExpiryDialogOpen(false);
       setConfirmDialogOpen(true);
@@ -260,7 +262,7 @@ export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
-            onClick={() => onNavigate('profile')}
+            onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
           >
             <ChevronLeft className="w-6 h-6 text-gray-600" />
@@ -526,11 +528,18 @@ export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>当前有效期至</Label>
-              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                {expiryTarget?.expiresAt || '未设置'}
+              <Label>有效期至</Label>
+              <div className="relative">
+                <Input 
+                  type="date"
+                  value={customExpiryDate}
+                  onChange={(e) => setCustomExpiryDate(e.target.value)}
+                  className="w-full h-11 px-4 text-base border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all bg-white rounded-xl shadow-sm"
+                />
                 {expiryTarget?.expiresAt && isExpired(expiryTarget.expiresAt) && (
-                  <span className="text-red-600 ml-2">(已过期)</span>
+                  <div className="text-xs text-red-600 mt-1 ml-1">
+                    原有效期: {expiryTarget.expiresAt} (已过期)
+                  </div>
                 )}
               </div>
             </div>
@@ -541,7 +550,11 @@ export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setExpiryMonths(Math.max(1, expiryMonths - 1))}
+                  onClick={() => {
+                    const newMonths = Math.max(1, expiryMonths - 1);
+                    setExpiryMonths(newMonths);
+                    setCustomExpiryDate(calculateNewExpiry(newMonths));
+                  }}
                   disabled={expiryMonths <= 1}
                 >
                   <Minus className="w-4 h-4" />
@@ -553,7 +566,11 @@ export function AdminManagementPage({ onNavigate }: AdminManagementPageProps) {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setExpiryMonths(Math.min(12, expiryMonths + 1))}
+                  onClick={() => {
+                    const newMonths = Math.min(12, expiryMonths + 1);
+                    setExpiryMonths(newMonths);
+                    setCustomExpiryDate(calculateNewExpiry(newMonths));
+                  }}
                   disabled={expiryMonths >= 12}
                 >
                   <Plus className="w-4 h-4" />
