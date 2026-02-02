@@ -58,6 +58,29 @@ interface WhitelistUser {
   expiresAt?: string; // 课时过期时间（学生和家长共享）
 }
 
+const EXPIRING_SOON_DAYS = 15;
+
+const needsExpiryForRole = (role: UserRole) =>
+  role === 'student' || role === 'parent';
+
+const isExpiredDate = (expiresAt?: string) => {
+  if (!expiresAt) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const date = new Date(expiresAt);
+  return date < today;
+};
+
+const isExpiringSoonDate = (expiresAt?: string) => {
+  if (!expiresAt) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const date = new Date(expiresAt);
+  const diffMs = date.getTime() - today.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 && diffDays <= EXPIRING_SOON_DAYS;
+};
+
 export function AdminManagementPage() {
   const navigate = useNavigate();
   // 模拟白名单数据
@@ -104,6 +127,7 @@ export function AdminManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterExpiry, setFilterExpiry] = useState<'all' | 'expiring' | 'expired'>('all');
   
   // 添加用户对话框
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -132,7 +156,21 @@ export function AdminManagementPage() {
     const matchStatus = filterStatus === 'all' || 
       (filterStatus === 'registered' && user.isRegistered) ||
       (filterStatus === 'pending' && !user.isRegistered);
-    return matchSearch && matchRole && matchStatus;
+
+    const needsExpiry = needsExpiryForRole(user.role);
+    const expired = needsExpiry && isExpiredDate(user.expiresAt);
+    const expiringSoon = needsExpiry && isExpiringSoonDate(user.expiresAt) && !expired;
+
+    const matchExpiry =
+      filterExpiry === 'all'
+        ? true
+        : filterExpiry === 'expiring'
+        ? expiringSoon
+        : expired;
+
+    const includeByExpiry = needsExpiry ? matchExpiry : filterExpiry === 'all';
+
+    return matchSearch && matchRole && matchStatus && includeByExpiry;
   });
 
   const getRoleBadge = (role: UserRole) => {
@@ -146,8 +184,7 @@ export function AdminManagementPage() {
 
   // 检查是否过期
   const isExpired = (expiresAt?: string) => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt) < new Date();
+    return isExpiredDate(expiresAt);
   };
 
   // 计算新的过期时间
@@ -256,6 +293,18 @@ export function AdminManagementPage() {
     parents: whitelist.filter(u => u.role === 'parent').length,
   };
 
+  const expiryStats = {
+    expiringSoon: whitelist.filter(
+      (u) =>
+        needsExpiryForRole(u.role) &&
+        isExpiringSoonDate(u.expiresAt) &&
+        !isExpiredDate(u.expiresAt)
+    ).length,
+    expired: whitelist.filter(
+      (u) => needsExpiryForRole(u.role) && isExpiredDate(u.expiresAt)
+    ).length,
+  };
+
   return (
     <div className="min-h-screen bg-[#EDEDE9] flex flex-col">
       {/* 顶部导航栏 */}
@@ -316,6 +365,17 @@ export function AdminManagementPage() {
             <div className="text-xl font-bold text-purple-800">{stats.parents}</div>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <div className="text-xs text-orange-600 mb-0.5">即将过期（学生/家长）</div>
+            <div className="text-xl font-bold text-orange-700">{expiryStats.expiringSoon}</div>
+          </div>
+          <div className="bg-white rounded-2xl p-3 shadow-sm">
+            <div className="text-xs text-red-600 mb-0.5">已过期（学生/家长）</div>
+            <div className="text-xl font-bold text-red-700">{expiryStats.expired}</div>
+          </div>
+        </div>
       </div>
 
       {/* 搜索和筛选 */}
@@ -353,6 +413,17 @@ export function AdminManagementPage() {
               <SelectItem value="all">全部状态</SelectItem>
               <SelectItem value="registered">已注册</SelectItem>
               <SelectItem value="pending">待注册</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterExpiry} onValueChange={(v) => setFilterExpiry(v as any)}>
+            <SelectTrigger className="flex-1 bg-white rounded-2xl">
+              <SelectValue placeholder="课时状态" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">课时状态：全部</SelectItem>
+              <SelectItem value="expiring">仅看即将过期（学生/家长）</SelectItem>
+              <SelectItem value="expired">仅看已过期（学生/家长）</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -20,7 +20,7 @@ import type {
   WhitelistParams,
   AddWhitelistPayload
 } from '@/types/api';
-import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer } from '@/types';
+import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer, Comment } from '@/types';
 
 // Configuration
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
@@ -727,6 +727,25 @@ export const answerService = {
         const { data } = await api.get<ApiResponse<{ list: Answer[]; total: number }>>(
             `/questions/${questionId}/answers`
         );
+        return data.data;
+    }
+};
+
+export const commentService = {
+    create: async (
+        questionId: string,
+        payload: { content?: string; image?: string }
+    ) => {
+        const { data } = await api.post<ApiResponse<Comment>>(
+            `/questions/${questionId}/comments`,
+            payload
+        );
+        return data.data;
+    },
+    listByQuestion: async (questionId: string) => {
+        const { data } = await api.get<
+          ApiResponse<{ list: Comment[]; total: number }>
+        >(`/questions/${questionId}/comments`);
         return data.data;
     }
 };

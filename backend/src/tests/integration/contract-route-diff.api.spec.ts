@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../app';
 import { signAccessToken } from '../../utils/jwt';
+import { prisma } from '../../config/database';
 
 /**
  * 合同差异回归测试（基于 helloagents/plan/backend-route-diff.md）
@@ -64,5 +65,53 @@ describe('Contract vs Implementation (route diff based checks)', () => {
     // 路径+方法与文档一致，当前实现对不存在的 questionId 返回业务级 404。
     // 该用例仅用于验证路由已经存在且挂载成功。
     expect(res.status).toBe(404);
+  });
+
+  it('doc whitelist response shape (items/total/page/limit) differs from implementation (list/pagination/statistics)', async () => {
+    // 准备少量白名单数据，便于观察结构
+    await prisma.userWhitelist.deleteMany();
+    await prisma.userWhitelist.createMany({
+      data: [
+        {
+          phone: '13800138000',
+          name: '学生A',
+          role: 'student',
+          isRegistered: true
+        },
+        {
+          phone: '13900139000',
+          name: '家长A',
+          role: 'parent',
+          isRegistered: false
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get('/api/admin/whitelist?page=1&pageSize=10')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    // 实现使用 list/pagination/statistics，而非文档中的 items/total/page/limit
+    expect(res.body.data.list).toBeDefined();
+    expect(Array.isArray(res.body.data.list)).toBe(true);
+    expect(res.body.data.pagination).toBeDefined();
+    expect(typeof res.body.data.pagination.page).toBe('number');
+    expect(res.body.data.statistics).toBeDefined();
+    expect(res.body.data.items).toBeUndefined();
+  });
+
+  it('doc notifications response shape differs: implementation uses notifications/unreadCount/total', async () => {
+    const res = await request(app)
+      .get('/api/notifications')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    // 合同记录：实现为 notifications/unreadCount/total，而非简单 items/total。
+    expect(res.body.data.notifications).toBeDefined();
+    expect(Array.isArray(res.body.data.notifications)).toBe(true);
+    expect(typeof res.body.data.unreadCount).toBe('number');
+    expect(typeof res.body.data.total).toBe('number');
   });
 });

@@ -120,8 +120,8 @@ describe('Comment API', () => {
     expect(updatedQuestion?.comments).toBe(1);
   });
 
-  // C-API-002 教师评论任意问题
-  it('should allow teacher to comment any question (C-API-002)', async () => {
+  // C-API-002 教师评论任意问题（应直接通过审核）
+  it('should allow teacher to comment any question and auto-approve (C-API-002)', async () => {
     const question = await prisma.question.create({
       data: {
         id: 'q-cmt-002',
@@ -152,6 +152,7 @@ describe('Comment API', () => {
     expect(res.status).toBe(201);
     expect(res.body.code).toBe(201);
     expect(res.body.data.authorId).toBe('teacher_001');
+    expect(res.body.data.status).toBe('approved');
   });
 
   // C-API-003 学生无权评论他人问题
@@ -333,4 +334,3 @@ describe('Comment API', () => {
     expect(updatedQuestion?.comments).toBe(0);
   });
 });
-

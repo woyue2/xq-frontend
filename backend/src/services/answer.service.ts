@@ -39,6 +39,9 @@ export class AnswerService {
       throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
     }
 
+    // 老师回答无需审核，默认直接通过；其他角色仍走审核。
+    const initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+
     const [created] = await prisma.$transaction([
       prisma.answer.create({
         data: {
@@ -50,7 +53,7 @@ export class AnswerService {
           authorName: author.nickname,
           authorAvatar: author.avatar ?? null,
           likes: 0,
-          status: 'pending',
+          status: initialStatus,
           aiResult: '无违规'
         }
       }),

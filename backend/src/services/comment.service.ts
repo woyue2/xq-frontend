@@ -41,6 +41,9 @@ export class CommentService {
 
     // 使用数组形式的事务，便于在单元测试中通过 mockResolvedValue([...])
     // 直接控制返回结果（与 AnswerService.create 的实现保持对齐）。
+    // 老师评论无需审核，默认直接通过；学生等其他角色仍走审核。
+    const initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+
     const [created] = await prisma.$transaction([
       prisma.comment.create({
         data: {
@@ -50,7 +53,7 @@ export class CommentService {
           authorId,
           authorName: author.nickname,
           authorAvatar: author.avatar ?? null,
-          status: 'pending',
+          status: initialStatus,
           aiResult: '无违规'
         }
       }),

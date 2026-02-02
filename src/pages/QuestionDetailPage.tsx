@@ -15,7 +15,9 @@ import { ImageCarousel } from '@/components/ui/image-carousel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UI_CONFIG } from '@/config/ui-config';
 import { Pin } from 'lucide-react';
-import { interactionService, behaviorService, questionService, answerService } from '@/services/api';
+import { interactionService, behaviorService, questionService, answerService, commentService } from '@/services/api';
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 const normalizeQuestion = (raw: any) => {
   if (!raw) return null;
@@ -154,6 +156,7 @@ export function QuestionDetailPage() {
     };
   }, [safeQuestionId]);
   const [comments, setComments] = useState<Comment[]>(mockComments[safeQuestionId] || []);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
   const [liked, setLiked] = useState(userLikes.has(safeQuestionId));
@@ -163,6 +166,33 @@ export function QuestionDetailPage() {
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+
+  useEffect(() => {
+    if (!safeQuestionId || USE_MOCK) return;
+
+    let cancelled = false;
+    setIsLoadingComments(true);
+
+    commentService
+      .listByQuestion(safeQuestionId)
+      .then((res) => {
+        if (!cancelled && res && Array.isArray(res.list)) {
+          setComments((prev) => (prev && prev.length > 0 ? prev : res.list));
+        }
+      })
+      .catch(() => {
+        // 出错时保留现有 comments（通常来自 mock），由 UI 做兜底展示
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingComments(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [safeQuestionId]);
 
   if (!question) {
     // 统一在“加载中 / 未找到”状态下也提供返回按钮，
@@ -327,7 +357,7 @@ export function QuestionDetailPage() {
     }
   };
 
-  const handleSubmitComment = () => {
+  const handleSubmitComment = async () => {
     if (!currentUser) {
       toast.error('请先登录');
       navigate('/login');
@@ -346,24 +376,57 @@ export function QuestionDetailPage() {
       return;
     }
 
-    const comment: Comment = {
-      id: `c${Date.now()}`,
-      questionId: question.id,
-      questionTitle: question.title,
-      content: newComment,
-      image: commentImage || undefined,
-      authorId: currentUser.id,
-      authorName: currentUser.nickname,
-      authorAvatar: currentUser.avatar,
-      status: 'pending',
-      aiResult: '无违规',
-      createdAt: new Date().toISOString(),
-    };
+    if (USE_MOCK) {
+      const comment: Comment = {
+        id: `c${Date.now()}`,
+        questionId: question.id,
+        questionTitle: question.title,
+        content: newComment,
+        image: commentImage || undefined,
+        authorId: currentUser.id,
+        authorName: currentUser.nickname,
+        authorAvatar: currentUser.avatar,
+        status: 'pending',
+        aiResult: '无违规',
+        createdAt: new Date().toISOString(),
+      };
 
-    setComments([...comments, comment]);
-    setNewComment('');
-    setCommentImage(null);
-    toast.success('评论已提交，等待审核');
+      setComments((prev) => [...prev, comment]);
+      setNewComment('');
+      setCommentImage(null);
+      toast.success('评论已提交，等待审核');
+      return;
+    }
+
+    try {
+      const created = await commentService.create(question.id, {
+        content: newComment.trim(),
+        image: commentImage || undefined
+      });
+
+      if (created.status === 'approved') {
+        setComments((prev) => [created, ...prev]);
+      }
+
+      try {
+        await behaviorService.log('question_comment', {
+          questionId: question.id,
+          hasImage: !!commentImage
+        });
+      } catch {
+        // 行为日志失败不影响主流程
+      }
+
+      setNewComment('');
+      setCommentImage(null);
+      toast.success(
+        created.status === 'approved'
+          ? '评论已发布'
+          : '评论已提交，等待审核'
+      );
+    } catch {
+      toast.error('评论提交失败，请稍后重试');
+    }
   };
 
   const handlePlayAudio = () => {

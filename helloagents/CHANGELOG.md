@@ -96,9 +96,45 @@
    - 更新 `backend/src/tests/integration/behavior.api.spec.ts`，将 LOG-API-001 / BEHAVIOR-API-001 的断言改为检查 `data.logId`，并保持限流与参数校验用例不变。
    - 同步修改相关文档与知识库：`codex-develop-doc/backend-key-apis.md`、`codex-develop-doc/后端-测试用例.md`、`helloagents/wiki/backend-section-8-9-review.md` 以及 `helloagents/plan/backend-route-diff.md`，统一说明行为埋点接口已采用 `data.logId` 作为唯一日志标识字段。
 - **前端关键业务与后端真实接入（首批落地）**:
-  - 新增 `src/lib/image-compress.ts`，在浏览器端统一实现 JPG 压缩与 1MB 体积控制，并在 `questionService.uploadImage` 中串联签名获取与直传逻辑；
+ - 新增 `src/lib/image-compress.ts`，在浏览器端统一实现 JPG 压缩与 1MB 体积控制，并在 `questionService.uploadImage` 中串联签名获取与直传逻辑；
   - 将 `CreateQuestionPage` 提问提交逻辑切换为调用后端 `POST /api/questions`，并在问题详情页接入 `/api/interactions/like|favorite` 与 `POST /api/behavior/log`，使点赞/收藏行为真实落地到后端；
   - 在 `AuthService.login` 中引入可配置的 `AUTH_STRICT_WHITELIST_FOR_LOGIN` 白名单校验开关，为后续统一登录与课时策略提供基础能力。
+
+### Changed / Extended (2026-02-02 后续迭代)
+- **家长 & 过期学生权限链路（前端）**:
+  - 在 `tests/e2e/parent-flow.spec.ts` 中扩展家长端 E2E 场景，覆盖：
+    - 个人中心「我的孩子」空态与绑定入口；
+    - 孩子提问列表页面基本渲染；
+    - 首页只读浏览（无“提问”入口）；
+    - 首页浏览时的空态/有题目两种情况；
+    - 家长在个人中心看不到“审核管理”“用户白名单”菜单；
+    - 家长从个人中心进入“我的点赞”“我的收藏”并成功打开 `/my-likes` 与 `/my-favorites`。
+  - 在 `src/test/comprehensive.test.tsx` 中补充家长/过期学生前端权限单测：
+    - `PAR-003/004`：家长在问题详情页只能阅读，不能看到“去回答”按钮与评论输入框/图片按钮，但仍可使用点赞与收藏入口；
+    - `PERM-FE-001`：课时已过期的学生访问 `/create` 会被前端拦截，并通过 toast 提示会员已过期；
+    - `PERM-FE-002`：家长访问 `/create` 也被视为只读模式，收到与过期学生一致的错误提示。
+  - 新增 `tests/e2e/unauth-redirect.spec.ts`，验证未登录时访问登录入口页面的稳态渲染（`/login` 的“账号登录”文案可正常显示），为后续前端登录重定向策略提供冒烟基线。
+
+- **家长 & 课时权限合同（后端）**:
+  - 在 `backend/src/tests/integration/interaction-like-favorite.api.spec.ts` 中扩展权限相关用例：
+    - `PERM-API-007`：为课时过期学生补充“仍可点赞”的合同测试，验证 `POST /api/questions/:id/like` 对过期学生返回 `200/点赞成功`，权限行为与文档描述一致（降级为家长模式：只读 + 点赞/收藏）；
+    - 为家长用户 `parent_like_001` 增加 “我的点赞/我的收藏” 列表用例，验证 `GET /api/users/me/likes` 与 `GET /api/users/me/favorites` 对家长也按学生同样的结构返回列表。
+  - 新增认证与权限基础集成测试 `backend/src/tests/integration/permission-auth.api.spec.ts`，覆盖 PERM-API-001~003：
+    - 无 Token 访问 `/api/users/me` 返回 `401/UNAUTHORIZED/未登录`；
+    - Token 格式错误返回 `401/UNAUTHORIZED/认证失败`；
+    - 使用已过期的访问令牌返回 `401/TOKEN_EXPIRED/登录已过期，请重新登录`。
+
+- **合同差异回归（Route Diff）扩展**:
+  - 在 `backend/src/tests/integration/contract-route-diff.api.spec.ts` 中补充对白名单与通知模块返回结构的合同检查，明确当前实现与文档示例之间的结构性差异：
+    - 白名单列表：确认 `GET /api/admin/whitelist` 返回 `data.list + data.pagination + data.statistics`，而非文档中的 `items/total/page/limit`，将其记录为“已知合同差异（结构字段名差异）”；
+    - 通知列表：确认 `GET /api/notifications` 返回 `notifications/unreadCount/total` 三个字段，与文档中未细化字段名的描述保持语义一致但命名上存在差异，为后续文档更新提供依据。
+
+- **用户白名单管理页面状态与课时筛选增强**:
+  - 在前端 `src/pages/AdminManagementPage.tsx` 中扩展白名单状态展示与课时状态筛选能力，使教师/管理员可以一目了然查看白名单整体状态，并快速筛出“快要过期”的学生与家长：
+    - 新增课时状态常量与工具函数：`EXPIRING_SOON_DAYS=15`、`needsExpiryForRole`、`isExpiredDate`、`isExpiringSoonDate`，统一按日期维度判断学生/家长是否已过期或在 N 天内即将过期，避免时间精度带来的 off-by-one 问题。
+    - 在统计卡片区域补充课时维度统计卡片：“即将过期（学生/家长）”“已过期（学生/家长）”，通过 `expiryStats.expiringSoon/expired` 直观展示当前课时风险分布。
+    - 扩展列表过滤逻辑 `filteredList`，引入 `filterExpiry` 状态（`all | expiring | expired`），在保持原有角色/注册状态/搜索筛选的基础上，对学生与家长按课时状态进行过滤；在“课时状态≠全部”时默认不展示老师记录，聚焦需要课时管理的对象。
+    - 在筛选器区域新增“课时状态”下拉框（全部 / 仅看即将过期（学生/家长）/ 仅看已过期（学生/家长）），满足“用户白名单管理页面的全部状态 + 筛选快要过期的学生和家长”的需求，同时不改变现有后端 `/api/admin/whitelist` 合同，为未来对接真实接口预留 `validUntil -> expiresAt` 适配空间。
 
 ## [2026-02-02]
 - Initial parent-child binding flow implementation.

@@ -23,6 +23,18 @@ export class QuestionService {
       );
     }
 
+    // 查询作者信息，用于确定角色和展示名称
+    const author = await prisma.user.findUnique({
+      where: { id: authorId }
+    });
+
+    if (!author) {
+      throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
+    }
+
+    // 老师发布的问题无需审核，学生 / 其他角色仍走审核流程。
+    const initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+
     const created = await prisma.question.create({
       data: {
         title,
@@ -30,7 +42,7 @@ export class QuestionService {
         subject: null,
         tags: tags ?? [],
         difficulty: difficulty ?? null,
-        status: 'pending',
+        status: initialStatus,
         isGoodQuestion: false,
         isPinned: false,
         score: null,
@@ -40,8 +52,8 @@ export class QuestionService {
         comments: 0,
         answers: 0,
         authorId,
-        authorName,
-        authorAvatar: authorAvatar ?? null
+        authorName: author.nickname || authorName,
+        authorAvatar: authorAvatar ?? author.avatar ?? null
       }
     });
 

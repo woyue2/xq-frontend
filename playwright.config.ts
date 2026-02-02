@@ -26,6 +26,11 @@ export default defineConfig({
     command: 'npm run dev -- --port 4173',
     url: frontendBaseURL,
     reuseExistingServer: process.env.CI ? false : true,
-    timeout: 120_000
+    timeout: 120_000,
+    // E2E 联调时强制关闭前端 Mock，确保所有请求走真实后端
+    env: {
+      ...process.env,
+      VITE_USE_MOCK: 'false'
+    }
   }
 });

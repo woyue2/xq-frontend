@@ -47,8 +47,8 @@ describe('Answer API', () => {
     });
   });
 
-  // A-API-001 正常创建回答
-  it('should create answer successfully (A-API-001)', async () => {
+  // A-API-001 正常创建回答（老师回答应直接通过审核）
+  it('should create answer successfully and auto-approve for teacher (A-API-001)', async () => {
     const question = await prisma.question.create({
       data: {
         id: 'q-ans-001',
@@ -89,7 +89,8 @@ describe('Answer API', () => {
     expect(res.body.data.audioUrl).toBe(payload.audioUrl);
     expect(res.body.data.authorId).toBe('teacher_001');
     expect(res.body.data.likes).toBe(0);
-    expect(res.body.data.status).toBe('pending');
+    // 老师回答在当前实现中应直接为 approved
+    expect(res.body.data.status).toBe('approved');
 
     const updatedQuestion = await prisma.question.findUnique({
       where: { id: question.id }
@@ -301,4 +302,3 @@ describe('Answer API', () => {
     expect(updatedQuestion?.answers).toBe(0);
   });
 });
-

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Eye, EyeOff, X } from 'lucide-react';
-import { mockUsers, validInviteCodes } from '@/lib/mock-data';
+import { validInviteCodes, mockUsers } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -69,11 +69,6 @@ export function LoginPage() {
         return prev - 1;
       });
     }, 1000);
-
-    if (USE_MOCK) {
-      toast.success('验证码已发送');
-      return;
-    }
 
     try {
       await authService.sendCode({

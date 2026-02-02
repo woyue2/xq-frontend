@@ -21,6 +21,11 @@ describe('Question API', () => {
     role: 'parent'
   });
 
+  const teacherToken = signAccessToken({
+    sub: 'teacher_001',
+    role: 'teacher'
+  });
+
   beforeEach(async () => {
     // 确保测试用到的用户在数据库中存在，避免会员校验时报 USER_NOT_FOUND
     await prisma.user.deleteMany();
@@ -43,25 +48,30 @@ describe('Question API', () => {
           role: 'student',
           isActive: true,
           isBanned: false
+        },
+        {
+          id: 'parent_001',
+          phone: '13900000002',
+          nickname: '测试家长',
+          role: 'parent',
+          isActive: true,
+          isBanned: false
+        },
+        {
+          id: 'teacher_001',
+          phone: '13900000011',
+          nickname: '李老师',
+          role: 'teacher',
+          isActive: true,
+          isBanned: false
         }
       ]
-    });
-
-    await prisma.user.create({
-      data: {
-        id: 'parent_001',
-        phone: '13900000002',
-        nickname: '测试家长',
-        role: 'parent',
-        isActive: true,
-        isBanned: false
-      }
     });
 
     await prisma.question.deleteMany();
   });
 
-  // Q-API-001 正常创建问题（简化版本，不依赖真实 AI 审核）
+  // Q-API-001 学生正常创建问题（仍需审核）
   it('should create question successfully (Q-API-001)', async () => {
     const res = await request(app)
       .post('/api/questions')
@@ -85,6 +95,24 @@ describe('Question API', () => {
       '如何理解二次函数的顶点公式？'
     );
     expect(res.body.data.status).toBe('pending');
+  });
+
+  // Q-API-001T 教师创建问题应直接通过审核
+  it('should auto-approve question created by teacher (Q-API-001T)', async () => {
+    const res = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        title: '老师发布的问题，不需要审核',
+        content: '这是老师直接发布的问题，用于免审核验证',
+        images: [],
+        tags: ['老师提问'],
+        difficulty: 'easy'
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.code).toBe(201);
+    expect(res.body.data.status).toBe('approved');
   });
 
   // Q-API-002 标题超长
