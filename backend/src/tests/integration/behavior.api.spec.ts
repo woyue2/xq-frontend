@@ -32,8 +32,8 @@ describe('Behavior Log API', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(200);
-    expect(res.body.message).toBe('Logged successfully');
-    expect(res.body.data.success).toBe(true);
+    expect(res.body.message).toBe('success');
+    expect(typeof res.body.data.logId).toBe('string');
 
     const logs = await prisma.behaviorLog.findMany();
     expect(logs.length).toBe(1);

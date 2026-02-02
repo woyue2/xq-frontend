@@ -30,6 +30,13 @@ export const useAuthStore = create<AuthState>()(
             permissions: [],
 
             login: (user, token) => {
+                // 持久化 Token 以便拦截器和刷新后使用
+                try {
+                    localStorage.setItem('token', token);
+                } catch {
+                    // 忽略本地存储异常（如隐私模式）
+                }
+
                 set({
                     user,
                     token,
@@ -41,6 +48,12 @@ export const useAuthStore = create<AuthState>()(
             },
 
             logout: () => {
+                try {
+                    localStorage.removeItem('token');
+                } catch {
+                    // 忽略本地存储异常
+                }
+
                 set({
                     user: null,
                     token: null,

@@ -282,23 +282,33 @@
 
 ## 5. 点赞与收藏
 
-### 5.1 点赞 `POST /api/interactions/like`
+> 说明：最终实现采用「单一 POST + action 字段」的方式在同一路由上切换点赞/取消点赞、收藏/取消收藏，DELETE 路由不再实现。  
+> 此处文档已按实际实现更新。
 
+### 5.1 点赞 / 取消点赞 `POST /api/interactions/like`
+
+- 描述：为问题点赞或取消点赞（同一路由，通过 `action` 字段区分）。  
 - 请求体：
 
 ```json
 {
   "targetType": "question",
-  "targetId": "q_1"
+  "targetId": "q_1",
+  "action": "like"
 }
 ```
 
-- 响应示例：
+- 其中：
+  - `targetType`: 当前仅支持 `"question"`；
+  - `targetId`: 问题 ID；
+  - `action`: `"like"` 点赞、`"unlike"` 取消点赞。
+
+- 响应示例（点赞成功）：
 
 ```json
 {
   "code": 200,
-  "message": "success",
+  "message": "点赞成功",
   "data": {
     "liked": true,
     "likesCount": 11
@@ -307,31 +317,108 @@
 }
 ```
 
-### 5.2 取消点赞 `DELETE /api/interactions/like`
+- 响应示例（取消点赞）：
 
-- 请求体同上。
+```json
+{
+  "code": 200,
+  "message": "取消点赞",
+  "data": {
+    "liked": false,
+    "likesCount": 10
+  },
+  "timestamp": 1706832000000
+}
+```
 
-### 5.3 收藏与取消收藏
+- 兼容资源路由（问题详情页场景）：
+  - `POST /api/questions/:questionId/like`  
+  - 说明：不带请求体，后端根据当前用户是否已点赞自动切换「点赞 / 取消点赞」，语义与 `/api/interactions/like` 等价。
 
-- `POST /api/interactions/favorite`
-- `DELETE /api/interactions/favorite`
+### 5.2 收藏 / 取消收藏 `POST /api/interactions/favorite`
+
+- 描述：为问题收藏或取消收藏（同一路由，通过 `action` 区分）。  
+- 请求体：
+
+```json
+{
+  "questionId": "q_1",
+  "action": "favorite"
+}
+```
+
+- 其中：
+  - `questionId`: 问题 ID；
+  - `action`: `"favorite"` 收藏、`"unfavorite"` 取消收藏。
+
+- 响应示例（收藏成功）：
+
+```json
+{
+  "code": 200,
+  "message": "收藏成功",
+  "data": {
+    "favorited": true,
+    "favoritesCount": 13
+  },
+  "timestamp": 1706832000000
+}
+```
+
+- 响应示例（取消收藏）：
+
+```json
+{
+  "code": 200,
+  "message": "取消收藏",
+  "data": {
+    "favorited": false,
+    "favoritesCount": 12
+  },
+  "timestamp": 1706832000000
+}
+```
+
+- 兼容资源路由（问题详情页场景）：
+  - `POST /api/questions/:questionId/favorite`  
+  - 说明：不带请求体，后端根据当前用户是否已收藏自动切换「收藏 / 取消收藏」，语义与 `/api/interactions/favorite` 等价。
+
+### 5.3 我的点赞 / 收藏列表
+
+- 点赞列表：`GET /api/users/me/likes`
+  - 查询参数：`page`, `pageSize`；
+  - 返回当前登录用户点赞过的问题列表，包含分页信息。
+
+- 收藏列表：`GET /api/users/me/favorites`
+  - 查询参数：`page`, `pageSize`；
+  - 返回当前登录用户收藏的问题列表，包含分页信息。
 
 ---
 
 ## 6. 审核与 AI 回调
 
-### 6.1 审核队列 `GET /api/admin/audit-queue`
+### 6.1 审核队列 `GET /api/admin/audit/pending`
 
-- 查询参数：`page`, `limit`, `type`（question/answer/comment）等。
+- 描述：获取待审核内容列表。  
+- 查询参数：
+  - `page`：页码，默认 1；
+  - `pageSize`：每页数量，默认 20，最大 100；
+  - `type`：`"question"` | `"answer"` | `"comment"`。
 
 ### 6.2 审核操作
 
-- `POST /api/admin/audit/:id/approve`
-- `POST /api/admin/audit/:id/reject`
+- `POST /api/admin/audit/:contentId/approve`  
+  - 用于审核通过问题或评论，后端根据 `type` 字段区分：
+    - `type="question"`：调用问题审核通过逻辑；
+    - `type="comment"`：调用评论审核通过逻辑。
+- `POST /api/admin/audit/:contentId/reject`  
+  - 目前仅支持问题驳回，`type` 必须为 `"question"`。
+- `POST /api/admin/audit/:contentId/ban`  
+  - 用于封禁评论，`type` 必须为 `"comment"`。
 
 ### 6.3 AI 回调 `POST /api/internal/ai-check`
 
-- 描述：AI 服务/队列调用的内部接口，用于更新问题/回答的 `ai_result` 与状态。
+- 描述：AI 服务/队列调用的内部接口，用于更新问题/回答/评论的 `ai_result` 与状态。
 - 鉴权：仅内部服务可用，建议在生产环境配置 `AI_INTERNAL_TOKEN` 并通过请求头 `X-Internal-Token` 进行校验。
 - 请求体（示例）：
 
@@ -377,10 +464,9 @@
 ```json
 {
   "code": 200,
-  "message": "Logged successfully",
+  "message": "success",
   "data": {
-    "id": "log_abc123",
-    "receivedAt": 1706832000100
+    "logId": "log_abc123"
   },
   "timestamp": 1706832000100
 }

@@ -24,7 +24,9 @@ export const requireActiveMembership = async (
         new AppError(
           403,
           'MEMBER_EXPIRED',
-          '会员课时已过期，请联系管理员续费'
+          '会员课时已过期，请联系管理员续费',
+          undefined,
+          4004
         )
       );
     }

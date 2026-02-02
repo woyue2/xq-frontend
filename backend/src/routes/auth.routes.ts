@@ -48,13 +48,14 @@ authRouter.post(
   '/register',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { phone, code, nickname, grade, age, school } = req.body as {
+      const { phone, code, nickname, grade, age, school, role } = req.body as {
         phone: string;
         code: string;
         nickname?: string;
         grade?: string;
         age?: number;
         school?: string;
+        role?: 'student' | 'teacher' | 'parent';
       };
       const result = await authService.register({
         phone,
@@ -62,7 +63,8 @@ authRouter.post(
         nickname,
         grade,
         age,
-        school
+        school,
+        role
       });
       return res.status(201).json({
         code: 201,

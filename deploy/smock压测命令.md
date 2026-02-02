@@ -14,6 +14,28 @@
   console.log(token);") \
   ./scripts/perf-smoke.sh
 
+
+  不需要开启前端，只要后端在跑就可以。
+
+  最小步骤是：
+
+  1. 在 backend 目录启动后端（确保端口是 4000，比如）：
+
+     cd backend
+     npm run dev
+  2. 在项目根目录（有 scripts/perf-smoke.sh 的地方）开一个新
+     终端，直接跑这条命令：
+
+     BACKEND_URL=http://localhost:4000 \
+     BACKEND_SMOKE_TEACHER_TOKEN=$(cd backend && node -e
+  "require('dotenv').config(); const
+  jwt=require('jsonwebtoken'); const token=jwt.sign({ sub:
+  'perf_teacher_001', role: 'teacher', type: 'access' },
+  process.env.JWT_SECRET, { expiresIn: '1h' });
+  console.log(token);") \
+     ./scripts/perf-smoke.sh
+
+     
   说明：
 
   - 这条命令会在 backend/.env 中读取 JWT_SECRET，用 Node 动态

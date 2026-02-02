@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>鼠标交互粒子 Playground</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #020617 0%, #000 60%, #020617 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro SC", "PingFang SC", sans-serif;
+      color: #e5e7eb;
+    }
+
+    .overlay {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(129, 140, 248, 0.7);
+      background: rgba(30, 64, 175, 0.35);
+      color: #e0f2fe;
+      pointer-events: auto;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      /* 轻触发 GPU 管线，用于某些浏览器 */
+      will-change: transform;
+      transform: translateZ(0);
+    }
+
+    .hint {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      font-size: 11px;
+      color: #6b7280;
+      max-width: 320px;
+      line-height: 1.5;
+      pointer-events: none;
+      z-index: 2;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 640px) {
+      .overlay {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .hint {
+        max-width: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="overlay">
+    <div>
+      <div class="title">鼠标交互粒子场</div>
+      <div class="subtitle">在画布上移动 / 悬停鼠标，感受粒子聚拢与散开的效果。</div>
+    </div>
+    <div class="badge">Canvas + requestAnimationFrame · 60fps 优化</div>
+  </header>
+
+  <canvas id="particle-canvas"></canvas>
+
+  <div class="hint">
+参数可调：
+- 粒子数量（随屏幕面积自适应）
+- 聚集半径 / 排斥半径
+- 上升 / 漂浮速度
+- 颜色渐变范围（通过 HSL 控制）
+可在脚本中的 config 对象里调整。
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /** 简单节流：用于 pointermove，避免在极端设备上事件过于频繁 */
+      function throttle(fn, limitMs) {
+        let last = 0;
+        let pendingArgs = null;
+        return function throttled(...args) {
+          const now = performance.now();
+          if (now - last >= limitMs) {
+            last = now;
+            fn.apply(this, args);
+          } else {
+            pendingArgs = args;
+            setTimeout(() => {
+              const later = performance.now();
+              if (later - last >= limitMs && pendingArgs) {
+                last = later;
+                fn.apply(this, pendingArgs);
+                pendingArgs = null;
+              }
+            }, limitMs);
+          }
+        };
+      }
+
+      /** 配置项：可以根据需要调整 */
+      const config = {
+        /** 基于屏幕面积的粒子密度（值越大粒子越多） */
+        density: 0.00018,
+        /** 粒子数量上限，避免在大屏幕上过量创建 */
+        maxParticles: 260,
+        /** 粒子基础尺寸范围（像素） */
+        size: { min: 1.6, max: 4.2 },
+        /** 粒子基础漂浮速度（像素 / 帧，相对值） */
+        baseSpeed: { x: -0.08, y: -0.12 },
+        /** 鼠标附近“聚集”半径 */
+        gatherRadius: 160,
+        /** 鼠标附近“排斥”核心半径（避免全都叠在光标上） */
+        repelRadius: 40,
+        /** 聚集力强度 */
+        gatherStrength: 0.18,
+        /** 排斥力强度 */
+        repelStrength: 0.85,
+        /** 离开鼠标后回到 home 的弹性强度 */
+        homeSpring: 0.02,
+        /** 全局阻尼（0~1，越小衰减越快） */
+        damping: 0.9,
+        /** 粒子轨迹尾巴的透明度：越大尾巴越短 */
+        trailOpacity: 0.16,
+        /** 粒子 hue 范围（用 HSL 控制渐变颜色） */
+        hueRange: { min: 200, max: 320 },
+        /** 鼠标不动后视为离开的延迟（毫秒） */
+        idleDelay: 800,
+        /** 每帧最大时间步长（以 60fps 的“帧”为单位，防止切换标签后速度爆炸） */
+        maxDelta: 2
+      };
+
+      const canvas = document.getElementById('particle-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const state = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        particles: [],
+        lastTime: performance.now(),
+        mouse: {
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+          active: false,
+          lastMove: 0
+        }
+      };
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        state.width = window.innerWidth;
+        state.height = window.innerHeight;
+        canvas.width = state.width * dpr;
+        canvas.height = state.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      resizeCanvas();
+      window.addEventListener('resize', throttle(resizeCanvas, 200));
+
+      /**
+       * 根据屏幕面积自适应粒子数量
+       */
+      function computeParticleCount() {
+        const area = state.width * state.height;
+        const count = Math.min(
+          config.maxParticles,
+          Math.floor(area * config.density)
+        );
+        return Math.max(60, count); // 设一个下限，保证小屏效果
+      }
+
+      /**
+       * 初始化粒子数组
+       */
+      function initParticles() {
+        const targetCount = computeParticleCount();
+        state.particles.length = 0;
+        for (let i = 0; i < targetCount; i++) {
+          state.particles.push(makeParticle(i, targetCount));
+        }
+      }
+
+      function makeParticle(index, total) {
+        const t = index / Math.max(1, total - 1);
+        const angle = t * Math.PI * 2;
+        const radius = Math.min(state.width, state.height) * 0.38;
+        const cx = state.width * 0.5;
+        const cy = state.height * 0.55;
+
+        const homeX = cx + Math.cos(angle) * radius * (0.6 + Math.random() * 0.4);
+        const homeY = cy + Math.sin(angle) * radius * (0.6 + Math.random() * 0.4);
+
+        const size = lerp(config.size.min, config.size.max, Math.random());
+        const hue = lerp(config.hueRange.min, config.hueRange.max, t + (Math.random() - 0.5) * 0.25);
+
+        return {
+          x: homeX + (Math.random() - 0.5) * 30,
+          y: homeY + (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 0.2,
+          vy: (Math.random() - 0.5) * 0.2,
+          homeX,
+          homeY,
+          size,
+          hue,
+          alpha: 0,
+          noiseOffset: Math.random() * 1000
+        };
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function clamp(v, min, max) {
+        return v < min ? min : v > max ? max : v;
+      }
+
+      initParticles();
+
+      /**
+       * 鼠标交互：使用 pointer 事件兼容触摸板 / 触控
+       */
+      const updateMouse = throttle(function (ev) {
+        const event = ev.touches && ev.touches.length ? ev.touches[0] : ev;
+        state.mouse.x = event.clientX;
+        state.mouse.y = event.clientY;
+        state.mouse.active = true;
+        state.mouse.lastMove = performance.now();
+      }, 16); // ~60fps
+
+      window.addEventListener('pointermove', updateMouse, { passive: true });
+      window.addEventListener('mousemove', updateMouse, { passive: true });
+      window.addEventListener('touchmove', updateMouse, { passive: true });
+
+      window.addEventListener('pointerleave', () => {
+        state.mouse.active = false;
+      });
+      window.addEventListener('mouseleave', () => {
+        state.mouse.active = false;
+      });
+      window.addEventListener('blur', () => {
+        state.mouse.active = false;
+      });
+
+      /**
+       * 动画主循环
+       */
+      function frame(now) {
+        const dtMs = now - state.lastTime;
+        // 使用相对“帧数”作为时间步长，便于调整力度
+        const delta = clamp(dtMs / (1000 / 60), 0.1, config.maxDelta);
+        state.lastTime = now;
+
+        // 鼠标长时间不动则视为“离开”，触发回弹散开
+        if (state.mouse.active && now - state.mouse.lastMove > config.idleDelay) {
+          state.mouse.active = false;
+        }
+
+        // 背景尾迹：用半透明矩形覆盖，而不是每帧 clearRect
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(2, 6, 23,' + config.trailOpacity + ')';
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        ctx.globalCompositeOperation = 'lighter';
+
+        const gatherR2 = config.gatherRadius * config.gatherRadius;
+        const repelR2 = config.repelRadius * config.repelRadius;
+
+        for (let i = 0; i < state.particles.length; i++) {
+          const p = state.particles[i];
+
+          let ax = config.baseSpeed.x * 0.02;
+          let ay = config.baseSpeed.y * 0.02;
+
+          // 基础噪声，让粒子轻轻摇摆
+          const t = now * 0.00025 + p.noiseOffset;
+          ax += Math.cos(t * 2.3) * 0.02;
+          ay += Math.sin(t * 1.7) * 0.02;
+
+          if (state.mouse.active) {
+            const dx = state.mouse.x - p.x;
+            const dy = state.mouse.y - p.y;
+            const dist2 = dx * dx + dy * dy;
+
+            if (dist2 < gatherR2) {
+              const dist = Math.sqrt(dist2) || 1;
+              const dirX = dx / dist;
+              const dirY = dy / dist;
+
+              if (dist2 < repelR2) {
+                // 非常接近鼠标中心：改为排斥力，避免全部叠在一起
+                const strength = (1 - dist / config.repelRadius) * config.repelStrength;
+                ax -= dirX * strength;
+                ay -= dirY * strength;
+              } else {
+                // 聚集力：距离越近，吸引越强
+                const strength = (1 - dist / config.gatherRadius) * config.gatherStrength;
+                ax += dirX * strength;
+                ay += dirY * strength;
+              }
+            }
+          } else {
+            // 鼠标离开后：缓慢回到初始 home 位置
+            const dxHome = p.homeX - p.x;
+            const dyHome = p.homeY - p.y;
+            ax += dxHome * config.homeSpring;
+            ay += dyHome * config.homeSpring;
+          }
+
+          // 更新速度与位置
+          p.vx += ax * delta;
+          p.vy += ay * delta;
+
+          p.vx *= config.damping;
+          p.vy *= config.damping;
+
+          p.x += p.vx * delta;
+          p.y += p.vy * delta;
+
+          // 边界检测：略微约束在屏幕内侧，避免飞走
+          if (p.x < -50 || p.x > state.width + 50 || p.y < -50 || p.y > state.height + 50) {
+            // 重新生成该粒子，相当于销毁 + 新建，避免无限飞远
+            state.particles[i] = makeParticle(i, state.particles.length);
+            continue;
+          }
+
+          // 根据速度大小与鼠标状态柔和调整透明度
+          const speedMag = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+          let targetAlpha = clamp(0.15 + speedMag * 0.6, 0.15, 0.9);
+          if (!state.mouse.active) {
+            targetAlpha *= 0.8;
+          }
+          p.alpha += (targetAlpha - p.alpha) * 0.08;
+
+          ctx.beginPath();
+          ctx.fillStyle = 'hsla(' + p.hue.toFixed(1) + ', 82%, 65%, ' + p.alpha.toFixed(3) + ')';
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.globalCompositeOperation = 'source-over';
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame((t) => {
+        state.lastTime = t;
+        frame(t);
+      });
+    })();
+  </script>
+</body>
+</html>
+

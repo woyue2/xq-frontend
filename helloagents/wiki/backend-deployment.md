@@ -98,6 +98,24 @@
   - 将标准输出重定向至日志采集系统（如 ELK / Loki / Cloud Logging）。
   - 为关键错误日志（HTTP 5xx、鉴权失败、数据库异常等）配置告警规则。
 
+#### 5.1.1 本地联调查看正确码/错误码
+
+在本地同时运行前端与后端进行接口联调或诊断测试时，可按以下方式通过系统日志查看每一次行动对应的正确码/错误码:
+
+- 启动后端开发服务（在 `backend/` 目录）:
+  - `npm run dev`
+- 观察日志输出:
+  - 访问日志: 由 `loggerMiddleware` 输出，包含 `req.method`、`req.url`、`res.statusCode` 等字段，其中 `res.statusCode` 即为当前请求的 HTTP 正确码/错误码。
+  - 错误日志: 由 `errorMiddleware` 输出，统一结构为:
+    - `type`: `'app_error' | 'validation_error' | 'unknown_error'`
+    - `status`: HTTP 状态码
+    - `code`: 业务错误码（通常与 HTTP 状态码一致）
+    - `error`: 业务错误标识（如 `UNAUTHORIZED`、`VALIDATION_ERROR`、`INTERNAL_SERVER_ERROR`）
+    - `path`、`method`: 请求路径与方法
+- 常见联调场景示例:
+  - 登录成功: 查看 `POST /api/auth/login` 对应访问日志中的 `res.statusCode=200`。
+  - 验证码错误: 触发登录失败后，在错误日志中找到 `type='app_error'` 或 `type='validation_error'`，并通过 `status` 与 `error` 字段确定错误类型。
+
 ### 5.2 错误处理
 
 - 统一错误处理中间件 `errorMiddleware` 负责：

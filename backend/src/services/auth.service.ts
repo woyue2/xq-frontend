@@ -28,7 +28,13 @@ export class AuthService {
     const normalizedPhone = phone.replace(/\D/g, '');
 
     if (!/^\d{11}$/.test(normalizedPhone)) {
-      throw new AppError(400, 'INVALID_PHONE_FORMAT', '手机号格式错误');
+      throw new AppError(
+        400,
+        'INVALID_PHONE_FORMAT',
+        '手机号格式错误',
+        undefined,
+        1001
+      );
     }
 
     // 注册场景需要先校验白名单
@@ -42,7 +48,9 @@ export class AuthService {
           throw new AppError(
             403,
             'NOT_IN_WHITELIST',
-            '该手机号暂未开通注册权限，请联系管理员'
+            '该手机号暂未开通注册权限，请联系管理员',
+            undefined,
+            4001
           );
         }
       } catch (err) {
@@ -95,7 +103,13 @@ export class AuthService {
     const normalizedPhone = phone.replace(/\D/g, '');
 
     if (!/^\d{11}$/.test(normalizedPhone)) {
-      throw new AppError(400, 'INVALID_PHONE_FORMAT', '手机号格式错误');
+      throw new AppError(
+        400,
+        'INVALID_PHONE_FORMAT',
+        '手机号格式错误',
+        undefined,
+        1001
+      );
     }
 
     const record = await prisma.verificationCode.findFirst({
@@ -112,7 +126,13 @@ export class AuthService {
       record.code !== code ||
       record.expireAt.getTime() < Date.now()
     ) {
-      throw new AppError(400, 'INVALID_CODE', '验证码错误或已过期');
+      throw new AppError(
+        400,
+        'INVALID_CODE',
+        '验证码错误或已过期',
+        undefined,
+        1002
+      );
     }
 
     // 标记验证码已使用
@@ -131,7 +151,54 @@ export class AuthService {
     }
 
     if (!user.isActive || user.isBanned) {
-      throw new AppError(403, 'USER_DISABLED', '账号已被停用，请联系管理员');
+      throw new AppError(
+        403,
+        'USER_DISABLED',
+        '账号已被停用，请联系管理员',
+        undefined,
+        4003
+      );
+    }
+
+    // 可选：在登录阶段强制校验白名单与课时有效期（由环境变量控制）
+    if (process.env.AUTH_STRICT_WHITELIST_FOR_LOGIN === 'true') {
+      try {
+        const wl = await prisma.userWhitelist.findUnique({
+          where: { phone: normalizedPhone }
+        });
+
+        if (!wl || wl.deletedAt) {
+          throw new AppError(
+            403,
+            'NOT_IN_WHITELIST',
+            '该手机号暂未开通登录权限，请联系管理员',
+            undefined,
+            4001
+          );
+        }
+
+        if (wl.validUntil && wl.validUntil.getTime() < Date.now()) {
+          throw new AppError(
+            403,
+            'CLASS_HOUR_EXPIRED',
+            '课时已过期，请联系老师续费',
+            undefined,
+            4004
+          );
+        }
+      } catch (err) {
+        if (err instanceof AppError) {
+          throw err;
+        }
+        // 在生产环境中，白名单表不可用视为服务异常；开发/测试环境下可降级以保证联调体验
+        if (process.env.NODE_ENV === 'production') {
+          throw new AppError(
+            500,
+            'INTERNAL_SERVER_ERROR',
+            '登录服务暂不可用，请稍后重试'
+          );
+        }
+      }
     }
 
     const payload: JwtPayloadBase = { sub: user.id, role: user.role };
@@ -187,8 +254,9 @@ export class AuthService {
     grade?: string;
     age?: number;
     school?: string;
+    role?: 'student' | 'teacher' | 'parent';
   }) {
-    const { phone, code, nickname, grade, age, school } = params;
+    const { phone, code, nickname, grade, age, school, role: requestedRole } = params;
 
     if (!nickname) {
       throw new AppError(
@@ -202,7 +270,13 @@ export class AuthService {
     const normalizedPhone = phone.replace(/\D/g, '');
 
     if (!/^\d{11}$/.test(normalizedPhone)) {
-      throw new AppError(400, 'INVALID_PHONE_FORMAT', '手机号格式错误');
+      throw new AppError(
+        400,
+        'INVALID_PHONE_FORMAT',
+        '手机号格式错误',
+        undefined,
+        1001
+      );
     }
 
     // 校验验证码（注册场景优先使用 type=register）
@@ -226,7 +300,13 @@ export class AuthService {
         (record.code !== code ||
           record.expireAt.getTime() < Date.now()))
     ) {
-      throw new AppError(400, 'INVALID_CODE', '验证码错误或已过期');
+      throw new AppError(
+        400,
+        'INVALID_CODE',
+        '验证码错误或已过期',
+        undefined,
+        1002
+      );
     }
 
     if (record) {
@@ -245,7 +325,9 @@ export class AuthService {
         throw new AppError(
           409,
           'USER_EXISTS',
-          '该手机号已注册，请直接登录'
+          '该手机号已注册，请直接登录',
+          undefined,
+          4002
         );
       }
     } catch (err) {
@@ -256,8 +338,13 @@ export class AuthService {
       // 数据库不可用时视为未注册（仅限测试/开发环境）
     }
 
-    // 默认角色为 student，如白名单存在则以白名单为准
-    let role = 'student';
+    // 默认角色：优先使用前端请求的角色（student/teacher/parent），如白名单存在则以白名单为准
+    const normalizedRole: 'student' | 'teacher' | 'parent' =
+      requestedRole && ['student', 'teacher', 'parent'].includes(requestedRole)
+        ? requestedRole
+        : 'student';
+
+    let role: 'student' | 'teacher' | 'parent' = normalizedRole;
     let effectiveGrade = grade;
     let expiresAt: Date | undefined;
 
@@ -266,7 +353,16 @@ export class AuthService {
         where: { phone: normalizedPhone }
       });
       if (wl) {
-        role = wl.role;
+        // 白名单中的角色字段为 string，这里限制为受支持的三种角色之一
+        if (
+          wl.role === 'student' ||
+          wl.role === 'teacher' ||
+          wl.role === 'parent'
+        ) {
+          role = wl.role;
+        } else {
+          role = 'student';
+        }
         effectiveGrade = effectiveGrade ?? wl.grade ?? undefined;
         expiresAt = wl.validUntil ?? undefined;
 

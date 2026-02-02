@@ -17,7 +17,9 @@ const envSchema = z.object({
    // 内部 AI 回调接口的访问令牌（可选，配置后将强制校验 X-Internal-Token）
    AI_INTERNAL_TOKEN: z.string().optional(),
   // 本地音频文件基础目录（可配置为 /data/audio 或相对路径，如 static/audio）
-  AUDIO_BASE_DIR: z.string().default('static/audio')
+  AUDIO_BASE_DIR: z.string().default('static/audio'),
+  OSS_UPLOAD_BASE_URL:z.string().url().optional(),
+  OSS_UPLOAD_TOKEN:z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);

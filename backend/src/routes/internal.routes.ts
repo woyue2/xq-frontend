@@ -157,7 +157,13 @@ internalRouter.post(
       const normalizedPhone = phoneSource.replace(/\D/g, '');
 
       if (!/^\d{11}$/.test(normalizedPhone)) {
-        throw new AppError(400, 'INVALID_PHONE_FORMAT', '手机号格式错误');
+        throw new AppError(
+          400,
+          'INVALID_PHONE_FORMAT',
+          '手机号格式错误',
+          undefined,
+          1001
+        );
       }
 
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

@@ -21,6 +21,44 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/stores/useAuthStore');
 vi.mock('@/hooks/useQuestions');
+vi.mock('@/services/api', () => {
+    const fn = () => Promise.resolve();
+    return {
+        authService: {
+            sendCode: vi.fn(fn),
+            login: vi.fn(() => Promise.resolve({ data: { data: { token: 'mock', user: { id: 'u1' } } } })),
+            register: vi.fn(() => Promise.resolve({ user: { id: 'u1' }, token: 'mock' })),
+        },
+        questionService: {
+            getQuestions: vi.fn(),
+            getQuestionById: vi.fn(),
+            createQuestion: vi.fn(() => Promise.resolve({ id: 'q-mock' })),
+            uploadImage: vi.fn(() => Promise.resolve({ imageUrl: 'https://example.com/mock.jpg' })),
+        },
+        answerService: {
+            listByQuestion: vi.fn(() => Promise.resolve({ list: [] })),
+        },
+        interactionService: {
+            like: vi.fn(() => Promise.resolve({ liked: true, likesCount: 1 })),
+            favorite: vi.fn(() => Promise.resolve({ favorited: true, favoritesCount: 1 })),
+        },
+        behaviorService: {
+            log: vi.fn(() => Promise.resolve({ logId: 'mock-log' })),
+            batchLog: vi.fn(() => Promise.resolve({ received: 0, processed: 0, failed: 0 })),
+        },
+        notificationService: {
+            getNotifications: vi.fn(),
+            markAsRead: vi.fn(),
+            getUnreadCount: vi.fn(),
+        },
+        adminService: {
+            getWhitelist: vi.fn(),
+            addToWhitelist: vi.fn(),
+            removeFromWhitelist: vi.fn(),
+            updateValidity: vi.fn(),
+        },
+    };
+});
 
 // Mock Data
 const mockUserStudent = {
@@ -147,35 +185,54 @@ describe('Advanced Coverage Tests', () => {
             });
         });
 
-        it('STU-007: Max 3 Images', () => {
+        it('STU-007: Max 3 Images', async () => {
             (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
             render(<MemoryRouter><CreateQuestionPage /></MemoryRouter>);
 
             const uploadBtn = screen.getByText('上传图片');
-            // Mock logic adds 1 image per click
-            fireEvent.click(uploadBtn);
-            fireEvent.click(uploadBtn);
-            fireEvent.click(uploadBtn);
+            const fileInput = screen.getByTestId('create-question-image-input') as HTMLInputElement;
 
-            // Now 3 images. 4th click should fail/toast or button disappears.
-            // Code: if (images.length < 3) render button. So button should disappear.
-            expect(screen.queryByText('上传图片')).toBeNull();
+            const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
+
+            // 通过点击按钮触发文件选择，再模拟选择文件三次
+            fireEvent.click(uploadBtn);
+            fireEvent.change(fileInput, { target: { files: [file] } });
+
+            fireEvent.click(uploadBtn);
+            fireEvent.change(fileInput, { target: { files: [file] } });
+
+            fireEvent.click(uploadBtn);
+            fireEvent.change(fileInput, { target: { files: [file] } });
+
+            await waitFor(() => {
+                expect(screen.queryByText('上传图片')).toBeNull();
+            });
         });
     });
 
     // 3. STU-010: Like/Unlike (QuestionDetail)
     describe('STU: Interaction', () => {
-        it('STU-010: Like toggles state', () => {
+        it('STU-010: Like toggles state', async () => {
             (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
             // Mock data for this specific test
             const qData = {
-                id: '1', title: 'Q1', content: 'C1', authorId: 'u1', authorName: 'Student 1', status: 'approved',
-                difficulty: 'easy', createdAt: new Date().toISOString(),
+                id: '1',
+                title: 'Q1',
+                content: 'C1',
+                authorId: 'u1',
+                authorName: 'Student 1',
+                status: 'approved',
+                difficulty: 'easy',
+                createdAt: new Date().toISOString(),
                 stats: { likes: 0, comments: 0, favorites: 0 },
                 images: []
             };
             (useQuestions as any).mockReturnValue({
-                getQuestionById: () => qData
+                getQuestionById: () => qData,
+                data: { pages: [] },
+                isLoading: false,
+                fetchNextPage: vi.fn(),
+                hasNextPage: false
             });
 
             render(
@@ -186,34 +243,26 @@ describe('Advanced Coverage Tests', () => {
                 </MemoryRouter>
             );
 
-            // Find Like Button. It's usually a Heart icon.
-            // In QuestionDetailPage, Heart icon is used for "Like" (Wait, Heart is usually Like, Star is Favorite)
-            // Let's check code: 
-            // Line 2: Heart, Star
-            // Line 55: handleLike -> setLiked(!liked)
-            // The button containing Heart? 
-            // Often buttons have aria-label or just icons.
-            // I'll try to find by specific class or role if no text.
-            // Actually, usually there's no text "Like". Is there? 
-            // Let's assume there isn't and look for the SVG/Button.
-            // Or better, I can check the toast output which implies success.
+            // 使用 QuestionDetailPage 上暴露的 data-testid 精确选择点赞按钮
+            const likeButton = await screen.findByTestId('like-btn');
 
-            // Strategy: Look for the button group footer? No, it's usually at bottom or top.
-            // Let's try to query selector 'button' that contains the Heart icon. 
-            // Typically difficult without test-id. 
-            // But wait, the previous `comprehensive` test verified "View Detail".
+            // 首次点击：应触发“点赞成功”类提示
+            fireEvent.click(likeButton);
+            await waitFor(() => {
+                expect(toast.success).toHaveBeenCalledWith(
+                    expect.stringContaining('点赞成功')
+                );
+            });
 
-            // Let's add test-id to `QuestionDetailPage` if needed? 
-            // I prefer not to modify code unless necessary.
-            // Let's look at `QuestionDetailPage.tsx` content again from my memory/context.
-            // Line 2: import Heart...
-            // It renders: <button onClick={handleLike} ... > <Heart ... /> </button>
+            (toast.success as vi.Mock).mockClear();
 
-            // I'll guess it's one of the buttons.
-            // Let's just create a generic test first and see if I can find it.
-            // Or assume I'll add data-testid="like-btn" via `replace_file` if I can't find it.
-            // Actually, testing interactions without IDs is flaky.
-            // I'll add data-testid to QuestionDetailPage first.
+            // 再次点击：应触发“已取消点赞”类提示
+            fireEvent.click(likeButton);
+            await waitFor(() => {
+                expect(toast.success).toHaveBeenCalledWith(
+                    expect.stringContaining('已取消点赞')
+                );
+            });
         });
     });
 });

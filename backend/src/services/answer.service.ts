@@ -142,7 +142,9 @@ export class AnswerService {
       throw new AppError(
         403,
         'PERMISSION_DENIED',
-        '只有作者或教师可以删除回答'
+        '只有作者或教师可以删除回答',
+        undefined,
+        3002
       );
     }
 
@@ -167,4 +169,3 @@ export class AnswerService {
 }
 
 export const answerService = new AnswerService();
-

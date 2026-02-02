@@ -11,6 +11,10 @@
   - Added global error boundary wrapping in `src/App.tsx` with user-friendly fallback UI and `sonner` toast notifications.
 - **后端 Q/A/评论/互动 Service 测试稳定性**:
   - 调整 `backend/src/tests/unit/answer.service.spec.ts` 与 `backend/src/tests/unit/interaction.service.spec.ts`，对测试用户使用 `upsert` 并在列表用例前清理历史点赞/收藏数据，使 Question/Answer/Comment/Interaction 相关 Service 单元测试可在同一数据库上重复运行而不会因唯一约束或脏数据导致失败。
+  - 重构 `backend/src/services/comment.service.ts` 的创建逻辑，使其与 `AnswerService` 一致地在事务外完成问题/作者存在性校验，并使用数组形式的 `prisma.$transaction`，修复 `qa-comment-interaction.service.spec.ts` 中 CommentService 相关用例的异常行为（原先因 Mock 未调用回调而导致 `created` 为 `undefined`）。
+- **前端会员与家长权限一致性**:
+  - 更新 `src/lib/permissions.ts` 中的 `isMemberActive` 实现，将家长（`parent`）统一视为非有效会员，仅支持浏览，不参与提问/评论写操作；老师始终视为有效会员，学生则根据 `expiresAt` 判断有效期。
+  - 调整 `CreateQuestionPage` 与相关 E2E 测试（`tests/e2e/membership-parent-guard.spec.ts` / `tests/e2e/parent-flow.spec.ts`），确保课时过期学生与家长账号在访问 `/create` 或点击浮动提问按钮时会被正确拦截，并覆盖“家长在问题详情页无法看到评论输入框”等边界场景。
 
 ### Added
 - **Tests**:
@@ -80,13 +84,21 @@
     - `GET /api/upload/signature`：根据 `type=image|audio` 返回模拟 OSS 上传签名与 key，满足 UP-API-001/004 对签名接口的契约。
   - 新增集成测试 `src/tests/integration/upload.api.spec.ts`，覆盖 `UP-API-001~005` 中关于签名获取与权限控制的关键检查（图片签名、仅教师可获取音频签名、类型校验等）。
  - **后端 CI 流水线完善**:
-   - 在 `.github/workflows/backend-ci.yml` 中补充并固化后端 GitHub Actions 流水线：安装依赖后执行 `npm run lint` 进行基础代码扫描，运行 `npm test` 收集覆盖率数据，并上传 `backend/coverage/lcov.info` 作为构建工件，确保每次提交都会自动完成测试、覆盖率统计与基础静态检查。
+  - 在 `.github/workflows/backend-ci.yml` 中补充并固化后端 GitHub Actions 流水线：安装依赖后执行 `npm run lint` 进行基础代码扫描，运行 `npm test` 收集覆盖率数据，并上传 `backend/coverage/lcov.info` 作为构建工件，确保每次提交都会自动完成测试、覆盖率统计与基础静态检查。
  - **后端部署与回滚文档**:
    - 新增 `helloagents/wiki/backend-deployment.md`，系统化描述 `kpqa-backend` 在本地开发、测试/预发布、生产环境下的部署流程、健康检查与日志/监控要求。
    - 在同一文档中补充数据库迁移与回滚策略（基于 Prisma 迁移与数据库备份），给出应用回滚与库回滚的推荐操作步骤，作为部署与回滚的统一说明。
    - **API 文档 / OpenAPI & Apifox**:
      - 新增 OpenAPI 3.1 规范文件 `backend/openapi.yaml`，覆盖认证、审核（AU-API 系列）、通知、行为埋点与上传签名等核心接口路径，作为后端统一 API 契约源。
      - 更新 `helloagents/wiki/api.md`，记录 OpenAPI 文件位置、Apifox 导入与维护流程，以及模块级接口索引，约定后续新增/修改路由时必须同步维护 OpenAPI 与知识库文档。
+ - **行为埋点接口合同统一**:
+   - 将 `POST /api/behavior/log` 的响应结构从早期的 `data.id/success/receivedAt` 调整为与《埋点分析 API 设计文档》一致的 `ApiResponse<{ logId: string }>` 形式（`code=200`, `message="success"`, `data.logId`, `timestamp`），消除前后端合同偏差。
+   - 更新 `backend/src/tests/integration/behavior.api.spec.ts`，将 LOG-API-001 / BEHAVIOR-API-001 的断言改为检查 `data.logId`，并保持限流与参数校验用例不变。
+   - 同步修改相关文档与知识库：`codex-develop-doc/backend-key-apis.md`、`codex-develop-doc/后端-测试用例.md`、`helloagents/wiki/backend-section-8-9-review.md` 以及 `helloagents/plan/backend-route-diff.md`，统一说明行为埋点接口已采用 `data.logId` 作为唯一日志标识字段。
+- **前端关键业务与后端真实接入（首批落地）**:
+  - 新增 `src/lib/image-compress.ts`，在浏览器端统一实现 JPG 压缩与 1MB 体积控制，并在 `questionService.uploadImage` 中串联签名获取与直传逻辑；
+  - 将 `CreateQuestionPage` 提问提交逻辑切换为调用后端 `POST /api/questions`，并在问题详情页接入 `/api/interactions/like|favorite` 与 `POST /api/behavior/log`，使点赞/收藏行为真实落地到后端；
+  - 在 `AuthService.login` 中引入可配置的 `AUTH_STRICT_WHITELIST_FOR_LOGIN` 白名单校验开关，为后续统一登录与课时策略提供基础能力。
 
 ## [2026-02-02]
 - Initial parent-child binding flow implementation.

@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
 import { parentService } from '@/services/parentService';
+import { toast } from 'sonner';
 
 // --- Page Imports ---
 import { AdminManagementPage } from '@/pages/AdminManagementPage';
@@ -12,6 +13,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 
 // --- Mocks ---
 // We DO NOT mock react-router-dom to ensure MemoryRouter works correctly.
@@ -315,8 +317,60 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
                     </Routes>
                 </MemoryRouter>
             );
-            expect(screen.queryByText('去回答')).toBeNull();
+            // 只能阅读问题详情
             expect(screen.getByText(mockQuestionData.title)).toBeDefined();
+            // 不允许回答
+            expect(screen.queryByText('去回答')).toBeNull();
+            // 不展示评论输入框与图片按钮（仅提问者/教师可见）
+            expect(screen.queryByPlaceholderText('说点什么...')).toBeNull();
+            expect(screen.queryByTestId('add-image-btn')).toBeNull();
+            // 点赞/收藏入口仍保留，支持家长轻量互动
+            expect(screen.getByTestId('like-btn')).toBeDefined();
+            expect(screen.getByTestId('favorite-btn')).toBeDefined();
+        });
+
+        it('PERM-FE-001: Expired student cannot access CreateQuestionPage', async () => {
+            const pastDate = new Date();
+            pastDate.setDate(pastDate.getDate() - 1);
+
+            (useAuthStore as any).mockReturnValue({
+                user: { ...mockUserStudent, role: 'student', expiresAt: pastDate.toISOString() }
+            });
+
+            render(
+                <MemoryRouter initialEntries={['/create']}>
+                    <Routes>
+                        <Route path="/create" element={<CreateQuestionPage />} />
+                        <Route path="/" element={<HomePage />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+
+            await waitFor(() => {
+                expect((toast.error as any).mock.calls.length).toBeGreaterThan(0);
+            });
+            expect((toast.error as any).mock.calls[0][0]).toContain('已过期');
+        });
+
+        it('PERM-FE-002: Parent is treated as read-only on CreateQuestionPage', async () => {
+            (useAuthStore as any).mockReturnValue({
+                user: { ...mockUserParent, role: 'parent', expiresAt: undefined }
+            });
+
+            render(
+                <MemoryRouter initialEntries={['/create']}>
+                    <Routes>
+                        <Route path="/create" element={<CreateQuestionPage />} />
+                        <Route path="/" element={<HomePage />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+
+            await waitFor(() => {
+                expect((toast.error as any).mock.calls.length).toBeGreaterThan(0);
+            });
+            const messages = (toast.error as any).mock.calls.map((c: any[]) => c[0]);
+            expect(messages.join(' ')).toContain('已过期');
         });
     });
 

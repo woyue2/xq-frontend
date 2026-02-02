@@ -5,8 +5,26 @@ import {
   type AuthenticatedRequest
 } from '../middlewares/auth.middleware';
 import { AppError } from '../errors/AppError';
+import { env } from '../config/env';
 
 export const uploadRouter = Router();
+
+const resolveUploadUrl = () => {
+  const base = env.OSS_UPLOAD_BASE_URL;
+  const token = env.OSS_UPLOAD_TOKEN;
+
+  if (!base) {
+    return 'https://oss.example.com/upload';
+  }
+
+  if (!token) {
+    return base;
+  }
+
+  const hasQuery = base.includes('?');
+  const sep = hasQuery ? '&' : '?';
+  return `${base}${sep}token=${token}`;
+};
 
 // 获取上传签名（图片/音频）
 uploadRouter.get(
@@ -44,7 +62,7 @@ uploadRouter.get(
       const ext = typeRaw === 'image' ? 'jpg' : 'mp3';
       const key = `${typeRaw}/${req.user.id}/${now}.${ext}`;
 
-      const uploadUrl = 'https://oss.example.com/upload';
+      const uploadUrl = resolveUploadUrl();
       const policy = Buffer.from(
         JSON.stringify({
           expiration: new Date(expireAt).toISOString(),

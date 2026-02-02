@@ -4,11 +4,12 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { getCurrentSlogan } from '@/config/ai-text';
+import { notificationService } from '@/services/api';
 
 export function MainLayout() {
     const { user, logout } = useAuthStore();
@@ -17,6 +18,7 @@ export function MainLayout() {
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [slogan, setSlogan] = useState(getCurrentSlogan());
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         // Update slogan every minute to check if 5-minute block changed
@@ -26,6 +28,29 @@ export function MainLayout() {
 
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!user) {
+            setUnreadCount(0);
+            return;
+        }
+
+        notificationService
+            .getUnreadCount()
+            .then(({ unreadCount }) => {
+                if (!cancelled) {
+                    setUnreadCount(unreadCount);
+                }
+            })
+            .catch(() => {
+                // 失败由全局拦截器提示，这里忽略
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
 
     const handleSearch = () => {
         if (searchQuery.trim()) {
@@ -76,16 +101,34 @@ export function MainLayout() {
                                     >
                                         <Search className="w-5 h-5 text-gray-600" />
                                     </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="rounded-full hover:bg-white/50 active:scale-95 transition-transform relative"
+                                        onClick={() => navigate('/notifications')}
+                                        aria-label="notifications"
+                                        data-testid="nav-notifications"
+                                    >
+                                        <Bell className="w-5 h-5 text-gray-600" />
+                                        {unreadCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+                                                {unreadCount > 99 ? '99+' : unreadCount}
+                                            </span>
+                                        )}
+                                    </Button>
 
-                                    <div
-                                        className="relative cursor-pointer active:scale-95 transition-transform"
+                                    <button
+                                        type="button"
+                                        className="relative cursor-pointer active:scale-95 transition-transform focus:outline-none"
                                         onClick={() => navigate('/profile')}
+                                        data-testid="nav-profile"
+                                        aria-label="profile"
                                     >
                                         <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
                                             <AvatarImage src={user?.avatar} />
                                             <AvatarFallback>{user?.nickname?.[0] || '我'}</AvatarFallback>
                                         </Avatar>
-                                    </div>
+                                    </button>
                                 </div>
                             </motion.div>
                         ) : (

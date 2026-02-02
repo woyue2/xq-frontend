@@ -190,7 +190,9 @@
   { phone: '13800138000' }  // 11位手机号
   
   // 响应
+  // 最小合同
   { code: 200, message: 'success', data: null }
+  // 实际实现中 data 还会包含 { phone, expireIn, cooldown } 等扩展字段，可用于展示倒计时
   
   // 注意：60秒内不可重复发送
   ```
@@ -206,12 +208,27 @@
     code: 200,
     data: {
       token: 'jwt_token_here',
+      refreshToken: 'refresh_token_here',
       user: { id, nickname, role, ... }
     }
   }
   
   // 登录成功后立即保存 token
   localStorage.setItem('token', data.token);
+  ```
+
+- [ ] **刷新 Token / 退出登录**
+  ```typescript
+  // 刷新访问令牌（需在拦截器或专门逻辑中调用）
+  // POST /api/auth/refresh-token
+  // 请求头: Authorization: Bearer {refreshToken}
+  // 响应: { code: 200, data: { token, refreshToken, expiresIn } }
+
+  // 退出登录
+  // POST /api/auth/logout
+  // 请求头: Authorization: Bearer {token}
+  // 响应: { code: 200, message: '退出成功' }
+  // 前端应清理本地 token，并跳转到登录页
   ```
 
 #### 5.2 问题相关
@@ -252,6 +269,21 @@
   
   // 响应
   { liked: true, likesCount: 42 }
+  ```
+
+- [ ] **我的点赞/收藏列表**
+  ```typescript
+  // GET /api/users/me/likes?page=1&pageSize=20
+  // GET /api/users/me/favorites?page=1&pageSize=20
+  // 响应（示例）
+  {
+    code: 200,
+    data: {
+      list: [ /* 问题列表，包含 likes/favorites/createdAt 等字段 */ ],
+      pagination: { page, pageSize, total, totalPages }
+    }
+  }
+  // 注意：字段命名与排序以后端文档和实现为准，最小依赖是问题基本信息 + 分页字段
   ```
 
 ---

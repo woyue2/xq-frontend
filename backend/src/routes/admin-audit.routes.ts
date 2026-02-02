@@ -2,14 +2,21 @@ import { Router, type Response, type NextFunction } from 'express';
 import {
   authMiddleware,
   type AuthenticatedRequest,
-  requireTeacher
+  requireTeacher,
+  createRequireTeacher
 } from '../middlewares/auth.middleware';
 import { auditService } from '../services/audit.service';
 import { AppError } from '../errors/AppError';
 
 export const adminAuditRouter = Router();
 
-adminAuditRouter.use(authMiddleware, requireTeacher);
+adminAuditRouter.use(
+  authMiddleware,
+  createRequireTeacher({
+    bizCode: 3004,
+    message: '无审核权限'
+  })
+);
 
 // 查询待审核内容
 adminAuditRouter.get(

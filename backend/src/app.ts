@@ -12,6 +12,7 @@ import { commentRouter } from './routes/comment.routes';
 import { answerRouter } from './routes/answer.routes';
 import { userMeRouter } from './routes/user-me.routes';
 import { behaviorRouter } from './routes/behavior.routes';
+import { interactionRouter } from './routes/interaction.routes';
 import { notificationRouter } from './routes/notification.routes';
 import { adminAuditRouter } from './routes/admin-audit.routes';
 import { uploadRouter } from './routes/upload.routes';
@@ -52,6 +53,7 @@ export const createApp = () => {
   app.use('/api/answers', answerRouter);
   app.use('/api/users/me', userMeRouter);
   app.use('/api/behavior', behaviorRouter);
+  app.use('/api/interactions', interactionRouter);
   app.use('/api/upload', uploadRouter);
   app.use('/api/internal', internalRouter);
   app.use('/api', notificationRouter);

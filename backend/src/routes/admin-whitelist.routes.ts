@@ -1,11 +1,22 @@
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
-import { authMiddleware, requireTeacher, type AuthenticatedRequest } from '../middlewares/auth.middleware';
+import {
+  authMiddleware,
+  requireTeacher,
+  type AuthenticatedRequest,
+  createRequireTeacher
+} from '../middlewares/auth.middleware';
 import { whitelistService } from '../services/whitelist.service';
 
 export const adminWhitelistRouter = Router();
 
-adminWhitelistRouter.use(authMiddleware, requireTeacher);
+adminWhitelistRouter.use(
+  authMiddleware,
+  createRequireTeacher({
+    bizCode: 3005,
+    message: '无白名单管理权限'
+  })
+);
 
 adminWhitelistRouter.get(
   '/',
@@ -118,4 +129,3 @@ adminWhitelistRouter.delete(
     }
   }
 );
-

@@ -16,6 +16,11 @@ describe('Admin Whitelist API', () => {
     role: 'student'
   });
 
+  const parentToken = signAccessToken({
+    sub: 'parent_001',
+    role: 'parent'
+  });
+
   beforeEach(async () => {
     await prisma.userWhitelist.deleteMany();
   });
@@ -55,12 +60,19 @@ describe('Admin Whitelist API', () => {
 
   // WL-API-002 无权限访问
   it('should reject non-teacher access (WL-API-002)', async () => {
-    const res = await request(app)
+    const resStudent = await request(app)
       .get('/api/admin/whitelist')
       .set('Authorization', `Bearer ${studentToken}`);
 
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe('PERMISSION_DENIED');
+    expect(resStudent.status).toBe(403);
+    expect(resStudent.body.error).toBe('PERMISSION_DENIED');
+
+    const resParent = await request(app)
+      .get('/api/admin/whitelist')
+      .set('Authorization', `Bearer ${parentToken}`);
+
+    expect(resParent.status).toBe(403);
+    expect(resParent.body.error).toBe('PERMISSION_DENIED');
   });
 
   // WL-API-004 正常添加

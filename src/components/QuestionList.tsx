@@ -38,6 +38,12 @@ export function QuestionList({
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // 某些旧环境或非浏览器环境可能不存在 IntersectionObserver，
+    // 此处做一次能力检测，避免直接抛错导致 ErrorBoundary 触发。
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -91,7 +97,11 @@ export function QuestionList({
       ) : (
         <>
           {sortedQuestions.map((question) => (
-            <div key={question.id} className="relative">
+            <div
+              key={question.id}
+              className="relative"
+              data-testid="question-card"
+            >
               <QuestionCard
                 question={question}
                 // onClick prop removed as it is not part of QuestionCardProps

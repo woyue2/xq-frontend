@@ -69,3 +69,4 @@
 - [√] 完善 GitHub Actions 流水线（测试、覆盖率、基础扫描）。
 - [√] 生成并维护 API 文档（OpenAPI/Apifox）。
 - [√] 编写/更新部署手册与回滚方案说明（见 `helloagents/wiki/backend-deployment.md`，覆盖本地开发、测试/预发布、生产环境部署步骤，以及基于 Prisma 迁移与数据库备份的回滚策略）。
+

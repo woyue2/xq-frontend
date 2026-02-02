@@ -1,0 +1,77 @@
+ 改动: 为前端应用新增了一套基于 Playwright 的
+    基础 E2E 冒烟测试配置与用例，用于在本地或测试环
+    境下快速验证「登录后首页/诊断页的基本可用性」，
+    并通过后端内部接口免登录注入鉴权状态。
+  - 📁 变更:
+      - package.json
+          - 新增 devDependencies.@playwright/test；
+          - 新增脚本 test:e2e: playwright test。
+      - playwright.config.ts
+          - 使用 tests/e2e 作为测试目录；
+          - 默认 baseURL 为 http://
+            localhost:5173（可用 FRONTEND_BASE_URL
+            覆盖）；
+          - bootstrapAuth 辅助函数：通过后端 /api/
+            internal/test-token 生成学生测试账号，将
+            其写入前端 auth-storage（Zustand 持久
+            部」筛选按钮可见，并且 QuestionList 出现
+            空状态或题目卡片（data-testid="question-
+            card"）；
+          - 用例 2：学生免登录进入 /diagnostic，点
+            击“开始诊断”按钮，断言诊断日志区域出现关
+            工作。
+  - 🧪 使用说明（本机运行）:
+      - 启动后端：在 backend/ 执行 npm run dev（默认
+        端口 3000，需保证 /api/internal/test-token
+        可访问）；
+      - 启动前端：在仓库根目录执行 npm run dev（默认
+        端口 5173）；
+      - 运行 E2E 测试：在根目录执行 npx playwright
+        test 或 npm run test:e2e；如后端/前端端口不
+        同，可通过环境变量 BACKEND_BASE_URL、
+        FRONTEND_BASE_URL 调整。
+  小集，如果你想进一步增强 bug 捕捉能力，可以在此基
+  础上增加负向场景（例如切换为老师角色访问 /audit 页
+  面、学生访问 /admin 等），我可以继续帮你扩展更多针
+  对关键链路的 E2E 用例。
+
+
+  ----------------------------------------------------
+两个agent不同的角度做同样的事情！ 最后合并  出真正的plan
+  
+› 按“登录 → 提问 → 审核 → 通知”整条链路设计一组负
+  面/边界集成测试（参数错误、越权、课时过期、审核
+  异常等），在后端集成测试里自动跑，集中发现真正会
+  影响用户体验的 Bug
+  「提问 → 我的问题列表 → 点赞/收藏
+      → 问题详情」的完整学生链路 目前在./tset/e2e已经写了一些测
+  试，能不能写一个plan包含所有的测试链路。保存在该目录下命名为
+  test-plan.md
+
+
+› 按“登录 → 提问 → 审核 → 通知”整条链路设计一组负
+    面/边界集成测试（参数错误、越权、课时过期、审核
+    异常等），在后端集成测试里自动跑，集中发现真正会
+    影响用户体验的 Bug
+    「提问 → 我的问题列表 → 点赞/收藏
+        → 问题详情」的完整学生链路 目前在./tset/e2e已经写了一些测
+    试，能不能写一个测试链路的按角色权限分类的所有情景。保存在该目
+  录下命名为
+    test-role.md
+
+
+🔄 下一步: 如需批量跑所有 e2e 测试，可在项目根目录执行
+  BACKEND_BASE_URL=http://localhost:4000 npx playwright test，前端
+  将自动在 4173 端口启动；如果你希望继续补齐其他页面的 e2e，请告诉
+  我具体文件名或场景，我可以按同样方式帮你跑通并修复。
+
+
+
+
+- 科普
+元/组件测试：继续用 Vitest + RTL（现在的 src/test/
+    *.test.tsx）。
+  - E2E/联调：继续以 Playwright 为主，通过：
+      - 「不拦截」模式 → 真后端联调；
+      - 「拦截 + fulfill」模式 → 完全前端 Mock，调试 UI 状态和流
+        程。

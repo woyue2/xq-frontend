@@ -6,6 +6,7 @@ import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
+import { AnswerQuestionPage } from '@/pages/AnswerQuestionPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { AuditPage } from '@/pages/AuditPage';
 import { AdminManagementPage } from '@/pages/AdminManagementPage';
@@ -15,8 +16,10 @@ import { GoodQuestionsPage } from '@/pages/GoodQuestionsPage';
 import { MyAnswersPage } from '@/pages/MyAnswersPage';
 import { MyFavoritesPage } from '@/pages/MyFavoritesPage';
 import { MyLikesPage } from '@/pages/MyLikesPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { DiagnosticPage } from '@/pages/DiagnosticPage';
 import { ParentQuestionPage } from '@/pages/ParentQuestionPage';
+import { TestApiPage } from '@/pages/TestApiPage';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Toaster } from "@/components/ui/sonner";
 
@@ -46,6 +49,7 @@ export function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/create" element={<CreateQuestionPage />} />
               <Route path="/question/:id" element={<QuestionDetailPage />} />
+              <Route path="/answer/:id" element={<AnswerQuestionPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/parent/questions/:childId" element={<ParentQuestionPage />} />
               <Route path="/audit" element={<AuditPage />} />
@@ -56,7 +60,9 @@ export function App() {
               <Route path="/my-answers" element={<MyAnswersPage />} />
               <Route path="/my-favorites" element={<MyFavoritesPage />} />
               <Route path="/my-likes" element={<MyLikesPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/diagnostic" element={<DiagnosticPage />} />
+              <Route path="/test" element={<TestApiPage />} />
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

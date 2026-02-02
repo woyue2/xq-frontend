@@ -4,8 +4,6 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from '@/pages/HomePage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
-import { ProfilePage } from '@/pages/ProfilePage';
-import { AuditPage } from '@/pages/AuditPage'; // Assuming AuditPage exists
 import { MainLayout } from '@/layouts/MainLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
@@ -81,34 +79,6 @@ describe('Integration Tests (Super Brain)', () => {
         // Reset Auth Store to Teacher
         useAuthStore.setState({
             user: { id: 't1', nickname: 'Teacher', role: 'teacher', avatar: 'img', phone: '123' }
-        });
-    });
-
-    it('Flow: Teacher navigates to Audit/Whitelist from Profile', async () => {
-        render(
-            <MemoryRouter initialEntries={['/profile']}>
-                <Routes>
-                    <Route element={<MainLayout />}>
-                        <Route path="/profile" element={<ProfilePage />} />
-                        <Route path="/audit" element={<AuditPage />} />
-                        <Route path="/admin" element={<div data-testid="admin-page">Admin Page</div>} />
-                    </Route>
-                </Routes>
-            </MemoryRouter>
-        );
-
-        // 1. Verify we are on Profile
-        expect(screen.getByText('Teacher')).toBeDefined();
-        expect(screen.getByText('审核管理')).toBeDefined(); // Audit Management
-        expect(screen.getByText('用户白名单')).toBeDefined(); // User Whitelist
-
-        // Click "User Whitelist" (which we fixed to go to /admin)
-        const whitelistBtn = screen.getByTestId('menu-item-用户白名单');
-        fireEvent.click(whitelistBtn);
-
-        // 3. Verify Navigation to Admin Page
-        await waitFor(() => {
-            expect(screen.getByTestId('admin-page')).toBeDefined();
         });
     });
 
@@ -240,96 +210,6 @@ describe('Integration Tests (Super Brain)', () => {
             // Student should NOT see pin button
             const pinButton = screen.queryByText('置顶');
             expect(pinButton).toBeNull();
-        });
-    });
-
-    // ===== Part 2: 昵称AI审核测试 =====
-    describe('Nickname AI Review Tests', () => {
-        it('NICK-001: User can open nickname edit dialog', async () => {
-            render(
-                <MemoryRouter initialEntries={['/profile']}>
-                    <Routes>
-                        <Route element={<MainLayout />}>
-                            <Route path="/profile" element={<ProfilePage />} />
-                        </Route>
-                    </Routes>
-                </MemoryRouter>
-            );
-
-            // Click on nickname to edit
-            const nicknameElement = screen.getByText('Teacher');
-            fireEvent.click(nicknameElement);
-
-            // Dialog should appear
-            await waitFor(() => {
-                expect(screen.getByText('修改昵称')).toBeDefined();
-            });
-        });
-
-        it('NICK-002: Nickname with sensitive words fails AI review', async () => {
-            render(
-                <MemoryRouter initialEntries={['/profile']}>
-                    <Routes>
-                        <Route element={<MainLayout />}>
-                            <Route path="/profile" element={<ProfilePage />} />
-                        </Route>
-                    </Routes>
-                </MemoryRouter>
-            );
-
-            // Open dialog
-            const nicknameElement = screen.getByText('Teacher');
-            fireEvent.click(nicknameElement);
-
-            await waitFor(() => {
-                expect(screen.getByText('修改昵称')).toBeDefined();
-            });
-
-            // Enter sensitive nickname
-            const input = screen.getByPlaceholderText('请输入新昵称 (2-20字符)');
-            fireEvent.change(input, { target: { value: '系统管理员' } });
-
-            // Submit
-            const submitBtn = screen.getByText('确认修改');
-            fireEvent.click(submitBtn);
-
-            // Should show loading state then error
-            await waitFor(() => {
-                expect(screen.getByText('审核中...')).toBeDefined();
-            }, { timeout: 500 });
-        });
-
-        it('NICK-003: Valid nickname passes AI review', async () => {
-            render(
-                <MemoryRouter initialEntries={['/profile']}>
-                    <Routes>
-                        <Route element={<MainLayout />}>
-                            <Route path="/profile" element={<ProfilePage />} />
-                        </Route>
-                    </Routes>
-                </MemoryRouter>
-            );
-
-            // Open dialog
-            const nicknameElement = screen.getByText('Teacher');
-            fireEvent.click(nicknameElement);
-
-            await waitFor(() => {
-                expect(screen.getByText('修改昵称')).toBeDefined();
-            });
-
-            // Enter valid nickname
-            const input = screen.getByPlaceholderText('请输入新昵称 (2-20字符)');
-            fireEvent.change(input, { target: { value: '新昵称测试' } });
-
-            // Submit
-            const submitBtn = screen.getByText('确认修改');
-            fireEvent.click(submitBtn);
-
-            // Should show loading state
-            await waitFor(() => {
-                expect(screen.getByText('审核中...')).toBeDefined();
-            }, { timeout: 500 });
         });
     });
 

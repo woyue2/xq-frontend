@@ -66,17 +66,35 @@ export class QuestionService {
     status?: string;
     isGoodQuestion?: boolean;
     tags?: string[];
+    authorId?: string;
   }) {
     const {
       page = 1,
       pageSize = 20,
-      status = 'approved',
+      status,
       isGoodQuestion,
-      tags
+      tags,
+      authorId
     } = params;
 
     const where: any = {};
-    if (status) where.status = status;
+
+    // 默认仅首页等公共列表展示已通过的问题；
+    // 若明确指定 authorId（例如“我的提问”），则不过滤状态，由调用方自行按 status 分组。
+    const effectiveStatus =
+      typeof status === 'string'
+        ? status
+        : authorId
+        ? undefined
+        : 'approved';
+
+    if (effectiveStatus) {
+      where.status = effectiveStatus;
+    }
+
+    if (authorId) {
+      where.authorId = authorId;
+    }
     if (typeof isGoodQuestion === 'boolean') {
       where.isGoodQuestion = isGoodQuestion;
     }

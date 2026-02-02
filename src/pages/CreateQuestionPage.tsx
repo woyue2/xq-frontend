@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,6 +28,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { isMemberActive } from '@/lib/permissions';
 import { useDebounce } from '@/hooks/useDebounce';
 import { mockQuestions } from '@/lib/mock-data';
+import { questionService } from '@/services/api';
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
@@ -56,6 +57,8 @@ export function CreateQuestionPage() {
 
   const [similarQuestions, setSimilarQuestions] = useState<typeof mockQuestions>([]);
   const debouncedTitle = useDebounce(title, 500);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Smart Search Effect
   useEffect(() => {
@@ -77,10 +80,47 @@ export function CreateQuestionPage() {
       return;
     }
 
-    // 模拟图片上传
-    const mockImageUrl = `https://images.unsplash.com/photo-${Date.now()}?w=400&h=300&fit=crop`;
-    setImages([...images, mockImageUrl]);
-    toast.success('图片上传成功');
+    if (!fileInputRef.current) return;
+    fileInputRef.current.click();
+  };
+
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const remainingSlots = 3 - images.length;
+    if (remainingSlots <= 0) {
+      toast.error('最多只能上传3张图片');
+      event.target.value = '';
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of filesToUpload) {
+        // 顺序上传，便于控制错误与提示
+        // eslint-disable-next-line no-await-in-loop
+        const { imageUrl } = await questionService.uploadImage(file, {
+          purpose: '提问',
+          senderName: user?.nickname ?? user?.name ?? '学生',
+          receiverName: '老师'
+        });
+        uploadedUrls.push(imageUrl);
+      }
+      if (uploadedUrls.length > 0) {
+        setImages(prev => [...prev, ...uploadedUrls]);
+        toast.success('图片上传成功');
+      }
+    } catch {
+      toast.error('图片上传失败，请稍后重试');
+    } finally {
+      // 允许用户重复选择同一文件
+      event.target.value = '';
+    }
   };
 
   const handleRemoveImage = (index: number) => {
@@ -96,7 +136,7 @@ export function CreateQuestionPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Double check permission on submit
     if (user && !isMemberActive(user)) {
       toast.error('您的会员已过期，无法提问');
@@ -123,24 +163,37 @@ export function CreateQuestionPage() {
       return;
     }
 
-    // 模拟提交审核
-    const payload = {
-      title,
-      content,
-      subject: selectedSubject,
-      tags: [selectedTopic, selectedMethod].filter(Boolean),
-      images
-    };
+    if (submitting) {
+      return;
+    }
 
-    // console.log('Submitting:', payload);
+    setSubmitting(true);
+    try {
+      const payload = {
+        title,
+        content,
+        subject: selectedSubject,
+        tags: [selectedTopic, selectedMethod].filter(Boolean),
+        images
+      };
 
-    toast.success('问题已提交，AI 正在初筛中...');
-    setTimeout(() => {
-      navigate('/');
-    }, 1000);
+      const created = await questionService.createQuestion(payload);
+
+      toast.success('问题已提交，AI 正在初筛中...');
+      // 成功后跳转到问题详情页，若后端未返回 id，则回首页兜底
+      if (created?.id) {
+        navigate(`/question/${created.id}`);
+      } else {
+        navigate('/');
+      }
+    } catch {
+      // 具体错误提示由 axios 拦截器统一处理
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const canSubmit = title.trim().length > 0 && selectedSubject;
+  const canSubmit = !submitting && title.trim().length > 0 && selectedSubject;
 
   if (!user) return null; // Should be handled by layout but safe guard
 
@@ -288,6 +341,15 @@ export function CreateQuestionPage() {
           <div className="space-y-2">
             <Label className="font-bold">上传图片（最多3张）</Label>
             <div className="flex flex-wrap gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageChange}
+                className="hidden"
+                data-testid="create-question-image-input"
+              />
               {/* 已上传图片预览 */}
               {images.map((image, index) => (
                 <div key={index} className="relative w-24 h-24">

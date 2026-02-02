@@ -3,13 +3,20 @@ import type { Response, NextFunction } from 'express';
 import {
   authMiddleware,
   requireTeacher,
-  type AuthenticatedRequest
+  type AuthenticatedRequest,
+  createRequireTeacher
 } from '../middlewares/auth.middleware';
 import { classHoursService } from '../services/class-hours.service';
 
 export const adminClassHoursRouter = Router();
 
-adminClassHoursRouter.use(authMiddleware, requireTeacher);
+adminClassHoursRouter.use(
+  authMiddleware,
+  createRequireTeacher({
+    bizCode: 3005,
+    message: '无白名单管理权限'
+  })
+);
 
 adminClassHoursRouter.get(
   '/:userId',
@@ -56,4 +63,3 @@ adminClassHoursRouter.patch(
     }
   }
 );
-

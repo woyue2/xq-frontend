@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>气泡动画多方案 Playground</title>
+  <style>
+    /* 页面基础布局与样式 */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, -sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 24px 16px 80px;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 24px 0 8px;
+    }
+
+    p {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 12px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-top: 16px;
+    }
+
+    .demo {
+      background: radial-gradient(circle at top, #0b1120, #020617);
+      border-radius: 16px;
+      padding: 16px 16px 20px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
+    .demo-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .demo-tag {
+      font-size: 11px;
+      color: #a5b4fc;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(129, 140, 248, 0.4);
+      background: rgba(79, 70, 229, 0.16);
+    }
+
+    .demo-box {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: radial-gradient(circle at bottom, #0f172a, #020617 55%);
+      height: 220px;
+      border: 1px solid rgba(30, 64, 175, 0.7);
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+
+    .param {
+      color: #e5e7eb;
+    }
+
+    /* 方案一：纯 CSS3 气泡 */
+    .css-bubbles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .css-bubble {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      width: calc(var(--size, 8) * 1px);
+      height: calc(var(--size, 8) * 1px);
+      margin-left: calc(var(--x-offset, 0) * 1px);
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.95), rgba(56, 189, 248, 0.35));
+      box-shadow:
+        0 0 0 1px rgba(148, 163, 184, 0.3),
+        0 8px 16px rgba(15, 23, 42, 0.8);
+      opacity: 0;
+      animation-name: cssBubbleRise;
+      animation-duration: var(--duration, 10s);
+      animation-delay: var(--delay, 0s);
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+
+    @keyframes cssBubbleRise {
+      0% {
+        transform: translate3d(0, 0, 0) scale(0.8);
+        opacity: 0;
+      }
+      10% {
+        opacity: 0.9;
+        transform: translate3d(0, -10%, 0) scale(1);
+      }
+      40% {
+        transform: translate3d(12px, -40%, 0) scale(1.04);
+      }
+      70% {
+        transform: translate3d(-10px, -75%, 0) scale(1.02);
+        opacity: 0.8;
+      }
+      100% {
+        transform: translate3d(6px, -115%, 0) scale(0.9);
+        opacity: 0;
+      }
+    }
+
+    /* 方案二：DOM + JS 控制 */
+    #dom-bubbles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .dom-bubble {
+      position: absolute;
+      left: 0;
+      top: 0;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, rgba(239, 246, 255, 0.98), rgba(59, 130, 246, 0.45));
+      box-shadow:
+        0 0 0 1px rgba(129, 140, 248, 0.55),
+        0 10px 22px rgba(30, 64, 175, 0.8);
+      opacity: 0;
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
+
+    /* 方案三：Canvas 高性能气泡 */
+    #canvas-bubbles {
+      position: absolute;
+      inset: 0;
+      display: block;
+    }
+
+    /* 方案四：SVG 气泡 */
+    #svg-bubbles {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .svg-bg-gradient {
+      stop-color: #0f172a;
+    }
+
+    /* 公共：小水面高光 */
+    .water-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 4px;
+      background: radial-gradient(circle at top, rgba(248, 250, 252, 0.6), transparent 60%);
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <h1>前端气泡动画多方案 Playground</h1>
+  <p>每个方案都包含：气泡生成 ➝ 上升运动 ➝ 摆动 ➝ 透明度渐变 ➝ 边界检测与自动销毁，并暴露可调参数。</p>
+
+  <div class="grid">
+    <!-- 方案一：纯 CSS3 -->
+    <section class="demo">
+      <div class="demo-header">
+        <div class="demo-title">方案一：纯 CSS3 关键帧</div>
+        <span class="demo-tag">CSS only</span>
+      </div>
+      <p>使用多组气泡元素 + keyframes 实现基础上升与轻微摆动，适合作为简单背景特效。</p>
+      <div class="demo-box">
+        <div class="water-line"></div>
+        <div class="css-bubbles">
+          <!-- 可通过复制/修改这些气泡元素数量及变量控制生成频率与大小 -->
+          <span class="css-bubble" style="--size: 6; --delay: 0s; --duration: 12s; --x-offset: -80;"></span>
+          <span class="css-bubble" style="--size: 10; --delay: 1.2s; --duration: 11s; --x-offset: -30;"></span>
+          <span class="css-bubble" style="--size: 8; --delay: 2.5s; --duration: 10s; --x-offset: -5;"></span>
+          <span class="css-bubble" style="--size: 12; --delay: 3.1s; --duration: 13s; --x-offset: 20;"></span>
+          <span class="css-bubble" style="--size: 7; --delay: 4.4s; --duration: 9s; --x-offset: 50;"></span>
+          <span class="css-bubble" style="--size: 5; --delay: 5.2s; --duration: 8s; --x-offset: 90;"></span>
+          <span class="css-bubble" style="--size: 9; --delay: 6.0s; --duration: 12s; --x-offset: -120;"></span>
+          <span class="css-bubble" style="--size: 11; --delay: 7.1s; --duration: 14s; --x-offset: 140;"></span>
+        </div>
+      </div>
+      <div class="hint">
+        可调参数（通过修改 <span class="param">style</span> 或 CSS 变量）：
+        - 气泡数量：增加 / 删除 <span class="param">&lt;span class="css-bubble"&gt;</span> 元素。
+        - 尺寸范围：<span class="param">--size</span>（px）。
+        - 上升时长：<span class="param">--duration</span>（秒） → 等价于速度。
+        - 生成频率：通过 <span class="param">--delay</span> 和整体数量组合控制。
+        - 摆动幅度：在 <span class="param">@keyframes cssBubbleRise</span> 中调整 <span class="param">translate3d</span> 的 X 偏移。
+      </div>
+    </section>
+
+    <!-- 方案二：DOM + JS -->
+    <section class="demo">
+      <div class="demo-header">
+        <div class="demo-title">方案二：DOM + JavaScript</div>
+        <span class="demo-tag">DOM + rAF</span>
+      </div>
+      <p>通过 JS 动态创建 / 销毁气泡元素，支持随机大小、速度、摆动幅度等参数，便于与交互联动。</p>
+      <div class="demo-box">
+        <div class="water-line"></div>
+        <div id="dom-bubbles"></div>
+      </div>
+      <div class="hint">
+        可调参数（见脚本中的 <span class="param">domConfig</span>）：
+        - <span class="param">maxBubbles</span>：屏幕上最多同时存在的气泡数量。
+        - <span class="param">spawnInterval</span>：生成间隔（毫秒）。
+        - <span class="param">size.min / size.max</span>：尺寸区间（px）。
+        - <span class="param">speed.min / speed.max</span>：上升速度区间（px/s）。
+        - <span class="param">swayAmplitude</span>：左右摆动幅度（px）。
+        - <span class="param">swaySpeed</span>：左右摆动速度（弧度 / s）。
+      </div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <!-- 方案三：Canvas -->
+    <section class="demo">
+      <div class="demo-header">
+        <div class="demo-title">方案三：Canvas 高性能绘制</div>
+        <span class="demo-tag">Canvas 2D</span>
+      </div>
+      <p>适合大量气泡和复杂混合效果，通过单个画布集中绘制，减少 DOM 数量，适合 1 核 1G 服务器前端轻量展示。</p>
+      <div class="demo-box">
+        <div class="water-line"></div>
+        <canvas id="canvas-bubbles"></canvas>
+      </div>
+      <div class="hint">
+        关键参数（见脚本中的 <span class="param">canvasConfig</span>）：
+        - <span class="param">maxBubbles</span>：最大气泡数。
+        - <span class="param">spawnPerSecond</span>：每秒生成数量。
+        - <span class="param">radiusRange</span>：半径范围。
+        - <span class="param">speedRange</span>：上升速度。
+        - <span class="param">swayAmplitudeRange / swaySpeedRange</span>：摆动幅度与速度。
+        性能优化要点：使用 <span class="param">requestAnimationFrame</span>、<span class="param">transform</span> / <span class="param">translate3d</span>、控制最大粒子数。
+      </div>
+    </section>
+
+    <!-- 方案四：SVG -->
+    <section class="demo">
+      <div class="demo-header">
+        <div class="demo-title">方案四：SVG 矢量气泡</div>
+        <span class="demo-tag">SVG + JS</span>
+      </div>
+      <p>使用 SVG circle 元素实现矢量气泡，路径与透明度由 JS 控制，放大不失真，适合与图标 / 插画融合。</p>
+      <div class="demo-box">
+        <div class="water-line"></div>
+        <svg id="svg-bubbles" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <radialGradient id="bubbleGradient" cx="30%" cy="20%" r="70%">
+              <stop offset="0%" stop-color="#e5f2ff" stop-opacity="0.98" />
+              <stop offset="40%" stop-color="#93c5fd" stop-opacity="0.8" />
+              <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="hint">
+        可调参数（见脚本中的 <span class="param">svgConfig</span>）：
+        - <span class="param">maxBubbles</span>：最大 SVG 气泡数量。
+        - <span class="param">spawnInterval</span>：生成间隔（毫秒）。
+        - <span class="param">radiusRange</span>：半径范围（viewBox 坐标）。
+        - <span class="param">speedRange</span>：上升速度（viewBox 单位 / s）。
+        - <span class="param">swayAmplitudeRange</span>：左右摆动幅度。
+        优点：矢量可缩放、易与其他 SVG 元素组合；缺点：大量节点时要注意 DOM 性能。
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // 简单工具函数
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    /* 方案二：DOM + JS 气泡逻辑 */
+    (function setupDomBubbles() {
+      const container = document.getElementById('dom-bubbles');
+      if (!container) return;
+
+      const domConfig = {
+        maxBubbles: 28,
+        spawnInterval: 420, // 毫秒
+        size: { min: 6, max: 18 }, // px
+        speed: { min: 40, max: 90 }, // px/s
+        swayAmplitude: { min: 10, max: 40 }, // px
+        swaySpeed: { min: 0.4, max: 1.1 }, // 弧度/s
+        lifeTime: 4.2 // 秒
+      };
+
+      const bubbles = new Set();
+
+      function createBubble() {
+        if (bubbles.size >= domConfig.maxBubbles) return;
+        const rect = container.getBoundingClientRect();
+        const size = rand(domConfig.size.min, domConfig.size.max);
+        const startX = rand(0, rect.width);
+        const swayAmp = rand(domConfig.swayAmplitude.min, domConfig.swayAmplitude.max);
+        const speed = rand(domConfig.speed.min, domConfig.speed.max);
+        const swaySpeed = rand(domConfig.swaySpeed.min, domConfig.swaySpeed.max);
+
+        const el = document.createElement('div');
+        el.className = 'dom-bubble';
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        container.appendChild(el);
+
+        const bubble = {
+          el,
+          x0: startX,
+          y: rect.height + size,
+          radius: size / 2,
+          swayAmp,
+          swaySpeed,
+          speed,
+          t: 0,
+          born: performance.now()
+        };
+
+        bubbles.add(bubble);
+      }
+
+      let lastTime = performance.now();
+
+      function tick(now) {
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+
+        const toRemove = [];
+        const rect = container.getBoundingClientRect();
+
+        bubbles.forEach((bubble) => {
+          bubble.t += dt;
+          bubble.y -= bubble.speed * dt;
+          const swayX = Math.sin(bubble.t * bubble.swaySpeed * 2 * Math.PI) * bubble.swayAmp;
+          const x = bubble.x0 + swayX;
+          const y = bubble.y;
+          const lifeRatio = (now - bubble.born) / (domConfig.lifeTime * 1000);
+          const opacity = lifeRatio < 0.2
+            ? lifeRatio / 0.2
+            : Math.max(0, 1 - (lifeRatio - 0.2) / 0.8);
+
+          bubble.el.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
+          bubble.el.style.opacity = opacity.toFixed(2);
+
+          if (y + bubble.radius < -20 || opacity <= 0.02) {
+            toRemove.push(bubble);
+          }
+        });
+
+        toRemove.forEach((bubble) => {
+          bubbles.delete(bubble);
+          if (bubble.el.parentNode === container) {
+            container.removeChild(bubble.el);
+          }
+        });
+
+        requestAnimationFrame(tick);
+      }
+
+      setInterval(createBubble, domConfig.spawnInterval);
+      requestAnimationFrame((t) => {
+        lastTime = t;
+        tick(t);
+      });
+
+      window.addEventListener('resize', () => {
+        // 容器宽度变化时，新生成的气泡会使用新的宽度；现有气泡保持移动轨迹即可。
+      });
+    })();
+
+    /* 方案三：Canvas 气泡逻辑 */
+    (function setupCanvasBubbles() {
+      const canvas = document.getElementById('canvas-bubbles');
+      if (!canvas || !canvas.getContext) return;
+      const ctx = canvas.getContext('2d');
+
+      const canvasConfig = {
+        maxBubbles: 80,
+        spawnPerSecond: 24, // 每秒生成数量
+        radiusRange: { min: 3, max: 10 }, // px
+        speedRange: { min: 30, max: 90 }, // px/s
+        swayAmplitudeRange: { min: 6, max: 26 }, // px
+        swaySpeedRange: { min: 0.5, max: 1.5 }, // 弧度/s
+        lifeTime: 5 // 秒
+      };
+
+      const state = {
+        bubbles: [],
+        lastTime: performance.now(),
+        lastSpawn: performance.now()
+      };
+
+      function resize() {
+        const parent = canvas.parentElement;
+        if (!parent) return;
+        const rect = parent.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      function spawnBubble() {
+        if (state.bubbles.length >= canvasConfig.maxBubbles) return;
+        const parent = canvas.parentElement;
+        if (!parent) return;
+        const rect = parent.getBoundingClientRect();
+
+        const radius = rand(canvasConfig.radiusRange.min, canvasConfig.radiusRange.max);
+        const x0 = rand(radius, rect.width - radius);
+        const y = rect.height + radius + rand(0, 40);
+        const swayAmp = rand(canvasConfig.swayAmplitudeRange.min, canvasConfig.swayAmplitudeRange.max);
+        const swaySpeed = rand(canvasConfig.swaySpeedRange.min, canvasConfig.swaySpeedRange.max);
+        const speed = rand(canvasConfig.speedRange.min, canvasConfig.speedRange.max);
+
+        state.bubbles.push({
+          x0,
+          y,
+          radius,
+          swayAmp,
+          swaySpeed,
+          speed,
+          t: 0,
+          born: performance.now()
+        });
+      }
+
+      function drawBubble(bubble) {
+        const parent = canvas.parentElement;
+        if (!parent) return;
+        const rect = parent.getBoundingClientRect();
+
+        const lifeRatio = (performance.now() - bubble.born) / (canvasConfig.lifeTime * 1000);
+        const opacity = lifeRatio < 0.15
+          ? lifeRatio / 0.15
+          : Math.max(0, 1 - (lifeRatio - 0.15) / 0.85);
+
+        const swayX = Math.sin(bubble.t * bubble.swaySpeed * 2 * Math.PI) * bubble.swayAmp;
+        const x = bubble.x0 + swayX;
+        const y = bubble.y;
+
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        const gradient = ctx.createRadialGradient(
+          x - bubble.radius * 0.3,
+          y - bubble.radius * 0.3,
+          bubble.radius * 0.1,
+          x,
+          y,
+          bubble.radius
+        );
+        gradient.addColorStop(0, 'rgba(226, 232, 240, 0.98)');
+        gradient.addColorStop(0.4, 'rgba(129, 212, 250, 0.9)');
+        gradient.addColorStop(1, 'rgba(30, 64, 175, 0.0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, bubble.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // 边界检测：y 超出顶部则视为需要销毁
+        return y + bubble.radius < -20 || opacity <= 0.02;
+      }
+
+      function frame(now) {
+        const dt = (now - state.lastTime) / 1000;
+        state.lastTime = now;
+
+        const parent = canvas.parentElement;
+        if (!parent) {
+          requestAnimationFrame(frame);
+          return;
+        }
+        const rect = parent.getBoundingClientRect();
+
+        // 控制生成频率
+        const spawnIntervalMs = 1000 / canvasConfig.spawnPerSecond;
+        if (now - state.lastSpawn >= spawnIntervalMs) {
+          spawnBubble();
+          state.lastSpawn = now;
+        }
+
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        state.bubbles.forEach((bubble) => {
+          bubble.t += dt;
+          bubble.y -= bubble.speed * dt;
+        });
+
+        state.bubbles = state.bubbles.filter((bubble) => !drawBubble(bubble));
+
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame((t) => {
+        state.lastTime = t;
+        state.lastSpawn = t;
+        frame(t);
+      });
+    })();
+
+    /* 方案四：SVG 气泡逻辑 */
+    (function setupSvgBubbles() {
+      const svg = document.getElementById('svg-bubbles');
+      if (!svg) return;
+      const ns = 'http://www.w3.org/2000/svg';
+
+      const svgConfig = {
+        maxBubbles: 26,
+        spawnInterval: 520, // 毫秒
+        radiusRange: { min: 1.2, max: 3.5 }, // viewBox 单位
+        speedRange: { min: 8, max: 20 }, // 单位 / s
+        swayAmplitudeRange: { min: 2, max: 8 }, // 单位
+        lifeTime: 6 // 秒
+      };
+
+      const bubbles = new Set();
+
+      function viewBoxHeight() {
+        return 100;
+      }
+
+      function createSvgBubble() {
+        if (bubbles.size >= svgConfig.maxBubbles) return;
+        const r = rand(svgConfig.radiusRange.min, svgConfig.radiusRange.max);
+        const cx0 = rand(5 + r, 95 - r);
+        const cy = 100 + r + rand(0, 12);
+        const swayAmp = rand(svgConfig.swayAmplitudeRange.min, svgConfig.swayAmplitudeRange.max);
+        const speed = rand(svgConfig.speedRange.min, svgConfig.speedRange.max);
+        const swaySpeed = rand(0.3, 1.0);
+
+        const circle = document.createElementNS(ns, 'circle');
+        circle.setAttribute('r', r.toFixed(2));
+        circle.setAttribute('cx', cx0.toFixed(2));
+        circle.setAttribute('cy', cy.toFixed(2));
+        circle.setAttribute('fill', 'url(#bubbleGradient)');
+        circle.setAttribute('opacity', '0');
+
+        svg.appendChild(circle);
+
+        const bubble = {
+          el: circle,
+          cx0,
+          cy,
+          r,
+          swayAmp,
+          swaySpeed,
+          speed,
+          t: 0,
+          born: performance.now()
+        };
+
+        bubbles.add(bubble);
+      }
+
+      function tick(now) {
+        const toRemove = [];
+        const h = viewBoxHeight();
+
+        bubbles.forEach((bubble) => {
+          const dt = (now - bubble.born) / 1000 - bubble.t;
+          bubble.t += dt;
+          bubble.cy -= bubble.speed * dt;
+          const swayX = Math.sin(bubble.t * bubble.swaySpeed * 2 * Math.PI) * bubble.swayAmp;
+          const cx = bubble.cx0 + swayX;
+          const cy = bubble.cy;
+
+          const lifeRatio = (now - bubble.born) / (svgConfig.lifeTime * 1000);
+          const opacity = lifeRatio < 0.2
+            ? lifeRatio / 0.2
+            : Math.max(0, 1 - (lifeRatio - 0.2) / 0.8);
+
+          bubble.el.setAttribute('cx', cx.toFixed(2));
+          bubble.el.setAttribute('cy', cy.toFixed(2));
+          bubble.el.setAttribute('opacity', opacity.toFixed(2));
+
+          if (cy + bubble.r < -5 || opacity <= 0.02) {
+            toRemove.push(bubble);
+          }
+        });
+
+        toRemove.forEach((bubble) => {
+          bubbles.delete(bubble);
+          if (bubble.el.parentNode === svg) {
+            svg.removeChild(bubble.el);
+          }
+        });
+
+        requestAnimationFrame(tick);
+      }
+
+      setInterval(createSvgBubble, svgConfig.spawnInterval);
+      requestAnimationFrame((t) => tick(t));
+    })();
+  </script>
+</body>
+</html>
+

@@ -11,7 +11,12 @@ export function useQuestions(params: Omit<QuestionParams, 'page' | 'limit'> = {}
                 limit: 10,
             });
         },
-        getNextPageParam: (lastPage) => lastPage.nextPage,
+        getNextPageParam: (lastPage) => {
+            if (!lastPage) return undefined;
+            const nextPage =
+                lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
+            return nextPage;
+        },
         initialPageParam: 1,
     });
 

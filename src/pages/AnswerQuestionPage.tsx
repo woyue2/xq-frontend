@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Upload, X, Mic, Square, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,13 +15,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { mockQuestions } from '@/lib/mock-data';
+import { useNavigate, useParams } from 'react-router-dom';
+import type { Question } from '@/types';
+import { questionService, answerService } from '@/services/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
-interface AnswerQuestionPageProps {
-  questionId: string;
-  onNavigate: (page: string, data?: any) => void;
-}
+export function AnswerQuestionPage() {
+  const navigate = useNavigate();
+  const { id: questionIdParam } = useParams();
+  const questionId = questionIdParam ?? '';
+  const { user } = useAuthStore();
 
-export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPageProps) {
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -30,19 +34,84 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const question = mockQuestions.find((q) => q.id === questionId);
+  const [question, setQuestion] = useState<Question | null>(() => {
+    return mockQuestions.find((q) => q.id === questionId) ?? null;
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!questionId) return;
+
+    if (question && question.id === questionId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    questionService
+      .getQuestionById(questionId)
+      .then((q) => {
+        if (!cancelled && q) {
+          setQuestion((prev) => prev ?? q);
+        }
+      })
+      .catch(() => {
+        // 失败时保持现有 question（可能来自 mock），由下方 fallback 处理
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [questionId, question]);
 
   const handleImageUpload = () => {
     if (images.length >= 5) {
       toast.error('最多只能上传5张图片');
       return;
     }
+    imageInputRef.current?.click();
+  };
 
-    // 模拟图片上传
-    const mockImageUrl = `https://images.unsplash.com/photo-${Date.now()}?w=400&h=300&fit=crop`;
-    setImages([...images, mockImageUrl]);
-    toast.success('图片上传成功');
+  const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      event.target.value = '';
+      return;
+    }
+
+    const remainingSlots = 5 - images.length;
+    if (remainingSlots <= 0) {
+      toast.error('最多只能上传5张图片');
+      event.target.value = '';
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+
+    try {
+      const uploaded: string[] = [];
+      for (const file of filesToUpload) {
+        // eslint-disable-next-line no-await-in-loop
+        const { imageUrl } = await questionService.uploadImage(file, {
+          purpose: '回答问题',
+          senderName: user?.nickname ?? user?.name ?? '老师',
+          receiverName: question?.authorName ?? '学生'
+        });
+        uploaded.push(imageUrl);
+      }
+      if (uploaded.length > 0) {
+        setImages(prev => [...prev, ...uploaded]);
+        toast.success('图片上传成功');
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('answer image upload failed', error);
+      toast.error('图片上传失败，请稍后重试');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   const handleRemoveImage = (index: number) => {
@@ -94,11 +163,11 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
     if (content || images.length > 0 || audioUrl) {
       setShowExitDialog(true);
     } else {
-      onNavigate('detail', { questionId });
+      navigate(`/question/${questionId}`);
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!content.trim() && images.length === 0 && !audioUrl) {
       toast.error('请至少填写文字回答、上传图片或录音');
       return;
@@ -109,22 +178,30 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
       return;
     }
 
-    // 模拟提交审核
-    toast.success('回答已提交，等待审核');
-    setTimeout(() => {
-      onNavigate('detail', { questionId });
-    }, 1000);
+    if (!questionId) {
+      toast.error('问题信息缺失，无法提交回答');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await answerService.create(questionId, {
+        content: content.trim() || undefined,
+        images: images.length > 0 ? images : undefined,
+        audioUrl: audioUrl ?? undefined
+      });
+      toast.success('回答已提交，等待审核');
+      navigate(`/question/${questionId}`);
+    } catch {
+      toast.error('提交回答失败，请稍后重试');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const canSubmit = content.trim().length > 0 || images.length > 0 || audioUrl !== null;
-
-  if (!question) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">问题不存在</p>
-      </div>
-    );
-  }
+  const canSubmit =
+    !isSubmitting &&
+    (content.trim().length > 0 || images.length > 0 || audioUrl !== null);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -153,7 +230,9 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
         {/* 问题卡片 */}
         <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-teal-500">
           <p className="text-sm text-gray-500 mb-2">回答以下问题：</p>
-          <h3 className="line-clamp-2">{question.title}</h3>
+          <h3 className="line-clamp-2">
+            {question?.title ?? '问题加载中...'}
+          </h3>
         </div>
 
         {/* 回答编辑区 */}
@@ -205,6 +284,14 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
                 </button>
               )}
             </div>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleImageFileChange}
+            />
           </div>
 
           {/* 录音区 */}
@@ -284,7 +371,7 @@ export function AnswerQuestionPage({ questionId, onNavigate }: AnswerQuestionPag
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onNavigate('detail', { questionId })}>
+            <AlertDialogAction onClick={() => navigate(`/question/${questionId}`)}>
               确认放弃
             </AlertDialogAction>
           </AlertDialogFooter>

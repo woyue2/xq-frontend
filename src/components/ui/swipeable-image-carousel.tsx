@@ -57,7 +57,7 @@ export function SwipeableImageCarousel({
     return (
         <div
             ref={containerRef}
-            className="w-full aspect-video rounded-xl overflow-hidden relative group"
+            className="w-full aspect-square rounded-xl overflow-hidden relative group"
             onClick={onClick}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}

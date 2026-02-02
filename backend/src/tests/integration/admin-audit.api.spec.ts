@@ -11,6 +11,21 @@ describe('Admin Audit API', () => {
     role: 'teacher'
   });
 
+  // AU-API-000 非教师角色无审核权限
+  it('should forbid non-teacher to access audit APIs (AU-API-000)', async () => {
+    const studentToken = signAccessToken({
+      sub: 'student_audit_001',
+      role: 'student'
+    });
+
+    const res = await request(app)
+      .get('/api/admin/audit/pending?type=question')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('PERMISSION_DENIED');
+  });
+
   beforeEach(async () => {
     await prisma.auditLog.deleteMany();
     await prisma.comment.deleteMany();

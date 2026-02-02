@@ -80,11 +80,9 @@ behaviorRouter.post(
 
       return res.json({
         code: 200,
-        message: 'Logged successfully',
+        message: 'success',
         data: {
-          id: created.id,
-          success: true,
-          receivedAt: Date.now()
+          logId: created.id
         },
         timestamp: Date.now()
       });

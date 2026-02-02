@@ -10,14 +10,6 @@ export class CommentService {
   }) {
     const { questionId, authorId, content, image } = params;
 
-    const question = await prisma.question.findUnique({
-      where: { id: questionId }
-    });
-
-    if (!question) {
-      throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
-    }
-
     const hasText = !!content && content.trim().length > 0;
     const hasImage = !!image;
 
@@ -29,6 +21,16 @@ export class CommentService {
       );
     }
 
+    // 先检查问题与作者是否存在，语义与 AnswerService 保持一致，
+    // 便于单元测试通过 prisma.question / prisma.user 直接打桩。
+    const question = await prisma.question.findUnique({
+      where: { id: questionId }
+    });
+
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+    }
+
     const author = await prisma.user.findUnique({
       where: { id: authorId }
     });
@@ -37,6 +39,8 @@ export class CommentService {
       throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
     }
 
+    // 使用数组形式的事务，便于在单元测试中通过 mockResolvedValue([...])
+    // 直接控制返回结果（与 AnswerService.create 的实现保持对齐）。
     const [created] = await prisma.$transaction([
       prisma.comment.create({
         data: {
@@ -119,7 +123,9 @@ export class CommentService {
       throw new AppError(
         403,
         'PERMISSION_DENIED',
-        '只有作者或教师可以删除评论'
+        '只有作者或教师可以删除评论',
+        undefined,
+        3003
       );
     }
 
@@ -144,4 +150,3 @@ export class CommentService {
 }
 
 export const commentService = new CommentService();
-

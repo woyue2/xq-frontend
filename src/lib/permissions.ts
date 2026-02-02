@@ -20,12 +20,17 @@ export const PERMISSIONS = {
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
 /**
- * 检查用户是否在有效期内 (仅针对学生和家长)
- * 老师永远返回 true
+ * 检查用户是否在有效期内
+ *
+ * 约定：
+ * - 老师（teacher）：永远视为有效会员，用于解锁管理与审核能力；
+ * - 学生（student）：根据 expiresAt 判断是否在有效期内；
+ * - 家长（parent）：当前产品形态下仅支持「查看」，不参与课时计费，统一视为非有效会员。
  */
 export function isMemberActive(user?: User | null): boolean {
     if (!user) return false;
     if (user.role === 'teacher') return true;
+    if (user.role === 'parent') return false;
     if (!user.expiresAt) return false; // 如果没设置有效期，视为无效（严格模式）
 
     const now = new Date();

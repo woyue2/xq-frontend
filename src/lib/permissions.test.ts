@@ -39,6 +39,16 @@ describe('Permissions Logic', () => {
         expect(isMemberActive(student)).toBe(false);
     });
 
+    it('Parent should always be treated as non-active member', () => {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 7);
+        const parentWithExpiry = createMockUser('parent', futureDate.toISOString());
+        const parentWithoutExpiry = createMockUser('parent');
+
+        expect(isMemberActive(parentWithExpiry)).toBe(false);
+        expect(isMemberActive(parentWithoutExpiry)).toBe(false);
+    });
+
     it('Active student should have create permissions', () => {
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + 1);

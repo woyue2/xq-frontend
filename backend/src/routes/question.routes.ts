@@ -25,7 +25,9 @@ questionRouter.post(
         throw new AppError(
           403,
           'PERMISSION_DENIED',
-          '家长账号无提问权限'
+          '家长账号无提问权限',
+          undefined,
+          3001
         );
       }
 
@@ -68,7 +70,9 @@ questionRouter.get(
   authMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { page, pageSize, status, isGoodQuestion, tags } = req.query as any;
+      const { page, pageSize, status, isGoodQuestion, tags, authorId } =
+        req.query as any;
+
       const result = await questionService.list({
         page: page ? Number(page) : undefined,
         pageSize: pageSize ? Number(pageSize) : undefined,
@@ -77,8 +81,10 @@ questionRouter.get(
           typeof isGoodQuestion === 'string'
             ? isGoodQuestion === 'true'
             : undefined,
-        tags: typeof tags === 'string' ? (tags as string).split(',') : undefined
+        tags: typeof tags === 'string' ? (tags as string).split(',') : undefined,
+        authorId: typeof authorId === 'string' ? authorId : undefined
       });
+
       return res.json({
         code: 200,
         message: 'success',
@@ -161,7 +167,9 @@ questionRouter.post(
         throw new AppError(
           403,
           'PERMISSION_DENIED',
-          '家长账号无评论权限'
+          '家长账号无评论权限',
+          undefined,
+          3003
         );
       }
 
@@ -169,7 +177,9 @@ questionRouter.post(
         throw new AppError(
           403,
           'PERMISSION_DENIED',
-          '学生只能评论自己的问题'
+          '学生只能评论自己的问题',
+          undefined,
+          3003
         );
       }
 
@@ -251,7 +261,9 @@ questionRouter.post(
         throw new AppError(
           403,
           'PERMISSION_DENIED',
-          '只有教师可以回答问题'
+          '只有教师可以回答问题',
+          undefined,
+          3002
         );
       }
 

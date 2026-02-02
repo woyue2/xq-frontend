@@ -50,6 +50,8 @@ export function LoginPage() {
   const isStudentInvite = !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
   // 判断是否为家长邀请码
   const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
+  // 判断是否为老师邀请码
+  const isTeacherInvite = !isLogin && inviteCode === 'TEACHER2024';
 
   const handleGetCode = async () => {
     if (!phone || phone.length !== 11) {
@@ -243,13 +245,17 @@ export function LoginPage() {
       }
 
       // 注册走后端 /auth/register
+      const desiredRole: UserRole =
+        isStudentInvite ? 'student' : isParentInvite ? 'parent' : 'teacher';
+
       const registerResult = await authService.register({
         phone,
         code,
         nickname: `用户${phone.slice(-4)}`,
         grade: isStudentInvite ? grade : undefined,
         age: isStudentInvite ? parseInt(age, 10) : undefined,
-        school: isStudentInvite ? school : undefined
+        school: isStudentInvite ? school : undefined,
+        role: desiredRole
       });
 
       // authService.register 已经返回 LoginResponse
@@ -347,7 +353,7 @@ export function LoginPage() {
               </div>
               <Button
                 onClick={handleGetCode}
-                disabled={countdown > 0 || !phone || phone.length !== 11}
+                disabled={countdown > 0}
                 variant="outline"
                 className="whitespace-nowrap"
               >
@@ -372,6 +378,9 @@ export function LoginPage() {
                   setAge('');
                 }}
               />
+              <p className="text-xs text-gray-500">
+                需输入有效邀请码方可注册
+              </p>
               <p className="text-xs text-gray-500">
                 提示：学生邀请码 STUDENT2024 | 老师邀请码 TEACHER2024 | 家长邀请码 PARENT2024
               </p>
@@ -520,7 +529,12 @@ export function LoginPage() {
 
           {/* 底部辅助区 */}
           <div className="text-center space-y-2 pt-4">
-            <button className="text-sm text-blue-500 hover:underline">
+            <button
+              className="text-sm text-blue-500 hover:underline"
+              onClick={() => {
+                toast.info('请联系老师');
+              }}
+            >
               忘记密码？
             </button>
             <p className="text-xs text-gray-400">

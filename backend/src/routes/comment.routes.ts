@@ -38,7 +38,9 @@ commentRouter.post(
         throw new AppError(
           403,
           'PERMISSION_DENIED',
-          '家长账号无评论权限'
+          '家长账号无评论权限',
+          undefined,
+          3003
         );
       }
 
@@ -46,7 +48,9 @@ commentRouter.post(
         throw new AppError(
           403,
           'PERMISSION_DENIED',
-          '学生只能评论自己的问题'
+          '学生只能评论自己的问题',
+          undefined,
+          3003
         );
       }
 
@@ -91,4 +95,3 @@ commentRouter.delete(
     }
   }
 );
-

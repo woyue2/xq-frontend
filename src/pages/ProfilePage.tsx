@@ -223,6 +223,13 @@ export function ProfilePage() {
       onClick: () => navigate('/admin'),
     },
     {
+      icon: Phone,
+      label: '图床配置测试',
+      color: 'text-purple-500',
+      visible: currentUser.role === 'teacher',
+      onClick: () => navigate('/test'),
+    },
+    {
       icon: Heart,
       label: '我的点赞',
       color: 'text-red-500',
@@ -512,25 +519,28 @@ export function ProfilePage() {
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label>孩子姓名</Label>
+              <Label htmlFor="bind-child-name">孩子姓名</Label>
               <Input
+                id="bind-child-name"
                 value={bindName}
                 onChange={(e) => setBindName(e.target.value)}
                 placeholder="请输入孩子姓名"
               />
             </div>
             <div className="space-y-2">
-              <Label>学校（选填）</Label>
+              <Label htmlFor="bind-child-school">学校（选填）</Label>
               <Input
+                id="bind-child-school"
                 value={bindSchool}
                 onChange={(e) => setBindSchool(e.target.value)}
                 placeholder="请输入学校名称"
               />
             </div>
             <div className="space-y-2">
-              <Label>手机号</Label>
+              <Label htmlFor="bind-child-phone">手机号</Label>
               <div className="flex gap-2">
                 <Input
+                  id="bind-child-phone"
                   value={bindPhone}
                   onChange={(e) => setBindPhone(e.target.value)}
                   placeholder="请输入手机号"
@@ -547,8 +557,9 @@ export function ProfilePage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>验证码</Label>
+              <Label htmlFor="bind-child-code">验证码</Label>
               <Input
+                id="bind-child-code"
                 value={bindCode}
                 onChange={(e) => setBindCode(e.target.value)}
                 placeholder="请输入验证码"

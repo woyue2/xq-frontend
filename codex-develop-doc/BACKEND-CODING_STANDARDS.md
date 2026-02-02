@@ -254,38 +254,66 @@ export const Errors = {
 
 ```typescript
 // src/middlewares/error.middleware.ts
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-  // 记录日志
-  logger.error({
-    message: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-    userId: req.user?.id
-  });
+export const errorMiddleware = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) => {
+  const logger = (req as any).log ?? console;
+  const path = req.path;
+  const method = req.method;
 
-  // Zod 验证错误
-  if (err instanceof ZodError) {
-    return res.status(400).json({
-      code: 400,
-      message: '参数验证失败',
-      errors: err.errors
+  // 自定义业务错误
+  if (err instanceof AppError) {
+    const status = err.status;
+    const outCode = typeof err.bizCode === 'number' ? err.bizCode : status;
+
+    logger.error(
+      { type: 'app_error', status, code: outCode, error: err.code, path, method },
+      'Http request error'
+    );
+
+    return res.status(status).json({
+      code: outCode,
+      message: err.message,
+      error: err.code,
+      ...(err.data ? { data: err.data } : {}),
+      timestamp: Date.now()
     });
   }
 
-  // 自定义应用错误
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      code: err.statusCode,
-      message: err.message,
-      errors: err.errors
+  // Zod 验证错误
+  if (err instanceof ZodError) {
+    const status = 400;
+
+    logger.error(
+      { type: 'validation_error', status, code: status, error: 'VALIDATION_ERROR', path, method },
+      'Http request error'
+    );
+
+    return res.status(status).json({
+      code: status,
+      message: '参数校验失败',
+      error: 'VALIDATION_ERROR',
+      details: err.errors,
+      timestamp: Date.now()
     });
   }
 
   // 未知错误
-  res.status(500).json({
-    code: 500,
-    message: process.env.NODE_ENV === 'production' ? '服务器错误' : err.message
+  const status = 500;
+
+  logger.error(
+    { type: 'unknown_error', status, code: status, error: 'INTERNAL_SERVER_ERROR', path, method },
+    'Http request error'
+  );
+
+  return res.status(status).json({
+    code: status,
+    message: '服务器内部错误',
+    error: 'INTERNAL_SERVER_ERROR',
+    timestamp: Date.now()
   });
 };
 ```

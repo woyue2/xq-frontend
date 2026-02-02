@@ -43,20 +43,26 @@ export const authMiddleware = (
   }
 };
 
-export const requireTeacher = (
-  req: AuthenticatedRequest,
-  _res: Response,
-  next: NextFunction
-) => {
-  if (!req.user) {
-    return next(new AppError(401, 'UNAUTHORIZED', '未登录'));
-  }
+export const createRequireTeacher =
+  (options?: { message?: string; bizCode?: number }) =>
+  (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(new AppError(401, 'UNAUTHORIZED', '未登录'));
+    }
 
-  if (req.user.role !== 'teacher') {
-    return next(
-      new AppError(403, 'PERMISSION_DENIED', '无权限访问')
-    );
-  }
+    if (req.user.role !== 'teacher') {
+      return next(
+        new AppError(
+          403,
+          'PERMISSION_DENIED',
+          options?.message ?? '无权限访问',
+          undefined,
+          options?.bizCode
+        )
+      );
+    }
 
-  return next();
-};
+    return next();
+  };
+
+export const requireTeacher = createRequireTeacher();

@@ -100,7 +100,7 @@ export class WhitelistService {
     if (!/^\d{11}$/.test(phone)) {
       throw new AppError(400, 'VALIDATION_ERROR', '参数验证失败', {
         errors: [{ field: 'phone', message: '手机号格式错误' }]
-      });
+      }, 1001);
     }
 
     if (!name) {
@@ -218,4 +218,3 @@ export class WhitelistService {
 }
 
 export const whitelistService = new WhitelistService();
-

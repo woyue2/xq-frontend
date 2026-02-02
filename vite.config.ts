@@ -50,6 +50,9 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: './src/test/setup.ts',
+    // 只运行前端测试，避免拾取 backend 下的 Jest 用例
+    include: ['src/test/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['backend/**', 'node_modules/**', 'dist/**']
   },
   build: {
     rollupOptions: {

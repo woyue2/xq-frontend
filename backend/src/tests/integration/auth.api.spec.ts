@@ -57,6 +57,11 @@ describe('Auth API', () => {
 
   // 注册成功（验证基础响应结构，未依赖真实数据库）
   it('should register user and return token + user (AUTH-API-005)', async () => {
+    // 确保测试手机号不存在，避免因多次运行导致 409 冲突
+    await prisma.user.deleteMany({
+      where: { phone: '13600136000' }
+    });
+
     const res = await request(app)
       .post('/api/auth/register')
       .send({
@@ -102,8 +107,10 @@ describe('Auth API', () => {
   it('should return current user info from /api/users/me', async () => {
     const phone = `1390000${Date.now()}`.slice(0, 11);
 
-    const user = await prisma.user.create({
-      data: {
+    const user = await prisma.user.upsert({
+      where: { phone },
+      update: {},
+      create: {
         phone,
         nickname: 'UserMe',
         role: 'student'

@@ -298,6 +298,80 @@ describe('Question API', () => {
     ).toBe(true);
   });
 
+  // Q-API-010 按作者查询时返回该作者的所有状态问题
+  it('should list all questions for given authorId regardless of status (Q-API-010)', async () => {
+    await prisma.question.createMany({
+      data: [
+        {
+          id: 'q-author-1',
+          title: '作者问题 pending',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          difficulty: 'easy',
+          status: 'pending',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        },
+        {
+          id: 'q-author-2',
+          title: '作者问题 approved',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          difficulty: 'medium',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        },
+        {
+          id: 'q-author-other',
+          title: '其他作者问题',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          difficulty: 'easy',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'someone_else',
+          authorName: '其他同学'
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get('/api/questions?authorId=student_001')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.list.length).toBe(2);
+    expect(
+      res.body.data.list.every(
+        (q: any) =>
+          q.authorId === 'student_001' &&
+          (q.status === 'pending' || q.status === 'approved')
+      )
+    ).toBe(true);
+  });
+
   // Q-API-008 查询问题详情
   it('should get question detail (Q-API-008)', async () => {
     const created = await prisma.question.create({

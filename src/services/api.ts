@@ -1,22 +1,26 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { mockQuestions, mockUsers, mockAnswers, mockChildren } from '@/lib/mock-data';
+import { compressImage } from '@/lib/image-compress';
+import { useAuthStore } from '@/stores/useAuthStore';
 import type {
-    ApiResponse,
-    PaginatedResponse,
-    LoginPayload,
-    LoginResponse,
-    SendCodePayload,
-    CreateQuestionPayload,
-    QuestionListParams,
-    LikePayload,
-    LikeResponse,
-    Notification,
-    WhitelistUser,
-    WhitelistParams,
-    AddWhitelistPayload
+  ApiResponse,
+  PaginatedResponse,
+  LoginPayload,
+  LoginResponse,
+  SendCodePayload,
+  CreateQuestionPayload,
+  QuestionListParams,
+  LikePayload,
+  LikeResponse,
+  FavoritePayload,
+  FavoriteResponse,
+  Notification,
+  WhitelistUser,
+  WhitelistParams,
+  AddWhitelistPayload
 } from '@/types/api';
-import type { Question, User } from '@/types';
+import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer } from '@/types';
 
 // Configuration
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
@@ -33,14 +37,45 @@ export const api = axios.create({
 
 // Request Interceptor: Token Injection + Headers
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    // 1) 首选：直接从 Zustand Store 取
+    const { token } = useAuthStore.getState();
+    let authToken: string | null = token ?? null;
+
+    // 2) 兜底：独立的 token 键
+    if (!authToken) {
+        try {
+            authToken = localStorage.getItem('token');
+        } catch {
+            authToken = null;
+        }
     }
+
+    // 3) 兜底：从 auth-storage 持久化状态中恢复
+    if (!authToken) {
+        try {
+            const raw = localStorage.getItem('auth-storage');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                authToken = parsed?.state?.token ?? null;
+            }
+        } catch {
+            authToken = null;
+        }
+    }
+
+    if (!config.headers) {
+        config.headers = {};
+    }
+
+    if (authToken) {
+        (config.headers as any).Authorization = `Bearer ${authToken}`;
+    }
+
     // Add Request ID for tracing
-    config.headers['X-Request-ID'] = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    (config.headers as any)['X-Request-ID'] = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     // Add Client Version
-    config.headers['X-Client-Version'] = import.meta.env.VITE_APP_VERSION || '1.0.0';
+    (config.headers as any)['X-Client-Version'] = import.meta.env.VITE_APP_VERSION || '1.0.0';
+
     return config;
 });
 
@@ -133,27 +168,10 @@ if (USE_MOCK) {
             config.adapter = mockAdapter(null);
         }
         else if (url.includes('/parent/questions') && method === 'get') {
-            // Extract childId from URL params if possible, but here it's likely a query param or path param
-            // The service call uses `/parent/questions?childId=...` or `/parent/questions/:childId`
-            // Looking at parentService.ts (inferred), it probably passes query params.
-
-            // BUT, if the path is `/parent/questions/:childId`, we need to handle that.
-            // Let's assume the service does `api.get('/parent/questions', { params: { childId, ... } })` 
-            // OR `api.get('/parent/questions/' + childId, ...)`
-
-            // If it's a GET with params:
+            // Parent view for child questions uses PaginatedResponse<Question> 结构。
             const params = config.params || {};
-            const childId = params.childId; // Assuming passed as param
-
-            // In mock data, we don't have explicit childId on questions yet.
-            // Let's just return all questions for now, or filter if we add childId to questions.
-            // To simulate "child's questions", we can just return a subset or all.
 
             let filtered = [...mockQuestions];
-
-            // If we want to simulate filtering by child, we could assume some questions belong to the child.
-            // For now, let's just return all questions to ensure data is shown.
-
             if (params.subject) filtered = filtered.filter(q => q.subject === params.subject);
             if (params.topic) filtered = filtered.filter(q => q.topics?.includes(params.topic));
 
@@ -171,8 +189,7 @@ if (USE_MOCK) {
             });
         }
         else if (url.match(/\/parent\/questions\/[^/]+$/) && method === 'get') {
-            // Handle /parent/questions/:childId pattern
-            // const childId = url.split('/').pop();
+            // /parent/questions/:childId 也复用 PaginatedResponse<Question> 结构
             const params = config.params || {};
 
             let filtered = [...mockQuestions];
@@ -205,7 +222,8 @@ if (USE_MOCK) {
             }
         }
         else if (url.includes('/questions') && method === 'get' && !url.includes('upload')) {
-            // Parse params
+            // 问题列表在真实后端返回 { list, pagination }，
+            // 此处在 Mock 模式下对齐同样的数据结构，便于前端 QuestionService 统一处理。
             const params = config.params || {};
             const page = Number(params.page) || 1;
             const limit = Number(params.limit) || 10;
@@ -219,13 +237,16 @@ if (USE_MOCK) {
             const items = filtered.slice(start, end);
 
             config.adapter = mockAdapter({
-                items,
-                total: filtered.length,
-                page,
-                totalPages: Math.ceil(filtered.length / limit)
+                list: items,
+                pagination: {
+                    page,
+                    pageSize: limit,
+                    total: filtered.length,
+                    totalPages: Math.ceil(filtered.length / limit)
+                }
             });
         }
-        else if (url.includes('/questions') && method === 'post') {
+        else if (url.endsWith('/questions') && method === 'post') {
             const newQuestion = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
             const question = {
                 ...newQuestion,
@@ -238,8 +259,51 @@ if (USE_MOCK) {
         }
 
         // --- Interaction Mocks ---
+        else if (url.includes('/questions/') && url.endsWith('/like') && method === 'post') {
+            const match = url.match(/\/questions\/([^/]+)\/like/);
+            const questionId = match?.[1] ?? 'q1';
+            config.adapter = mockAdapter({
+                questionId,
+                isLiked: true,
+                likes: 43
+            });
+        }
+        else if (url.includes('/questions/') && url.endsWith('/favorite') && method === 'post') {
+            const match = url.match(/\/questions\/([^/]+)\/favorite/);
+            const questionId = match?.[1] ?? 'q1';
+            config.adapter = mockAdapter({
+                questionId,
+                isFavorited: true,
+                favorites: 10
+            });
+        }
+        // 新版交互接口 /interactions/like|favorite 在测试环境下也需要走 Mock，避免依赖真实后端。
         else if (url.includes('/interactions/like') && method === 'post') {
-            config.adapter = mockAdapter({ liked: true, likesCount: 43 });
+            const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+            const targetId = payload?.targetId ?? 'q1';
+            config.adapter = mockAdapter({
+                liked: payload?.action !== 'unlike',
+                likesCount: 1
+            });
+        }
+        else if (url.includes('/interactions/favorite') && method === 'post') {
+            const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+            const favorited = payload?.action !== 'unfavorite';
+            config.adapter = mockAdapter({
+                favorited,
+                favoritesCount: favorited ? 1 : 0
+            });
+        }
+        else if (url.includes('/upload/signature') && method === 'get') {
+            const now = Date.now();
+            const key = `image/mock/${now}.jpg`;
+            config.adapter = mockAdapter({
+                uploadUrl: 'https://oss.mock.com/upload',
+                key,
+                policy: 'mock-policy',
+                signature: 'mock-signature',
+                expireAt: now + 5 * 60 * 1000
+            });
         }
         else if (url.includes('/behavior/log') && method === 'post') {
             try {
@@ -261,7 +325,8 @@ api.interceptors.response.use(
         // If it's a mock response or standard API response, check code
         if (response.data && typeof response.data.code === 'number') {
             const { code, message } = response.data;
-            if (code !== 200) {
+            // 后端约定：200 = 成功，201 = 创建成功（如注册）
+            if (code !== 200 && code !== 201) {
                 toast.error(message || '请求失败');
                 return Promise.reject(new Error(message || 'Request failed'));
             }
@@ -306,36 +371,264 @@ export const authService = {
     }
 };
 
+type BackendQuestionListItem = {
+    id: string;
+    title: string;
+    content?: string | null;
+    tags?: string[] | null;
+    difficulty?: string | null;
+    authorId: string;
+    authorName: string;
+    isGoodQuestion: boolean;
+    isPinned: boolean;
+    likes?: number | null;
+    favorites?: number | null;
+    comments?: number | null;
+    answers?: number | null;
+    status: string;
+    createdAt: string;
+    subject?: string | null;
+};
+
+type UploadImageContext = {
+    /**
+     * 功能用途：如 "提问" | "回答问题" | "评论" 等
+     */
+    purpose?: string;
+    /**
+     * 发送方（用户A），例如当前登录用户昵称
+     */
+    senderName?: string;
+    /**
+     * 接收方（用户B），例如问题作者 / 老师
+     */
+    receiverName?: string;
+};
+
+function buildUploadFileName(ctx?: UploadImageContext): string | undefined {
+    try {
+        const now = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const datePart = [
+            now.getFullYear(),
+            pad(now.getMonth() + 1),
+            pad(now.getDate()),
+            pad(now.getHours()),
+            pad(now.getMinutes()),
+            pad(now.getSeconds())
+        ].join('');
+
+        const sanitize = (value: string | undefined, fallback: string) => {
+            const raw = (value ?? fallback).trim();
+            if (!raw) return fallback;
+            // 允许中文、字母、数字、下划线和中划线，其余转为中划线
+            return raw
+                .replace(/\s+/g, '-') // 空白转为 -
+                .replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '-')
+                .replace(/-+/g, '-');
+        };
+
+        const purpose = sanitize(ctx?.purpose, '图片');
+        const sender = sanitize(ctx?.senderName, '用户A');
+        const receiver = sanitize(ctx?.receiverName, '用户B');
+
+        return `${purpose}-${sender}-${receiver}-${datePart}.jpg`;
+    } catch {
+        // 任何异常下退回 undefined，使用默认文件名
+        return undefined;
+    }
+}
+
 export const questionService = {
     getQuestions: async (params: QuestionListParams = {}) => {
-        const { data } = await api.get<ApiResponse<PaginatedResponse<Question>>>('/questions', { params });
-        return data.data; // Return the inner data (PaginatedResponse)
+        // 诊断用日志：观察前端实际传入的问题列表查询参数
+        // eslint-disable-next-line no-console
+        console.debug('[questionService.getQuestions] params', params);
+        const { data } = await api.get<
+          ApiResponse<{
+            list: BackendQuestionListItem[];
+            pagination: {
+              page: number;
+              pageSize: number;
+              total: number;
+              totalPages: number;
+            };
+          }>
+        >('/questions', { params });
+
+        const { list, pagination } = data.data;
+
+        const items: Question[] = list.map((q) => {
+            const likes = q.likes ?? 0;
+            const favorites = q.favorites ?? 0;
+            const comments = q.comments ?? 0;
+            const answers = q.answers ?? 0;
+
+            return {
+                id: q.id,
+                title: q.title,
+                content: q.content ?? '',
+                // 后端当前列表未返回 subject，尝试兜底为 'math'
+                subject: (q.subject as SubjectType) ?? 'math',
+                topics: [],
+                methods: [],
+                images: [],
+                audioUrl: undefined,
+                status: q.status as AuditStatus,
+                isPinned: q.isPinned,
+                isGoodQuestion: q.isGoodQuestion,
+                difficulty: (q.difficulty as DifficultyLevel) ?? undefined,
+                tags: q.tags ?? [],
+                score: undefined,
+                aiResult: undefined,
+                rejectReason: undefined,
+                stats: {
+                    likes,
+                    favorites,
+                    comments,
+                    answers,
+                    views: undefined
+                },
+                answerCount: answers,
+                viewCount: undefined,
+                likeCount: likes,
+                collectionCount: favorites,
+                authorId: q.authorId,
+                authorName: q.authorName,
+                authorAvatar: undefined,
+                createdAt: q.createdAt
+            };
+        });
+
+        const paginated: PaginatedResponse<Question> = {
+            items,
+            total: pagination.total,
+            page: pagination.page,
+            totalPages: pagination.totalPages
+        };
+
+        // eslint-disable-next-line no-console
+        console.debug(
+          '[questionService.getQuestions] result',
+          { page: paginated.page, total: paginated.total, items: paginated.items.length }
+        );
+
+        return paginated;
     },
     getQuestionById: async (id: string) => {
         const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`);
         return data.data;
     },
     createQuestion: async (payload: CreateQuestionPayload) => {
+        // eslint-disable-next-line no-console
+        console.debug('[questionService.createQuestion] payload', {
+          title: payload.title,
+          subject: payload.subject,
+          tags: payload.tags
+        });
         const { data } = await api.post<ApiResponse<Question>>('/questions', payload);
+        // eslint-disable-next-line no-console
+        console.debug('[questionService.createQuestion] response.status', data.code);
         return data.data;
     },
-    uploadImage: async (file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        const { data } = await api.post<ApiResponse<{ imageUrl: string }>>('/questions/upload-image', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+    uploadImage: async (file: File, context?: UploadImageContext) => {
+        // 1. 前置：压缩图片并统一转为 JPG，控制在 1MB 以内
+        const compressed = await compressImage(file, {
+            maxWidth: 1600,
+            maxHeight: 1600,
+            maxSizeKB: 1024,
+            initialQuality: 0.85,
+            minQuality: 0.6,
         });
-        return data.data;
+
+        // 基于业务上下文重命名文件，以便在图床或日志中更好识别
+        let finalFile: File = compressed;
+        const customName = buildUploadFileName(context);
+        if (customName) {
+            finalFile = new File([compressed], customName, { type: compressed.type });
+        }
+
+        // 2. 向后端请求上传签名
+        const { data } = await api.get<
+          ApiResponse<{
+            uploadUrl: string;
+            key: string;
+            policy: string;
+            signature: string;
+            expireAt: number;
+          }>
+        >('/upload/signature', { params: { type: 'image' } });
+
+        const { uploadUrl, key, policy, signature } = data.data;
+
+        // 在 MOCK 模式下，仅基于签名构造稳定的图片 URL，避免真实网络请求
+        if (USE_MOCK) {
+            const base = uploadUrl.split('?')[0].replace(/\/upload$/, '');
+            const imageUrl = `${base}/${key}`;
+            return { imageUrl };
+        }
+
+        // 3. 使用表单直传到存储服务
+        const formData = new FormData();
+        formData.append('key', key);
+        formData.append('policy', policy);
+        formData.append('signature', signature);
+        formData.append('file', finalFile);
+
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('图片上传失败，请稍后重试');
+        }
+
+        // 4. 优先使用图床返回的真实 URL（兼容 ImgURL V3）
+        let imageUrl: string | undefined;
+        try {
+            const json: any = await response.json();
+            if (json && typeof json === 'object') {
+                if (json.data && typeof json.data.url === 'string') {
+                    imageUrl = json.data.url;
+                } else if (typeof json.url === 'string') {
+                    imageUrl = json.url;
+                }
+            }
+        } catch {
+            // 忽略 JSON 解析失败，走后备方案
+        }
+
+        // 5. 后备方案：按原有规则基于 uploadUrl + key 拼接
+        if (!imageUrl) {
+            const base = uploadUrl.split('?')[0].replace(/\/upload$/, '');
+            imageUrl = `${base}/${key}`;
+        }
+
+        return { imageUrl };
     }
 };
 
 export const interactionService = {
     like: async (payload: LikePayload) => {
-        const { data } = await api.post<ApiResponse<LikeResponse>>('/interactions/like', payload);
+        if (payload.targetType !== 'question') {
+            throw new Error('Only question like is supported in current implementation');
+        }
+
+        const { targetId, action } = payload;
+        const { data } = await api.post<ApiResponse<LikeResponse>>('/interactions/like', {
+            targetType: 'question',
+            targetId,
+            action
+        });
         return data.data;
     },
-    favorite: async (payload: { questionId: string; action: 'favorite' | 'unfavorite' }) => {
-        const { data } = await api.post<ApiResponse<{ favorited: boolean; favoritesCount: number }>>('/interactions/favorite', payload);
+    favorite: async (payload: FavoritePayload) => {
+        const { questionId, action } = payload;
+        const { data } = await api.post<ApiResponse<FavoriteResponse>>('/interactions/favorite', {
+            questionId,
+            action
+        });
         return data.data;
     }
 };
@@ -350,22 +643,52 @@ export const behaviorService = {
         return data.data;
     },
     batchLog: async (events: Array<{ type: string; timestamp: number; metadata?: any }>) => {
-        const { data } = await api.post<ApiResponse<{ received: number; processed: number; failed: number }>>('/behavior/batch-log', { events });
-        return data.data;
+        let processed = 0;
+        let failed = 0;
+
+        for (const event of events) {
+            try {
+                await api.post<ApiResponse<unknown>>('/behavior/log', {
+                    type: event.type,
+                    timestamp: event.timestamp,
+                    metadata: event.metadata
+                });
+                processed += 1;
+            } catch {
+                failed += 1;
+            }
+        }
+
+        return {
+            received: events.length,
+            processed,
+            failed
+        };
     }
 };
 
 export const notificationService = {
     getNotifications: async (params: { page?: number; limit?: number; unread?: boolean }) => {
-        const { data } = await api.get<ApiResponse<PaginatedResponse<Notification>>>('/notifications', { params });
+        const { data } = await api.get<
+          ApiResponse<{
+            notifications: Notification[];
+            unreadCount: number;
+            total: number;
+          }>
+        >('/notifications', { params });
         return data.data;
     },
     markAsRead: async (ids: string[]) => {
-        const { data } = await api.post<ApiResponse<null>>('/notifications/read', { ids });
+        const { data } = await api.post<ApiResponse<{ success: boolean; updatedCount: number }>>(
+          '/notifications/read',
+          { ids }
+        );
         return data.data;
     },
     getUnreadCount: async () => {
-        const { data } = await api.get<ApiResponse<{ count: number }>>('/notifications/unread-count');
+        const { data } = await api.get<ApiResponse<{ unreadCount: number }>>(
+          '/notifications/unread-count'
+        );
         return data.data;
     }
 };
@@ -384,7 +707,26 @@ export const adminService = {
         return data.data;
     },
     updateValidity: async (id: string, validUntil: string) => {
-        const { data } = await api.patch<ApiResponse<null>>(`/admin/whitelist/${id}/validity`, { validUntil });
+        const { data } = await api.patch<ApiResponse<WhitelistUser>>(`/admin/whitelist/${id}`, { validUntil });
+        return data.data;
+    }
+};
+
+export const answerService = {
+    create: async (
+        questionId: string,
+        payload: { content?: string; images?: string[]; audioUrl?: string }
+    ) => {
+        const { data } = await api.post<ApiResponse<Answer>>(
+            `/questions/${questionId}/answers`,
+            payload
+        );
+        return data.data;
+    },
+    listByQuestion: async (questionId: string) => {
+        const { data } = await api.get<ApiResponse<{ list: Answer[]; total: number }>>(
+            `/questions/${questionId}/answers`
+        );
         return data.data;
     }
 };
