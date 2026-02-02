@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "errors": "Check that your vite.json configuration file is available in the load path:\n\n\tNo such file or directory @ rb_sysopen - C:/Users/Administrator/Downloads/知识星球问答小程序 4/config/vite.json\n\n",
+  "timestamp": "2026-02-02 08:02:49",
+  "vite_ruby": "3.9.2",
+  "digest": "8f37b0732ec1cd14c739950a419e6b3ee5221fdd"
+}

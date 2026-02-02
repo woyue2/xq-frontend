@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "vite dev",
     "test": "vitest run",
     "prepare": "husky"
   },

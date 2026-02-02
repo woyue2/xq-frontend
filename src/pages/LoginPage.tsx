@@ -19,6 +19,9 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
 import { parentService } from '@/services/parentService';
+import { authService } from '@/services/api';
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -48,7 +51,7 @@ export function LoginPage() {
   // 判断是否为家长邀请码
   const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
 
-  const handleGetCode = () => {
+  const handleGetCode = async () => {
     if (!phone || phone.length !== 11) {
       toast.error('请输入正确的手机号');
       return;
@@ -65,7 +68,21 @@ export function LoginPage() {
       });
     }, 1000);
 
-    toast.success('验证码已发送');
+    if (USE_MOCK) {
+      toast.success('验证码已发送');
+      return;
+    }
+
+    try {
+      await authService.sendCode({
+        phone,
+        type: isLogin ? 'login' : 'register'
+      });
+      toast.success('验证码已发送');
+    } catch {
+      // 统一错误已经在拦截器中处理，这里只停止倒计时
+      setCountdown(0);
+    }
   };
 
   const handleGetChildCode = () => {
@@ -149,45 +166,96 @@ export function LoginPage() {
       }
     }
 
-    // 模拟登录/注册
-    let user = mockUsers.find((u) => u.phone === phone);
+    // 分支 1：前端 mock 模式（用于纯前端体验与测试）
+    if (USE_MOCK) {
+      // 模拟登录/注册
+      let user = mockUsers.find((u) => u.phone === phone);
 
-    if (!user && isLogin) {
-      toast.error('账号不存在，请先注册');
+      if (!user && isLogin) {
+        toast.error('账号不存在，请先注册');
+        return;
+      }
+
+      if (!user && !isLogin) {
+        // 注册新用户
+        const roleMap: Record<string, UserRole> = {
+          'ZHISHIXINGQIU2024': 'student',
+          'STUDENT2024': 'student',
+          'TEACHER2024': 'teacher',
+          'PARENT2024': 'parent',
+        };
+
+        user = {
+          id: String(mockUsers.length + 1),
+          phone,
+          nickname: `用户${phone.slice(-4)}`,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${phone}`,
+          role: roleMap[inviteCode] || 'student',
+          // 学生专属字段
+          ...(isStudentInvite && {
+            grade,
+            age: parseInt(age),
+            school,
+          }),
+        };
+
+        mockUsers.push(user);
+        toast.success('注册成功');
+      }
+
+      if (user) {
+        login(user, 'mock-jwt-token');
+        
+        // 如果是家长注册，执行绑定逻辑
+        if (isParentInvite) {
+          try {
+            await parentService.bindChild({
+              childName,
+              phone: childPhone,
+              code: childCode,
+              school: childSchool
+            });
+            toast.success('自动绑定孩子成功');
+          } catch (error) {
+            console.error('自动绑定失败:', error);
+            toast.error('自动绑定孩子失败，请稍后重试');
+          }
+        }
+
+        toast.success('登录成功');
+        navigate('/');
+      }
       return;
     }
 
-    if (!user && !isLogin) {
-      // 注册新用户
-      const roleMap: Record<string, UserRole> = {
-        'ZHISHIXINGQIU2024': 'student',
-        'STUDENT2024': 'student',
-        'TEACHER2024': 'teacher',
-        'PARENT2024': 'parent',
-      };
+    // 分支 2：真实后端联调模式
+    try {
+      if (isLogin) {
+        const response = await authService.login({
+          phone,
+          code
+        });
+        const { token, user } = response.data.data;
+        login(user, token);
+        toast.success('登录成功');
+        navigate('/');
+        return;
+      }
 
-      user = {
-        id: String(mockUsers.length + 1),
+      // 注册走后端 /auth/register
+      const registerResult = await authService.register({
         phone,
+        code,
         nickname: `用户${phone.slice(-4)}`,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${phone}`,
-        role: roleMap[inviteCode] || 'student',
-        // 学生专属字段
-        ...(isStudentInvite && {
-          grade,
-          age: parseInt(age),
-          school,
-        }),
-      };
+        grade: isStudentInvite ? grade : undefined,
+        age: isStudentInvite ? parseInt(age, 10) : undefined,
+        school: isStudentInvite ? school : undefined
+      });
 
-      mockUsers.push(user);
-      toast.success('注册成功');
-    }
+      // authService.register 已经返回 LoginResponse
+      login(registerResult.user, registerResult.token);
 
-    if (user) {
-      login(user, 'mock-jwt-token');
-      
-      // 如果是家长注册，执行绑定逻辑
+      // 如果是家长注册，执行绑定逻辑（已登录状态下）
       if (isParentInvite) {
         try {
           await parentService.bindChild({
@@ -203,8 +271,10 @@ export function LoginPage() {
         }
       }
 
-      toast.success('登录成功');
+      toast.success('注册并登录成功');
       navigate('/');
+    } catch {
+      // 具体错误提示由 axios 拦截器处理，这里无需重复处理
     }
   };
 

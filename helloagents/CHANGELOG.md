@@ -9,10 +9,84 @@
 - **Error Handling**:
   - Implemented `ErrorBoundary` component in `src/components/ui/error-boundary.tsx` to catch component tree crashes.
   - Added global error boundary wrapping in `src/App.tsx` with user-friendly fallback UI and `sonner` toast notifications.
+- **后端 Q/A/评论/互动 Service 测试稳定性**:
+  - 调整 `backend/src/tests/unit/answer.service.spec.ts` 与 `backend/src/tests/unit/interaction.service.spec.ts`，对测试用户使用 `upsert` 并在列表用例前清理历史点赞/收藏数据，使 Question/Answer/Comment/Interaction 相关 Service 单元测试可在同一数据库上重复运行而不会因唯一约束或脏数据导致失败。
 
 ### Added
 - **Tests**:
   - Added `src/test/app_import.test.tsx` to verify `App` component renders successfully and all routes are valid, preventing regression of import errors.
+  - 为后端核心 Service（`AuthService`、`WhitelistService`、`ClassHoursService` 以及 Question/Answer/Comment/Interaction 相关 Service）新增单元测试文件（`backend/src/tests/unit/*.spec.ts`），覆盖验证码校验、白名单与课时有效期计算、状态流转与计数维护等关键分支逻辑，使 `src/services` 目录语句覆盖率提升到约 96%，为后续补足路由与中间件层测试打下基础。
+- **HelloAGENTS 知识库**:
+  - 初始化 `helloagents/project.md` 及 `helloagents/wiki/*` 核心文档，作为后续前后端开发与方案包迁移的统一知识来源。
+- **后端认证模块扩展**:
+  - 在 `backend` 中实现 `/api/auth/refresh-token` 与 `/api/auth/logout` 端点，接入 RefreshToken 持久化与撤销逻辑。
+  - 新增集成测试 `src/tests/integration/auth-refresh-logout.api.spec.ts`，覆盖 `AUTH-API-012/013/014` 三个用例。
+  - 使用 Prisma `migrate dev` 为认证相关表（用户、验证码、RefreshToken、登录日志）生成并应用初始迁移脚本。
+- **白名单管理模块**:
+  - 在 `backend` 中实现 `/api/admin/whitelist` 列表、创建、更新与删除接口，接入教师角色鉴权中间件。
+  - 新增 `src/services/whitelist.service.ts` 与 `src/routes/admin-whitelist.routes.ts`，封装白名单分页、统计与软删除逻辑。
+  - 新增集成测试 `src/tests/integration/admin-whitelist.api.spec.ts`，覆盖文档中的 WL-API-001~010 的核心行为路径。
+- **课时管理模块**:
+  - 实现 `ClassHoursService` 及 `admin-class-hours.routes`，提供 `GET /api/admin/class-hours/:userId` 与 `PATCH /api/admin/class-hours/batch-update`，用于查询与批量更新课时有效期。
+  - 新增 `src/tests/integration/admin-class-hours.api.spec.ts`，覆盖 CH-API-001~004 场景。
+- **问题模块（基础版）**:
+  - 在 Prisma 中新增 `Question` 模型，并实现 `QuestionService` 的创建、列表与详情查询逻辑。
+  - 新增路由 `src/routes/question.routes.ts`，接入 `POST /api/questions`（学生/教师可提问，家长禁止）以及 `GET /api/questions` / `GET /api/questions/:id`。
+  - 扩展问题详情接口以返回当前用户的点赞/收藏状态（`isLiked` / `isFavorited`），并补充 Q-API-008/Q-API-009 测试用例。
+  - 新增集成测试 `src/tests/integration/question.api.spec.ts`，覆盖 Q-API-001~003 及列表/详情筛选相关用例。
+- **回答与评论模块**:
+  - 在 Prisma 中新增 `Answer` 与 `Comment` 模型，并通过迁移 `20260201213309_add_answer_comment_models` 同步数据库结构。
+  - 新增服务层 `src/services/answer.service.ts` 与 `src/services/comment.service.ts`，封装回答与评论的创建、查询与删除逻辑，并维护问题的 `answers/comments` 计数字段。
+  - 新增路由 `src/routes/answer.routes.ts` 与 `src/routes/comment.routes.ts`，提供：
+    - `POST /api/questions/:questionId/answers`、`GET /api/questions/:questionId/answers`、`DELETE /api/answers/:id`
+    - `POST /api/comments`、`GET /api/questions/:questionId/comments`、`DELETE /api/comments/:id`
+  - 新增集成测试：
+    - `src/tests/integration/answer.api.spec.ts` 覆盖 A-API-001~005。
+    - `src/tests/integration/comment.api.spec.ts` 覆盖 C-API-001~006。
+- **通知模块**:
+  - 复用 Prisma 中的 `Notification` 模型，新增服务层 `src/services/notification.service.ts`，支持按用户分页查询通知、统计未读数量以及批量标记已读。
+  - 新增路由 `src/routes/notification.routes.ts`，实现：
+    - `GET /api/notifications`
+    - `GET /api/notifications/unread-count`
+    - `POST /api/notifications/read`
+  - 新增集成测试 `src/tests/integration/notification.api.spec.ts`，覆盖 `NOTIFICATION-API-001/002/003` 三个用例，确保列表、未读数量与标记已读逻辑符合《后端-测试用例.md》和 `backend-testing-plan.md` 规范。
+- **点赞收藏与行为埋点模块**:
+  - 在 Prisma 中新增 `Like`、`Favorite`、`BehaviorLog` 模型，并通过迁移 `20260201213716_add_interactions_behavior_notifications` 同步数据库结构。
+  - 新增服务层 `src/services/interaction.service.ts` 与 `src/services/behavior-log.service.ts`，封装点赞/收藏切换、我的点赞/收藏列表以及行为日志写入逻辑。
+  - 扩展问题路由 `src/routes/question.routes.ts`，实现：
+    - `POST /api/questions/:questionId/like`（切换点赞状态）
+    - `POST /api/questions/:questionId/favorite`（切换收藏状态）
+    - `GET /api/questions/:questionId/answers` / `GET /api/questions/:questionId/comments`（带当前用户点赞状态的回答列表、仅已审核评论列表）
+  - 新增路由：
+    - `src/routes/user-me.routes.ts` 暴露 `GET /api/users/me/likes` 与 `GET /api/users/me/favorites`，用于查询当前用户点赞/收藏的问题列表。
+    - `src/routes/behavior.routes.ts` 暴露 `POST /api/behavior/log`，兼容 LOG-API-001 与 BEHAVIOR-API-001/002 的响应格式并持久化行为日志。
+  - 新增集成测试：
+    - `src/tests/integration/interaction-like-favorite.api.spec.ts` 覆盖 L-API-001~002、F-API-001~002 以及 UL-API-001、UF-API-001。
+    - `src/tests/integration/behavior.api.spec.ts` 覆盖 LOG-API-001 与 BEHAVIOR-API-001/002，验证行为日志写入与必填参数校验。
+  - 扩展行为埋点接口的防刷能力：在 `backend/src/routes/behavior.routes.ts` 中新增基于 `(userId/IP + type)` 的简易内存级限流（1 分钟窗口最多 30 条），超限时返回 `429/RATE_LIMITED`，并在 `src/tests/integration/behavior.api.spec.ts` 中新增 BEHAVIOR-API-003 高频上报限流用例。
+- **审核与 AI 回调模块**:
+  - 新增 Prisma `AuditLog` 模型并在迁移 `20260201214254_add_behavior_and_audit_logs` 中创建表及索引，用于记录审核操作轨迹。
+  - 新增服务层 `src/services/audit.service.ts` 与路由 `src/routes/admin-audit.routes.ts`，实现：
+    - `GET /api/admin/audit/pending`（按 type=question/comment 查询待审核内容与统计信息）。
+    - `POST /api/admin/audit/:contentId/approve`（支持问题与评论的审核通过）。
+    - `POST /api/admin/audit/:contentId/reject`（问题驳回，校验驳回原因必填）。
+    - `POST /api/admin/audit/:contentId/ban`（封禁违规评论）。
+    - `POST /api/admin/audit/questions/:questionId/pin`（置顶/取消置顶问题）。
+  - 新增内部回调路由 `src/routes/internal.routes.ts`，提供 `POST /api/internal/ai-check`，根据 AI 结果更新 Question/Answer/Comment 的 `aiResult` 与审核状态。
+  - 新增集成测试 `src/tests/integration/admin-audit.api.spec.ts` 与 `src/tests/integration/ai-callback.api.spec.ts`，覆盖 AU-API-001~009 及 AI 回调的核心路径（问题/评论审核通过、驳回与封禁、置顶，以及 Question/Comment 的 AI 审核结果落地）。
+  - 为内部回调接口增加可配置的鉴权机制：在 `backend/src/routes/internal.routes.ts` 中引入 `env.AI_INTERNAL_TOKEN` 与 `X-Internal-Token` 校验，未携带或令牌不匹配时返回 `403/INTERNAL_ACCESS_DENIED`，并在 `src/tests/integration/ai-callback.api.spec.ts` 中补充未授权访问用例，满足 Playwright todolist 中“未授权外部调用 AI 内部回调：拒绝访问”的要求。
+- **上传签名与上传接口**:
+  - 新增路由 `src/routes/upload.routes.ts`，实现：
+    - `GET /api/upload/signature`：根据 `type=image|audio` 返回模拟 OSS 上传签名与 key，满足 UP-API-001/004 对签名接口的契约。
+  - 新增集成测试 `src/tests/integration/upload.api.spec.ts`，覆盖 `UP-API-001~005` 中关于签名获取与权限控制的关键检查（图片签名、仅教师可获取音频签名、类型校验等）。
+ - **后端 CI 流水线完善**:
+   - 在 `.github/workflows/backend-ci.yml` 中补充并固化后端 GitHub Actions 流水线：安装依赖后执行 `npm run lint` 进行基础代码扫描，运行 `npm test` 收集覆盖率数据，并上传 `backend/coverage/lcov.info` 作为构建工件，确保每次提交都会自动完成测试、覆盖率统计与基础静态检查。
+ - **后端部署与回滚文档**:
+   - 新增 `helloagents/wiki/backend-deployment.md`，系统化描述 `kpqa-backend` 在本地开发、测试/预发布、生产环境下的部署流程、健康检查与日志/监控要求。
+   - 在同一文档中补充数据库迁移与回滚策略（基于 Prisma 迁移与数据库备份），给出应用回滚与库回滚的推荐操作步骤，作为部署与回滚的统一说明。
+   - **API 文档 / OpenAPI & Apifox**:
+     - 新增 OpenAPI 3.1 规范文件 `backend/openapi.yaml`，覆盖认证、审核（AU-API 系列）、通知、行为埋点与上传签名等核心接口路径，作为后端统一 API 契约源。
+     - 更新 `helloagents/wiki/api.md`，记录 OpenAPI 文件位置、Apifox 导入与维护流程，以及模块级接口索引，约定后续新增/修改路由时必须同步维护 OpenAPI 与知识库文档。
 
 ## [2026-02-02]
 - Initial parent-child binding flow implementation.

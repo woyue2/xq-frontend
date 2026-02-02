@@ -63,7 +63,7 @@ backend/
     - 计数维护与事务控制。
 
 - 审核管理与 AI 回调
-  - `AUDIT-API-*`、`AI-API-*` → `integration/audit.api.spec.ts`。
+  - `AUDIT-API-*`、`AI-API-*` → `integration/audit.api.spec.ts`、`integration/ai-callback.api.spec.ts`。
   - E2E 场景包含：问题创建→AI 回调→审核结果落地→前端可见状态变更。
 
 - 文件上传
@@ -148,4 +148,3 @@ it('should send verification code normally', async () => {
 ---
 
 > 本文件为 Codex 内部开发测试实施指南，实际执行中如发现测试文档与需求不一致，应优先以需求与代码为准，并同步更新《后端-测试用例.md》。
-

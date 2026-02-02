@@ -18,6 +18,7 @@ export interface PaginatedResponse<T> {
 // 认证相关
 export interface SendCodePayload {
     phone: string;
+    type?: 'login' | 'register';
 }
 
 export interface LoginPayload {

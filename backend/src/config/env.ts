@@ -1,0 +1,23 @@
+import dotenv from 'dotenv';
+import { z } from 'zod';
+
+// 优先从 BACKEND_ENV_PATH 指定的文件加载，否则使用 backend 目录下的 .env
+dotenv.config({ path: process.env.BACKEND_ENV_PATH ?? '.env' });
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().url(),
+  JWT_SECRET: z.string().min(16),
+  JWT_EXPIRES_IN: z.string().default('7d'),
+  // 可选：AI 审核服务配置（用于自定义基于 base_url 的外部审核逻辑）
+  AI_AUDIT_BASE_URL: z.string().url().optional(),
+  AI_AUDIT_PROVIDER_NAME: z.string().optional(),
+   // 内部 AI 回调接口的访问令牌（可选，配置后将强制校验 X-Internal-Token）
+   AI_INTERNAL_TOKEN: z.string().optional(),
+  // 本地音频文件基础目录（可配置为 /data/audio 或相对路径，如 static/audio）
+  AUDIO_BASE_DIR: z.string().default('static/audio')
+});
+
+export const env = envSchema.parse(process.env);

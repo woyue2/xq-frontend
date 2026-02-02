@@ -332,6 +332,7 @@
 ### 6.3 AI 回调 `POST /api/internal/ai-check`
 
 - 描述：AI 服务/队列调用的内部接口，用于更新问题/回答的 `ai_result` 与状态。
+- 鉴权：仅内部服务可用，建议在生产环境配置 `AI_INTERNAL_TOKEN` 并通过请求头 `X-Internal-Token` 进行校验。
 - 请求体（示例）：
 
 ```json
@@ -350,6 +351,7 @@
   - 更新对应记录的 `ai_result` 字段（结构化 JSON）。
   - `safe=true` → `status=approved`。
   - `safe=false` → `status=rejected`，必要时写入 `reject_reason`。
+  - 当鉴权失败（缺少或错误的 `X-Internal-Token`，且已配置 `AI_INTERNAL_TOKEN`）时返回 `403`，错误码 `INTERNAL_ACCESS_DENIED`。
 
 ---
 
@@ -475,4 +477,3 @@
 > - `后端需求文档-完整版.md`
 > - `后端-测试用例.md`
 > 做逐行对照，确保路径、字段、错误码与测试用例完全一致。
-

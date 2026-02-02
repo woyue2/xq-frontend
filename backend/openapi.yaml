@@ -1,0 +1,330 @@
+openapi: 3.1.0
+info:
+  title: KPQA Backend API
+  version: 0.1.0
+  description: >
+    知识星球问答小程序后端接口文档（摘要版）。详细业务约束以
+    《后端需求文档-完整版.md》与 `codex-develop-doc/backend-key-apis.md` 为准。
+servers:
+  - url: http://localhost:3001
+    description: 本地开发环境
+paths:
+  /api/auth/send-code:
+    post:
+      summary: 发送短信验证码
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: 手机号（11位）
+                type:
+                  type: string
+                  enum: [login, register]
+                  default: login
+              required: [phone]
+      responses:
+        '200':
+          description: 发送成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      phone:
+                        type: string
+                      expireIn:
+                        type: integer
+                      cooldown:
+                        type: integer
+  /api/auth/login:
+    post:
+      summary: 使用手机号+验证码登录
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                code:
+                  type: string
+              required: [phone, code]
+      responses:
+        '200':
+          description: 登录成功
+  /api/admin/audit/pending:
+    get:
+      summary: 查询待审核内容列表
+      tags: [AdminAudit]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [question, comment]
+          required: true
+          description: 审核对象类型
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+          description: 页码（仅对问题生效）
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: 每页条数（仅对问题生效）
+      responses:
+        '200':
+          description: 查询成功
+  /api/admin/audit/{contentId}/approve:
+    post:
+      summary: 审核通过问题或评论
+      tags: [AdminAudit]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: contentId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [question, comment]
+                isGoodQuestion:
+                  type: boolean
+                score:
+                  type: integer
+                tags:
+                  type: array
+                  items:
+                    type: string
+                difficulty:
+                  type: string
+              required: [type]
+      responses:
+        '200':
+          description: 审核通过
+  /api/admin/audit/{contentId}/reject:
+    post:
+      summary: 驳回问题
+      tags: [AdminAudit]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: contentId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [question]
+                reason:
+                  type: string
+              required: [type, reason]
+      responses:
+        '200':
+          description: 驳回成功
+  /api/admin/audit/{contentId}/ban:
+    post:
+      summary: 封禁评论
+      tags: [AdminAudit]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: contentId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [comment]
+                reason:
+                  type: string
+              required: [type, reason]
+      responses:
+        '200':
+          description: 封禁成功
+  /api/admin/audit/questions/{questionId}/pin:
+    post:
+      summary: 置顶 / 取消置顶问题
+      tags: [AdminAudit]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: questionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: 已置顶
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      isPinned:
+                        type: boolean
+  /api/notifications:
+    get:
+      summary: 获取通知列表
+      tags: [Notification]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+          required: false
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          required: false
+        - in: query
+          name: unread
+          schema:
+            type: boolean
+          required: false
+      responses:
+        '200':
+          description: 查询成功
+  /api/notifications/unread-count:
+    get:
+      summary: 获取未读通知数量
+      tags: [Notification]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 查询成功
+  /api/notifications/read:
+    post:
+      summary: 标记通知为已读
+      tags: [Notification]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+              required: [ids]
+      responses:
+        '200':
+          description: 标记成功
+  /api/behavior/log:
+    post:
+      summary: 上报行为日志
+      tags: [Behavior]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventType:
+                  type: string
+                path:
+                  type: string
+                metadata:
+                  type: object
+              required: [eventType]
+      responses:
+        '200':
+          description: 上报成功
+  /api/upload/signature:
+    get:
+      summary: 获取上传签名
+      tags: [Upload]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [image, audio]
+      responses:
+        '200':
+          description: 签名生成成功
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+

@@ -1,0 +1,81 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kpqa
+          POSTGRES_PASSWORD: kpqa_password
+          POSTGRES_DB: kpqa_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U kpqa"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql://kpqa:kpqa_password@localhost:5432/kpqa_db
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-secret-key-change-me
+      JWT_EXPIRES_IN: 7d
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Generate Prisma client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Run lint (ESLint)
+        working-directory: ./backend
+        run: npm run lint
+
+      - name: Run tests with coverage
+        working-directory: ./backend
+        run: npm test
+
+      - name: Perf smoke (optional, non-blocking)
+        if: always()
+        run: |
+          chmod +x scripts/perf-smoke.sh
+          # 仅在 CI 中做短时间 perf 冒烟，失败不阻塞主流程
+          BACKEND_URL="http://localhost:3000" \
+          BACKEND_SMOKE_TEACHER_TOKEN="" \
+          scripts/perf-smoke.sh || echo "perf smoke failed (ignored in CI)"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-lcov
+          path: backend/coverage/lcov.info
