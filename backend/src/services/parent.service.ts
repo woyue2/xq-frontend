@@ -1,0 +1,198 @@
+import { prisma } from '../config/database';
+import { AppError } from '../errors/AppError';
+
+// Helper to verify SMS code for parent-child binding.
+// 与 AuthService 中验证码校验逻辑保持一致：始终依赖 VerificationCode 表，不再引入环境级“万能码”。
+const verifyCode = async (phone: string, code: string, type: string) => {
+  const normalizedPhone = phone.replace(/\D/g, '');
+
+  const record = await prisma.verificationCode.findFirst({
+    where: {
+      phone: normalizedPhone,
+      type,
+      used: false,
+      expireAt: { gt: new Date() }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (!record || record.code !== code) {
+    throw new AppError(400, 'INVALID_CODE', '验证码错误或已过期');
+  }
+
+  await prisma.verificationCode.update({
+    where: { id: record.id },
+    data: { used: true }
+  });
+
+  return true;
+};
+
+export class ParentService {
+  /**
+   * 绑定孩子
+   */
+  async bindChild(parentId: string, data: { phone: string; code: string; childName: string; school?: string }) {
+    // 1. 验证验证码
+    await verifyCode(data.phone, data.code, 'bind_child');
+
+    // 2. 查找孩子账号
+    const child = await prisma.user.findUnique({
+      where: { phone: data.phone }
+    });
+
+    if (!child) {
+      throw new AppError(404, 'CHILD_NOT_FOUND', '未找到该手机号对应的学生账号，请先让孩子注册');
+    }
+
+    // 校验账号角色：只能绑定学生
+    if (child.role !== 'student') {
+      throw new AppError(
+        400,
+        'INVALID_ROLE',
+        '该账号不是学生角色，无法绑定'
+      );
+    }
+
+    if (child.id === parentId) {
+      throw new AppError(400, 'INVALID_BINDING', '不能绑定自己');
+    }
+
+    // 3. 检查是否已绑定
+    const existing = await prisma.parentChild.findUnique({
+      where: {
+        parentId_childId: {
+          parentId,
+          childId: child.id
+        }
+      }
+    });
+
+    if (existing) {
+      return child;
+    }
+
+    // 4. 创建绑定关系
+    // 顺便更新学生信息（如果为空）
+    if ((!child.nickname || child.nickname.startsWith('用户')) && data.childName) {
+      try {
+        await prisma.user.update({
+          where: { id: child.id },
+          data: { nickname: data.childName, school: data.school }
+        });
+      } catch (e) {
+        // ignore update error
+      }
+    }
+
+    await prisma.parentChild.create({
+      data: {
+        parentId,
+        childId: child.id
+      }
+    });
+
+    return child;
+  }
+
+  /**
+   * 获取绑定的孩子列表
+   */
+  async getChildren(parentId: string) {
+    const relations = await prisma.parentChild.findMany({
+      where: { parentId },
+      include: {
+        child: {
+          select: {
+            id: true,
+            nickname: true,
+            avatar: true,
+            role: true,
+            school: true,
+            grade: true
+          }
+        }
+      }
+    });
+
+    return relations.map(r => ({
+      ...r.child,
+      name: r.child.nickname
+    }));
+  }
+
+  /**
+   * 解绑孩子
+   */
+  async unbindChild(parentId: string, childId: string) {
+    try {
+      await prisma.parentChild.delete({
+        where: {
+          parentId_childId: {
+            parentId,
+            childId
+          }
+        }
+      });
+    } catch (e) {
+      // 忽略已删除或不存在的错误
+    }
+  }
+
+  /**
+   * 获取孩子的问题列表
+   */
+  async getChildQuestions(parentId: string, childId: string, page: number = 1, pageSize: number = 10) {
+    // 验证绑定关系
+    const relation = await prisma.parentChild.findUnique({
+      where: {
+        parentId_childId: {
+          parentId,
+          childId
+        }
+      }
+    });
+
+    if (!relation) {
+      throw new AppError(403, 'FORBIDDEN', '无权查看该孩子的问题');
+    }
+
+    const isValidInteger = (value: number) =>
+      Number.isFinite(value) && Number.isInteger(value) && value > 0;
+
+    if (!isValidInteger(page) || !isValidInteger(pageSize)) {
+      throw new AppError(
+        400,
+        'INVALID_PAGINATION',
+        '分页参数不合法'
+      );
+    }
+
+    const safePageSize = Math.min(pageSize, 100);
+
+    const where = {
+      authorId: childId,
+      status: 'approved'
+    };
+
+    const [total, items] = await Promise.all([
+      prisma.question.count({ where }),
+      prisma.question.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * safePageSize,
+        take: safePageSize,
+      })
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      pageSize: safePageSize,
+      totalPages: Math.ceil(total / safePageSize)
+    };
+  }
+}
+
+export const parentService = new ParentService();

@@ -3,8 +3,10 @@ place + link
 # [一些参数传来这里]（.env）
 # [前端测试](./src/test)
 # [前端样式](./playground/)
+[前端说明](./helloagents/wiki/frontend-integration.md)
 # [后端很多文档](./codex-develop-doc)
 ## [运维科普，整个系统运行阅读](./deploy/)
+## [后端的一些script，熟悉目录](./backend/script)
 ## 
 # [前后端联合测试]（./tests/e2e）
 ## [就是playwright分析，做的脚本在上面那个e2e](./backend/playwright) e2e可做mock也可测
@@ -12,6 +14,11 @@ place + link
 [和test无关，agent自己测试生成的，不用管](./test-results)
 [冒烟测试，刚搭建好用的,还有其他一些小脚本](./scripts/)
 
+[数据库数据传输](/mnt/c/Users/Administrator/Downloads/知识星球问答小程序 4/backend/config/database-config.md)
+[数据修改的入口，后端入门](/mnt/c/Users/Administrator/Downloads/知识星球问答小程序 4/backend/config/user-edit-guide.md)
+[数据库和mock](./去除Mock改造清单.md)
+[去除mock记录]（./helloagents/wiki/modules/mock-sintegration-guidelines.md）
+[提供测试账号组](backend/src/tests/integration/question.api.spec.ts)
 
 # 每一个角色。 的每一个界面。 功能都符合预期之后。
 # 同时开四个客户端 1老师1家长2学生  看是否符合预期请多角色调试。
@@ -95,3 +102,13 @@ place + link
             BACKEND_LOG_FILE=/path/to/
             your.log npx tsx script/
             scan-error-logs.ts
+
+
+真正用于“长期种子/初始化业务数据”的脚本只有这 3
+    个：
+      - backend/script/seed-admin.ts（创建/更新管理员
+        老师：11111111111 + 123123）
+      - backend/script/seed-multi-audio-answer.ts（多
+        段音频测试用老师 + 问题 + 回答）
+      - backend/script/seed-question-
+        dimensions.ts（初始化解题方法维度及选项）

@@ -12,7 +12,7 @@ import { getCurrentSlogan } from '@/config/ai-text';
 import { notificationService } from '@/services/api';
 
 export function MainLayout() {
-    const { user, logout } = useAuthStore();
+    const { user, logout, isActiveMember } = useAuthStore();
     const navigate = useNavigate();
     const location = useLocation();
     const [showSearch, setShowSearch] = useState(false);
@@ -171,22 +171,23 @@ export function MainLayout() {
                 <Outlet />
             </main>
 
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-                <button
-                    onClick={() => navigate('/create')}
-                    className={cn(
-                        // Premium design from user
-                        "w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-600 shadow-2xl flex items-center justify-center p-0",
-                        "transition-all duration-300 backdrop-blur-md active:scale-95 border-none outline-none",
-                        "opacity-30 hover:opacity-100 hover:scale-110 hover:shadow-cyan-500/20",
-                        // Active page state
-                        isActive('/create') && "opacity-100 scale-105 shadow-cyan-500/30"
-                    )}
-                    data-testid="nav-create"
-                >
-                    <Plus className="w-8 h-8 text-white" strokeWidth={2.5} />
-                </button>
-            </div>
+            {/* 提问入口按钮：仅对非家长且在有效期内的用户显示 */}
+            {user && user.role !== 'parent' && (isActiveMember ?? true) && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+                    <button
+                        onClick={() => navigate('/create')}
+                        className={cn(
+                            "w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-600 shadow-2xl flex items-center justify-center p-0",
+                            "transition-all duration-300 backdrop-blur-md active:scale-95 border-none outline-none",
+                            "opacity-30 hover:opacity-100 hover:scale-110 hover:shadow-cyan-500/20",
+                            isActive('/create') && "opacity-100 scale-105 shadow-cyan-500/30"
+                        )}
+                        data-testid="nav-create"
+                    >
+                        <Plus className="w-8 h-8 text-white" strokeWidth={2.5} />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

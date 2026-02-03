@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
@@ -9,6 +10,8 @@ import { QuestionFilter } from '@/components/QuestionFilter';
 
 export function HomePage() {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const searchKeyword = searchParams.get('search') || undefined;
 
   // Filter States
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -23,7 +26,8 @@ export function HomePage() {
     isLoading
   } = useQuestions({
     subject: selectedSubject,
-    topic: selectedTopic
+    topic: selectedTopic,
+    search: searchKeyword
   });
 
   // Local Interaction States (Optimistic UI handled locally for demo)

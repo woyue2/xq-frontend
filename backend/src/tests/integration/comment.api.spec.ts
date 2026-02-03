@@ -28,6 +28,8 @@ describe('Comment API', () => {
 
   beforeEach(async () => {
     await prisma.behaviorLog.deleteMany();
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
     await prisma.like.deleteMany();
     await prisma.favorite.deleteMany();
     await prisma.comment.deleteMany();
@@ -73,7 +75,7 @@ describe('Comment API', () => {
     });
   });
 
-  // C-API-001 作者评论自己的问题
+  // C-API-001 作者评论自己的问题（AI 审核通过后仍需老师复核，status=pending）
   it('should allow author to comment own question (C-API-001)', async () => {
     const question = await prisma.question.create({
       data: {
@@ -327,6 +329,49 @@ describe('Comment API', () => {
       where: { id: comment.id }
     });
     expect(updatedComment?.deletedAt).not.toBeNull();
+
+    const updatedQuestion = await prisma.question.findUnique({
+      where: { id: question.id }
+    });
+    expect(updatedQuestion?.comments).toBe(0);
+  });
+
+  // C-API-007 未审核通过的问题下禁止创建评论
+  it('should forbid creating comment on unapproved question (C-API-007)', async () => {
+    const question = await prisma.question.create({
+      data: {
+        id: 'q-cmt-007',
+        title: '待审核的问题',
+        content: '问题内容',
+        subject: 'math',
+        tags: [],
+        status: 'pending',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '小明同学'
+      }
+    });
+
+    const res = await request(app)
+      .post('/api/comments')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        questionId: question.id,
+        content: '尝试在待审核问题下评论'
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('COMMENT_DENIED');
+
+    const comments = await prisma.comment.findMany({
+      where: { questionId: question.id }
+    });
+    expect(comments.length).toBe(0);
 
     const updatedQuestion = await prisma.question.findUnique({
       where: { id: question.id }

@@ -14,6 +14,14 @@ import { randomUUID } from 'crypto';
 const defaultLogger = pino();
 
 /**
+ * 核心日志实例，供中间件与业务代码共享。
+ *
+ * 注意:
+ * - 所有通过该 logger 输出的日志均为结构化 JSON。
+ */
+export const coreLogger = defaultLogger;
+
+/**
  * 生成请求 ID。
  *
  * 前置条件:
@@ -47,8 +55,24 @@ export const createLoggerMiddleware = (
   options?: PinoHttpOptions
 ): HttpLogger => {
   return pinoHttp({
-    logger: defaultLogger,
+    logger: coreLogger,
     genReqId: generateRequestId,
+    // 为所有访问日志增加 mode 字段:
+    // - 来自前端的 X-Client-Mode=mock 时为 'mock'
+    // - 其他情况统一视为 'normal'
+    customProps: (req) => {
+      const headers = (req as any).headers ?? {};
+      const rawMode = (headers['x-client-mode'] ??
+        headers['X-Client-Mode'] ??
+        headers['x-client-mode'.toLowerCase()]) as string | undefined;
+
+      const mode: 'mock' | 'normal' =
+        rawMode === 'mock'
+          ? 'mock'
+          : 'normal';
+
+      return { mode };
+    },
     ...options
   });
 };
@@ -60,4 +84,3 @@ export const createLoggerMiddleware = (
  * - 在应用初始化时通过 app.use(loggerMiddleware) 挂载。
  */
 export const loggerMiddleware = createLoggerMiddleware();
-

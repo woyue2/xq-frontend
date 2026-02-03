@@ -1,30 +1,37 @@
 import axios from 'axios';
 import { toast } from 'sonner';
-import { mockQuestions, mockUsers, mockAnswers, mockChildren } from '@/lib/mock-data';
+import { mockQuestions, mockUsers, mockChildren } from '@/lib/mock-data';
 import { compressImage } from '@/lib/image-compress';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { USE_MOCK } from '@/lib/mock-env';
 import type {
-  ApiResponse,
-  PaginatedResponse,
-  LoginPayload,
-  LoginResponse,
-  SendCodePayload,
-  CreateQuestionPayload,
-  QuestionListParams,
-  LikePayload,
-  LikeResponse,
-  FavoritePayload,
-  FavoriteResponse,
-  Notification,
-  WhitelistUser,
-  WhitelistParams,
-  AddWhitelistPayload
+    ApiResponse,
+    PaginatedResponse,
+    LoginPayload,
+    LoginResponse,
+    PasswordLoginPayload,
+    SendCodePayload,
+    CreateQuestionPayload,
+    QuestionListParams,
+    LikePayload,
+    LikeResponse,
+    FavoritePayload,
+    FavoriteResponse,
+    Notification,
+    WhitelistUser,
+    WhitelistParams,
+    AddWhitelistPayload,
+    MyLikedQuestion,
+    MyFavoritedQuestion,
+    MyAnswerSummary,
+    RegisterPayload,
+    QuestionDimensionDto,
+    QuestionDimensionOptionDto
 } from '@/types/api';
 import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer, Comment } from '@/types';
 
 // Configuration
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 // Create Axios instance
 export const api = axios.create({
@@ -75,12 +82,15 @@ api.interceptors.request.use((config) => {
     (config.headers as any)['X-Request-ID'] = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     // Add Client Version
     (config.headers as any)['X-Client-Version'] = import.meta.env.VITE_APP_VERSION || '1.0.0';
+    // Add Client Mode (mock | normal) for backend structured logs
+    (config.headers as any)['X-Client-Mode'] = USE_MOCK ? 'mock' : 'normal';
 
     return config;
 });
 
-// Mock Interceptor (Development Only)
-if (USE_MOCK) {
+// Mock 拦截器仅用于单元测试或特殊诊断场景。
+// 运行真实应用（VITE_USE_MOCK=false）时不会启用。
+if (USE_MOCK && import.meta.env.MODE === 'test') {
     api.interceptors.request.use(async (config) => {
         // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -105,6 +115,16 @@ if (USE_MOCK) {
             const { phone } = payload;
 
             // Find user by phone, default to first user if not found or no phone provided
+            const user = mockUsers.find(u => u.phone === phone) || mockUsers[0];
+
+            config.adapter = mockAdapter({
+                token: 'mock-jwt-token-' + Date.now(),
+                user
+            });
+        }
+        else if (url.includes('/auth/password-login') && method === 'post') {
+            const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+            const { phone } = payload;
             const user = mockUsers.find(u => u.phone === phone) || mockUsers[0];
 
             config.adapter = mockAdapter({
@@ -296,7 +316,12 @@ if (USE_MOCK) {
         }
         else if (url.includes('/upload/signature') && method === 'get') {
             const now = Date.now();
-            const key = `image/mock/${now}.jpg`;
+            const type = (config.params && typeof config.params.type === 'string')
+                ? config.params.type
+                : 'image';
+            const safeType = type === 'audio' ? 'audio' : 'image';
+            const ext = safeType === 'audio' ? 'mp3' : 'jpg';
+            const key = `${safeType}/mock/${now}.${ext}`;
             config.adapter = mockAdapter({
                 uploadUrl: 'https://oss.mock.com/upload',
                 key,
@@ -365,9 +390,22 @@ export const authService = {
     login: async (payload: LoginPayload) => {
         return api.post<ApiResponse<LoginResponse>>('/auth/login', payload);
     },
-    register: async (payload: LoginPayload & { nickname?: string; role?: string; grade?: string; age?: number; school?: string }) => {
+    passwordLogin: async (payload: PasswordLoginPayload) => {
+        return api.post<ApiResponse<LoginResponse>>('/auth/password-login', payload);
+    },
+    register: async (payload: RegisterPayload) => {
         const { data } = await api.post<ApiResponse<LoginResponse>>('/auth/register', payload);
         return data.data;
+    },
+    setPassword: async (newPassword: string) => {
+        return api.post<ApiResponse<null>>('/auth/set-password', { newPassword });
+    }
+};
+
+export const userService = {
+    updateProfile: async (data: Partial<User>) => {
+        const { data: res } = await api.patch<ApiResponse<User>>('/users/me', data);
+        return res.data;
     }
 };
 
@@ -445,15 +483,15 @@ export const questionService = {
         // eslint-disable-next-line no-console
         console.debug('[questionService.getQuestions] params', params);
         const { data } = await api.get<
-          ApiResponse<{
-            list: BackendQuestionListItem[];
-            pagination: {
-              page: number;
-              pageSize: number;
-              total: number;
-              totalPages: number;
-            };
-          }>
+            ApiResponse<{
+                list: BackendQuestionListItem[];
+                pagination: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
         >('/questions', { params });
 
         const { list, pagination } = data.data;
@@ -509,8 +547,8 @@ export const questionService = {
 
         // eslint-disable-next-line no-console
         console.debug(
-          '[questionService.getQuestions] result',
-          { page: paginated.page, total: paginated.total, items: paginated.items.length }
+            '[questionService.getQuestions] result',
+            { page: paginated.page, total: paginated.total, items: paginated.items.length }
         );
 
         return paginated;
@@ -522,14 +560,47 @@ export const questionService = {
     createQuestion: async (payload: CreateQuestionPayload) => {
         // eslint-disable-next-line no-console
         console.debug('[questionService.createQuestion] payload', {
-          title: payload.title,
-          subject: payload.subject,
-          tags: payload.tags
+            title: payload.title,
+            subject: payload.subject,
+            tags: payload.tags
         });
         const { data } = await api.post<ApiResponse<Question>>('/questions', payload);
         // eslint-disable-next-line no-console
         console.debug('[questionService.createQuestion] response.status', data.code);
         return data.data;
+    },
+    delete: async (id: string) => {
+        const { data } = await api.delete<ApiResponse<void>>(`/questions/${id}`);
+        return data.data;
+    },
+    uploadAudio: async (blob: Blob) => {
+        // 真实环境下：音频直接上传到后端本地存储，由后端返回 /static/audio/... 可播放 URL
+        const file = blob instanceof File
+            ? blob
+            : new File([blob], `answer-audio-${Date.now()}.webm`, {
+                type: blob.type || 'audio/webm'
+            });
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // 使用带有 Authorization 注入的 axios 实例，避免 401 问题
+        const { data } = await api.post<
+            ApiResponse<{
+                audioUrl: string;
+            }>
+        >('/upload/audio', formData);
+
+        const audioUrl =
+            (data.data && typeof data.data.audioUrl === 'string'
+                ? data.data.audioUrl
+                : undefined) ?? undefined;
+
+        if (!audioUrl) {
+            throw new Error('音频上传失败，请稍后重试');
+        }
+
+        return { audioUrl };
     },
     uploadImage: async (file: File, context?: UploadImageContext) => {
         // 1. 前置：压缩图片并统一转为 JPG，控制在 1MB 以内
@@ -550,16 +621,16 @@ export const questionService = {
 
         // 2. 向后端请求上传签名
         const { data } = await api.get<
-          ApiResponse<{
-            uploadUrl: string;
-            key: string;
-            policy: string;
-            signature: string;
-            expireAt: number;
-          }>
+            ApiResponse<{
+                uploadUrl: string;
+                key: string;
+                policy: string;
+                signature: string;
+                expireAt: number;
+            }>
         >('/upload/signature', { params: { type: 'image' } });
 
-        const { uploadUrl, key, policy, signature } = data.data;
+        const { uploadUrl, key } = data.data;
 
         // 在 MOCK 模式下，仅基于签名构造稳定的图片 URL，避免真实网络请求
         if (USE_MOCK) {
@@ -568,15 +639,30 @@ export const questionService = {
             return { imageUrl };
         }
 
-        // 3. 使用表单直传到存储服务
+        // 3. 使用表单直传到 ImgURL 图床（或兼容的直传服务）
+        //    - 后端通过 OSS_UPLOAD_BASE_URL 提供 uploadUrl（可能附带 ?token=sk-xxx）
+        //    - 这里解析出基础地址与 token，并按官方文档使用 Authorization 头上传
+        let targetUrl = uploadUrl;
+        let authHeader: string | undefined;
+        try {
+            const parsed = new URL(uploadUrl);
+            targetUrl = `${parsed.origin}${parsed.pathname}`;
+            const tokenFromQuery = parsed.searchParams.get('token');
+            if (tokenFromQuery) {
+                authHeader = tokenFromQuery.toLowerCase().startsWith('bearer ')
+                    ? tokenFromQuery
+                    : `Bearer ${tokenFromQuery}`;
+            }
+        } catch {
+            // 如果 URL 解析失败，则直接使用原始 uploadUrl，并不附加 Authorization 头
+        }
+
         const formData = new FormData();
-        formData.append('key', key);
-        formData.append('policy', policy);
-        formData.append('signature', signature);
         formData.append('file', finalFile);
 
-        const response = await fetch(uploadUrl, {
+        const response = await fetch(targetUrl, {
             method: 'POST',
+            headers: authHeader ? { Authorization: authHeader } : undefined,
             body: formData,
         });
 
@@ -584,25 +670,52 @@ export const questionService = {
             throw new Error('图片上传失败，请稍后重试');
         }
 
-        // 4. 优先使用图床返回的真实 URL（兼容 ImgURL V3）
+        // 4. 优先使用图床返回的真实 URL（兼容多种字段与结构）
         let imageUrl: string | undefined;
         try {
             const json: any = await response.json();
             if (json && typeof json === 'object') {
+                // 常见字段约定：data.url 或顶层 url
                 if (json.data && typeof json.data.url === 'string') {
                     imageUrl = json.data.url;
                 } else if (typeof json.url === 'string') {
                     imageUrl = json.url;
+                } else {
+                    // 兼容 ImgURL 等第三方：在响应体中递归查找第一个看起来像图片地址的字段
+                    const collectFirstUrl = (value: any): string | undefined => {
+                        if (!value) return undefined;
+                        if (typeof value === 'string') {
+                            const str = value.trim();
+                            if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str)) {
+                                return str;
+                            }
+                            return undefined;
+                        }
+                        if (Array.isArray(value)) {
+                            for (const item of value) {
+                                const found = collectFirstUrl(item);
+                                if (found) return found;
+                            }
+                            return undefined;
+                        }
+                        if (typeof value === 'object') {
+                            for (const key of Object.keys(value)) {
+                                const found = collectFirstUrl((value as any)[key]);
+                                if (found) return found;
+                            }
+                        }
+                        return undefined;
+                    };
+                    imageUrl = collectFirstUrl(json);
                 }
             }
         } catch {
             // 忽略 JSON 解析失败，走后备方案
         }
 
-        // 5. 后备方案：按原有规则基于 uploadUrl + key 拼接
+        // 5. 如果图床未返回任何可用 URL，则视为上传失败，避免构造错误地址
         if (!imageUrl) {
-            const base = uploadUrl.split('?')[0].replace(/\/upload$/, '');
-            imageUrl = `${base}/${key}`;
+            throw new Error('图床未返回图片 URL，请联系管理员检查配置');
         }
 
         return { imageUrl };
@@ -670,26 +783,38 @@ export const behaviorService = {
 export const notificationService = {
     getNotifications: async (params: { page?: number; limit?: number; unread?: boolean }) => {
         const { data } = await api.get<
-          ApiResponse<{
-            notifications: Notification[];
-            unreadCount: number;
-            total: number;
-          }>
+            ApiResponse<{
+                notifications: Notification[];
+                unreadCount: number;
+                total: number;
+            }>
         >('/notifications', { params });
         return data.data;
     },
     markAsRead: async (ids: string[]) => {
         const { data } = await api.post<ApiResponse<{ success: boolean; updatedCount: number }>>(
-          '/notifications/read',
-          { ids }
+            '/notifications/read',
+            { ids }
         );
         return data.data;
     },
     getUnreadCount: async () => {
         const { data } = await api.get<ApiResponse<{ unreadCount: number }>>(
-          '/notifications/unread-count'
+            '/notifications/unread-count'
         );
         return data.data;
+    }
+};
+
+export const configService = {
+    getQuestionDimensions: async (): Promise<QuestionDimensionDto[]> => {
+        const { data } = await api.get<
+            ApiResponse<{
+                dimensions: QuestionDimensionDto[];
+            }>
+        >('/config/question-dimensions');
+
+        return data.data.dimensions;
     }
 };
 
@@ -708,6 +833,157 @@ export const adminService = {
     },
     updateValidity: async (id: string, validUntil: string) => {
         const { data } = await api.patch<ApiResponse<WhitelistUser>>(`/admin/whitelist/${id}`, { validUntil });
+        return data.data;
+    },
+    getQuestionDimensions: async (): Promise<QuestionDimensionDto[]> => {
+        const { data } = await api.get<
+            ApiResponse<{
+                dimensions: QuestionDimensionDto[];
+            }>
+        >('/admin/question-dimensions');
+        return data.data.dimensions;
+    },
+    updateQuestionDimension: async (
+        key: string,
+        payload: { name?: string; enabled?: boolean; multiSelect?: boolean }
+    ) => {
+        const { data } = await api.put<ApiResponse<QuestionDimensionDto>>(
+            `/admin/question-dimensions/${encodeURIComponent(key)}`,
+            payload
+        );
+        return data.data;
+    },
+    createQuestionDimensionOption: async (
+        key: string,
+        payload: Pick<QuestionDimensionOptionDto, 'value' | 'label'> & { order?: number; enabled?: boolean }
+    ) => {
+        const { data } = await api.post<
+            ApiResponse<QuestionDimensionOptionDto>
+        >(`/admin/question-dimensions/${encodeURIComponent(key)}/options`, payload);
+        return data.data;
+    },
+    updateQuestionDimensionOption: async (
+        key: string,
+        optionId: string,
+        payload: { label?: string; order?: number; enabled?: boolean }
+    ) => {
+        const { data } = await api.put<
+            ApiResponse<QuestionDimensionOptionDto>
+        >(
+            `/admin/question-dimensions/${encodeURIComponent(
+                key
+            )}/options/${encodeURIComponent(optionId)}`,
+            payload
+        );
+        return data.data;
+    },
+
+    // 审核相关（Admin Audit）
+    getPendingQuestions: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<{
+                type: 'question';
+                list: {
+                    id: string;
+                    type: 'question';
+                    title: string;
+                    content: string;
+                    authorId: string;
+                    authorName: string;
+                    status: string;
+                    aiResult: string | null;
+                    createdAt: string;
+                }[];
+                pagination: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+                statistics: {
+                    pending: number;
+                    approved: number;
+                    rejected: number;
+                    banned: number;
+                };
+            }>
+        >('/admin/audit/pending', {
+            params: { ...(params || {}), type: 'question' }
+        });
+        return data.data;
+    },
+
+    getPendingComments: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<{
+                type: 'comment';
+                list: {
+                    id: string;
+                    type: 'comment';
+                    questionId: string;
+                    questionTitle: string;
+                    content: string;
+                    image: string | null;
+                    authorId: string;
+                    authorName: string;
+                    status: string;
+                    aiResult: string | null;
+                    createdAt: string;
+                }[];
+                pagination?: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
+        >('/admin/audit/pending', {
+            params: { ...(params || {}), type: 'comment' }
+        });
+        return data.data;
+    },
+
+    approveQuestion: async (contentId: string, payload: {
+        isGoodQuestion?: boolean;
+        score?: number;
+        tags?: string[];
+        difficulty?: string;
+    }) => {
+        const { data } = await api.post<ApiResponse<any>>(
+            `/admin/audit/${encodeURIComponent(contentId)}/approve`,
+            { type: 'question', ...payload }
+        );
+        return data.data;
+    },
+
+    rejectQuestion: async (contentId: string, reason: string) => {
+        const { data } = await api.post<ApiResponse<any>>(
+            `/admin/audit/${encodeURIComponent(contentId)}/reject`,
+            { type: 'question', reason }
+        );
+        return data.data;
+    },
+
+    approveComment: async (contentId: string) => {
+        const { data } = await api.post<ApiResponse<any>>(
+            `/admin/audit/${encodeURIComponent(contentId)}/approve`,
+            { type: 'comment' }
+        );
+        return data.data;
+    },
+
+    banComment: async (contentId: string, reason: string) => {
+        const { data } = await api.post<ApiResponse<any>>(
+            `/admin/audit/${encodeURIComponent(contentId)}/ban`,
+            { type: 'comment', reason }
+        );
+        return data.data;
+    },
+
+    togglePinQuestion: async (questionId: string) => {
+        const { data } = await api.post<ApiResponse<{ id: string; isPinned: boolean }>>(
+            `/admin/audit/questions/${encodeURIComponent(questionId)}/pin`
+        );
         return data.data;
     }
 };
@@ -744,8 +1020,45 @@ export const commentService = {
     },
     listByQuestion: async (questionId: string) => {
         const { data } = await api.get<
-          ApiResponse<{ list: Comment[]; total: number }>
+            ApiResponse<{ list: Comment[]; total: number }>
         >(`/questions/${questionId}/comments`);
+        return data.data;
+    }
+};
+
+export const profileService = {
+    getMyLikes: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<{
+                list: MyLikedQuestion[];
+                pagination: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
+        >('/users/me/likes', { params });
+        return data.data;
+    },
+    getMyFavorites: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<{
+                list: MyFavoritedQuestion[];
+                pagination: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
+        >('/users/me/favorites', { params });
+        return data.data;
+    },
+    getMyAnswers: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<PaginatedResponse<MyAnswerSummary>>
+        >('/profile/my-answers', { params });
         return data.data;
     }
 };

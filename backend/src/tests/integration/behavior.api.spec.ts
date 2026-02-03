@@ -88,4 +88,23 @@ describe('Behavior Log API', () => {
 
     expect(limited).toBe(true);
   });
+
+  // BEHAVIOR-API-004 metadata 超过大小限制时返回 400
+  it('should reject too large metadata payload (BEHAVIOR-API-004)', async () => {
+    const largeMetadata = {
+      payload: 'x'.repeat(4096)
+    };
+
+    const res = await request(app)
+      .post('/api/behavior/log')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        type: 'click_good_question',
+        timestamp: Date.now(),
+        metadata: largeMetadata
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('VALIDATION_ERROR');
+  });
 });

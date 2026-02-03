@@ -103,8 +103,13 @@ test.describe('学生收到老师回答通知并查看详情 E2E', () => {
       page.getByTestId('notification-item').nth(0)
     ).toBeVisible();
 
-    // 4. 学生点击第一条通知后进入对应问题详情页
-    await page.getByTestId('notification-item').nth(0).click();
+    // 4. 学生点击“问题审核结果”相关通知后进入对应问题详情页
+    const auditNotificationItem = page
+      .getByTestId('notification-item')
+      .filter({ hasText: '你的问题已通过审核' })
+      .first();
+    await expect(auditNotificationItem).toBeVisible();
+    await auditNotificationItem.click();
     await expect(
       page.getByRole('heading', { name: '问题详情' })
     ).toBeVisible();

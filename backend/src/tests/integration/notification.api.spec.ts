@@ -187,6 +187,100 @@ describe('Notification API', () => {
     expect(unreadAfter).toBeLessThan(beforeRes.body.data.unreadCount);
     expect(unreadAfter).toBe(1);
   });
-}
-);
 
+  // NOTIFICATION-API-004 ids 为空数组时应将当前用户所有未读通知标记为已读
+  it('should mark all unread notifications as read when ids is empty array (NOTIFICATION-API-004)', async () => {
+    await prisma.notification.createMany({
+      data: [
+        {
+          userId: studentId,
+          type: 'system',
+          title: '全部未读 1',
+          content: '全部未读 1',
+          targetType: null,
+          targetId: null
+        },
+        {
+          userId: studentId,
+          type: 'system',
+          title: '全部未读 2',
+          content: '全部未读 2',
+          targetType: null,
+          targetId: null
+        }
+      ]
+    });
+
+    const beforeRes = await request(app)
+      .get('/api/notifications/unread-count')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(beforeRes.status).toBe(200);
+    const beforeCount = beforeRes.body.data.unreadCount as number;
+    expect(beforeCount).toBeGreaterThanOrEqual(2);
+
+    const markRes = await request(app)
+      .post('/api/notifications/read')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ ids: [] });
+
+    expect(markRes.status).toBe(200);
+    expect(markRes.body.code).toBe(200);
+    expect(markRes.body.data.success).toBe(true);
+    expect(markRes.body.data.updatedCount).toBeGreaterThanOrEqual(beforeCount);
+
+    const afterRes = await request(app)
+      .get('/api/notifications/unread-count')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(afterRes.status).toBe(200);
+    expect(afterRes.body.data.unreadCount).toBe(0);
+  });
+
+  // NOTIFICATION-API-005 不能标记其他用户的通知为已读
+  it('should not mark notifications of other users as read (NOTIFICATION-API-005)', async () => {
+    const otherUserId = 'notification_other_user';
+
+    const [selfNotif, otherNotif] = await Promise.all([
+      prisma.notification.create({
+        data: {
+          userId: studentId,
+          type: 'system',
+          title: '自己的通知',
+          content: '自己的通知',
+          targetType: null,
+          targetId: null
+        }
+      }),
+      prisma.notification.create({
+        data: {
+          userId: otherUserId,
+          type: 'system',
+          title: '其他用户通知',
+          content: '其他用户通知',
+          targetType: null,
+          targetId: null
+        }
+      })
+    ]);
+
+    const res = await request(app)
+      .post('/api/notifications/read')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ ids: [selfNotif.id, otherNotif.id] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.success).toBe(true);
+
+    const selfAfter = await prisma.notification.findUnique({
+      where: { id: selfNotif.id }
+    });
+    const otherAfter = await prisma.notification.findUnique({
+      where: { id: otherNotif.id }
+    });
+
+    expect(selfAfter?.isRead).toBe(true);
+    expect(otherAfter?.isRead).toBe(false);
+  });
+});

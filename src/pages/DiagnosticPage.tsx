@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDiagnosticStore } from '@/stores/useDiagnosticStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -7,11 +9,43 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Play, RotateCcw, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
 import { runDiagnosticTests } from '@/lib/test-runner';
+import { toast } from 'sonner';
 
 export function DiagnosticPage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { results, isRunning, progress, logs, startTests, reset } = useDiagnosticStore();
 
+  // 仅允许已登录老师访问诊断工具
+  useEffect(() => {
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+    if (user.role !== 'teacher') {
+      toast.error('只有老师可以访问诊断工具');
+      navigate('/');
+    }
+  }, [user, navigate]);
   const handleStart = async () => {
+    if (isRunning) {
+      return;
+    }
+
+    // 额外保护：在点击诊断按钮时再次校验角色，防止边缘态下误触发
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+
+    if (user.role !== 'teacher') {
+      toast.error('只有老师可以访问诊断工具');
+      navigate('/');
+      return;
+    }
+
     startTests();
     await runDiagnosticTests();
   };
@@ -39,6 +73,11 @@ export function DiagnosticPage() {
   const passed = results.filter(r => r.status === 'success').length;
   const failed = results.filter(r => r.status === 'failure').length;
   const avgDuration = results.reduce((acc, curr) => acc + (curr.duration || 0), 0) / (passed + failed) || 0;
+
+  // 在权限校验尚未通过前不渲染内容，避免闪烁
+  if (!user || user.role !== 'teacher') {
+    return null;
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-5xl space-y-6">

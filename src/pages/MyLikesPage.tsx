@@ -1,41 +1,46 @@
-import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
+import { MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-
-// 模拟点赞数据 - 实际应从API或store获取
-const mockLikedQuestions = [
-    {
-        id: 'like1',
-        title: '英语作文高分技巧汇总',
-        content: '整理了一些英语作文的高分技巧...',
-        authorName: '英语达人',
-        createdAt: '2026-01-18T09:00:00Z',
-        difficulty: 'easy',
-        isGoodQuestion: true,
-        isPinned: false,
-        topics: ['英语作文', '写作技巧'],
-        stats: { likes: 156, favorites: 89, comments: 23, answers: 5 },
-        status: 'approved'
-    },
-    {
-        id: 'like2',
-        title: '化学方程式配平口诀',
-        content: '分享一个简单易记的化学方程式配平口诀...',
-        authorName: '化学小王子',
-        createdAt: '2026-01-22T16:00:00Z',
-        difficulty: 'medium',
-        isGoodQuestion: false,
-        isPinned: false,
-        topics: ['化学方程式', '配平'],
-        stats: { likes: 78, favorites: 34, comments: 12, answers: 2 },
-        status: 'approved'
-    }
-];
+import { useEffect, useState } from 'react';
+import type { MyLikedQuestion } from '@/types/api';
+import { profileService } from '@/services/api';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { toast } from 'sonner';
 
 export function MyLikesPage() {
     const navigate = useNavigate();
-    const [myLikes] = useState(mockLikedQuestions);
+    const { user } = useAuthStore();
+    const [myLikes, setMyLikes] = useState<MyLikedQuestion[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // 未登录用户访问时统一重定向到登录页，保持与 Profile 等个人中心页面一致的保护策略
+    useEffect(() => {
+        if (!user) {
+            navigate('/login');
+        }
+    }, [user, navigate]);
+
+    useEffect(() => {
+        if (!user) return;
+        setIsLoading(true);
+        profileService
+            .getMyLikes({ page: 1, pageSize: 50 })
+            .then((data) => {
+                setMyLikes(data.list);
+            })
+            .catch((err) => {
+                // eslint-disable-next-line no-console
+                console.error('加载我的点赞失败', err);
+                toast.error('加载我的点赞列表失败，请稍后重试');
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    }, [user]);
+
+    if (!user) {
+        return null;
+    }
 
     const getDifficultyBadge = (difficulty?: string) => {
         const difficultyMap: Record<string, { label: string; className: string }> = {
@@ -60,7 +65,11 @@ export function MyLikesPage() {
             </div>
 
             {/* 问题列表 */}
-            {myLikes.length === 0 ? (
+            {isLoading ? (
+                <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
+                    <div className="animate-pulse text-gray-400">加载中...</div>
+                </div>
+            ) : myLikes.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
                     <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">还没有点赞任何问题</p>
@@ -74,7 +83,7 @@ export function MyLikesPage() {
             ) : (
                 <div className="space-y-3">
                     {myLikes.map((question) => {
-                        const difficultyBadge = getDifficultyBadge(question.difficulty);
+                        const difficultyBadge = getDifficultyBadge(undefined);
 
                         return (
                             <div
@@ -84,16 +93,7 @@ export function MyLikesPage() {
                             >
                                 {/* 标签 */}
                                 <div className="flex items-center gap-2 mb-3 flex-wrap">
-                                    {question.isGoodQuestion && (
-                                        <Badge className="bg-red-50 text-red-600 border-0 px-3 py-0.5 rounded-full text-xs">
-                                            好问题
-                                        </Badge>
-                                    )}
-                                    {question.isPinned && (
-                                        <Badge className="bg-purple-50 text-purple-600 border-0 px-3 py-0.5 rounded-full text-xs">
-                                            置顶
-                                        </Badge>
-                                    )}
+                                    {/* 是否好问题/置顶目前后端列表未返回，必要时可后续扩展 */}
                                     {difficultyBadge && (
                                         <Badge className={`${difficultyBadge.className} border-0 px-3 py-0.5 rounded-full text-xs`}>
                                             {difficultyBadge.label}
@@ -110,19 +110,6 @@ export function MyLikesPage() {
                                 )}
 
                                 {/* 标签 */}
-                                {question.topics && question.topics.length > 0 && (
-                                    <div className="flex gap-2 mb-3 flex-wrap">
-                                        {question.topics.map((topic, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="px-2 py-1 bg-morandi-1/30 text-gray-600 rounded-full text-xs"
-                                            >
-                                                #{topic}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
                                 {/* 作者信息 */}
                                 <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
                                     <span>{question.authorName}</span>
@@ -135,15 +122,15 @@ export function MyLikesPage() {
                                     <div className="flex items-center gap-4 text-sm text-gray-500">
                                         <div className="flex items-center gap-1">
                                             <Heart className="w-4 h-4 text-red-500 fill-red-500" />
-                                            <span>{question.stats.likes}</span>
+                                            <span>{question.likes}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <Star className="w-4 h-4" />
-                                            <span>{question.stats.favorites}</span>
+                                            <span>{question.favorites}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <MessageSquare className="w-4 h-4" />
-                                            <span>{question.stats.answers}</span>
+                                            <span>{question.answers}</span>
                                         </div>
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-gray-300" />

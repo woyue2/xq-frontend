@@ -1,41 +1,46 @@
-import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
+import { MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-
-// 模拟收藏数据 - 实际应从API或store获取
-const mockFavoriteQuestions = [
-    {
-        id: 'fav1',
-        title: '如何理解二次函数的顶点式？',
-        content: '我对二次函数的顶点式理解不够深入...',
-        authorName: '数学老师',
-        createdAt: '2026-01-15T10:00:00Z',
-        difficulty: 'medium',
-        isGoodQuestion: true,
-        isPinned: false,
-        topics: ['二次函数', '代数'],
-        stats: { likes: 42, favorites: 18, comments: 5, answers: 3 },
-        status: 'approved'
-    },
-    {
-        id: 'fav2',
-        title: '物理中的能量守恒定律应用',
-        content: '能量守恒定律在实际问题中如何应用？',
-        authorName: '物理达人',
-        createdAt: '2026-01-20T14:30:00Z',
-        difficulty: 'hard',
-        isGoodQuestion: false,
-        isPinned: true,
-        topics: ['能量守恒', '力学'],
-        stats: { likes: 28, favorites: 12, comments: 8, answers: 2 },
-        status: 'approved'
-    }
-];
+import { useEffect, useState } from 'react';
+import type { MyFavoritedQuestion } from '@/types/api';
+import { profileService } from '@/services/api';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { toast } from 'sonner';
 
 export function MyFavoritesPage() {
     const navigate = useNavigate();
-    const [myFavorites] = useState(mockFavoriteQuestions);
+    const { user } = useAuthStore();
+    const [myFavorites, setMyFavorites] = useState<MyFavoritedQuestion[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // 未登录用户访问时统一重定向到登录页，保持与 Profile 等个人中心页面一致的保护策略
+    useEffect(() => {
+        if (!user) {
+            navigate('/login');
+        }
+    }, [user, navigate]);
+
+    useEffect(() => {
+        if (!user) return;
+        setIsLoading(true);
+        profileService
+            .getMyFavorites({ page: 1, pageSize: 50 })
+            .then((data) => {
+                setMyFavorites(data.list);
+            })
+            .catch((err) => {
+                // eslint-disable-next-line no-console
+                console.error('加载我的收藏失败', err);
+                toast.error('加载我的收藏列表失败，请稍后重试');
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    }, [user]);
+
+    if (!user) {
+        return null;
+    }
 
     const getDifficultyBadge = (difficulty?: string) => {
         const difficultyMap: Record<string, { label: string; className: string }> = {
@@ -60,7 +65,11 @@ export function MyFavoritesPage() {
             </div>
 
             {/* 问题列表 */}
-            {myFavorites.length === 0 ? (
+            {isLoading ? (
+                <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
+                    <div className="animate-pulse text-gray-400">加载中...</div>
+                </div>
+            ) : myFavorites.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
                     <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">还没有收藏任何问题</p>
@@ -74,7 +83,7 @@ export function MyFavoritesPage() {
             ) : (
                 <div className="space-y-3">
                     {myFavorites.map((question) => {
-                        const difficultyBadge = getDifficultyBadge(question.difficulty);
+                        const difficultyBadge = getDifficultyBadge(undefined);
 
                         return (
                             <div
@@ -84,16 +93,7 @@ export function MyFavoritesPage() {
                             >
                                 {/* 标签 */}
                                 <div className="flex items-center gap-2 mb-3 flex-wrap">
-                                    {question.isGoodQuestion && (
-                                        <Badge className="bg-red-50 text-red-600 border-0 px-3 py-0.5 rounded-full text-xs">
-                                            好问题
-                                        </Badge>
-                                    )}
-                                    {question.isPinned && (
-                                        <Badge className="bg-purple-50 text-purple-600 border-0 px-3 py-0.5 rounded-full text-xs">
-                                            置顶
-                                        </Badge>
-                                    )}
+                                    {/* 是否好问题/置顶目前后端列表未返回，必要时可后续扩展 */}
                                     {difficultyBadge && (
                                         <Badge className={`${difficultyBadge.className} border-0 px-3 py-0.5 rounded-full text-xs`}>
                                             {difficultyBadge.label}
@@ -110,19 +110,6 @@ export function MyFavoritesPage() {
                                 )}
 
                                 {/* 标签 */}
-                                {question.topics && question.topics.length > 0 && (
-                                    <div className="flex gap-2 mb-3 flex-wrap">
-                                        {question.topics.map((topic, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="px-2 py-1 bg-morandi-1/30 text-gray-600 rounded-full text-xs"
-                                            >
-                                                #{topic}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
                                 {/* 作者信息 */}
                                 <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
                                     <span>{question.authorName}</span>
@@ -135,15 +122,15 @@ export function MyFavoritesPage() {
                                     <div className="flex items-center gap-4 text-sm text-gray-500">
                                         <div className="flex items-center gap-1">
                                             <Heart className="w-4 h-4" />
-                                            <span>{question.stats.likes}</span>
+                                            <span>{question.likes}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                            <span>{question.stats.favorites}</span>
+                                            <span>{question.favorites}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <MessageSquare className="w-4 h-4" />
-                                            <span>{question.stats.answers}</span>
+                                            <span>{question.answers}</span>
                                         </div>
                                     </div>
                                     <ChevronRight className="w-5 h-5 text-gray-300" />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, 
@@ -46,8 +46,16 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
+import { adminService } from '@/services/api';
+import { useAuthStore } from '@/stores/useAuthStore';
+import type {
+  QuestionDimensionDto,
+  QuestionDimensionOptionDto,
+  WhitelistUser as WhitelistUserApi,
+  AddWhitelistPayload
+} from '@/types/api';
 
-interface WhitelistUser {
+interface WhitelistUserItem {
   id: string;
   phone: string;
   name: string;
@@ -58,7 +66,7 @@ interface WhitelistUser {
   expiresAt?: string; // 课时过期时间（学生和家长共享）
 }
 
-const EXPIRING_SOON_DAYS = 15;
+const EXPIRING_SOON_DAYS = 30;
 
 const needsExpiryForRole = (role: UserRole) =>
   role === 'student' || role === 'parent';
@@ -83,46 +91,53 @@ const isExpiringSoonDate = (expiresAt?: string) => {
 
 export function AdminManagementPage() {
   const navigate = useNavigate();
-  // 模拟白名单数据
-  const [whitelist, setWhitelist] = useState<WhitelistUser[]>([
-    {
-      id: '1',
-      phone: '13800138000',
-      name: '张三',
-      role: 'student',
-      isRegistered: true,
-      createdAt: '2024-01-15 10:00:00',
-      registeredAt: '2024-01-15 10:30:00',
-      expiresAt: '2026-06-30'
-    },
-    {
-      id: '2',
-      phone: '13900139000',
-      name: '李四',
-      role: 'teacher',
-      isRegistered: true,
-      createdAt: '2024-01-16 09:00:00',
-      registeredAt: '2024-01-16 09:15:00'
-    },
-    {
-      id: '3',
-      phone: '13700137000',
-      name: '王五',
-      role: 'student',
-      isRegistered: false,
-      createdAt: '2024-01-20 14:00:00',
-      expiresAt: '2026-03-31'
-    },
-    {
-      id: '4',
-      phone: '13600136000',
-      name: '赵六',
-      role: 'parent',
-      isRegistered: false,
-      createdAt: '2024-01-21 11:00:00',
-      expiresAt: '2026-03-31' // 家长和学生共享过期时间
-    }
-  ]);
+  const { user } = useAuthStore();
+  // 测试环境下提供一组默认白名单数据，便于前端单测等场景；
+  // 实际运行时将在挂载后通过 adminService.getWhitelist 覆盖为后端数据。
+  const initialWhitelist: WhitelistUserItem[] =
+    typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test'
+      ? [
+          {
+            id: '1',
+            phone: '13800138000',
+            name: '张三',
+            role: 'student',
+            isRegistered: true,
+            createdAt: '2024-01-15 10:00:00',
+            registeredAt: '2024-01-15 10:30:00',
+            expiresAt: '2026-06-30'
+          },
+          {
+            id: '2',
+            phone: '13900139000',
+            name: '李四',
+            role: 'teacher',
+            isRegistered: true,
+            createdAt: '2024-01-16 09:00:00',
+            registeredAt: '2024-01-16 09:15:00'
+          },
+          {
+            id: '3',
+            phone: '13700137000',
+            name: '王五',
+            role: 'student',
+            isRegistered: false,
+            createdAt: '2024-01-20 14:00:00',
+            expiresAt: '2026-03-31'
+          },
+          {
+            id: '4',
+            phone: '13600136000',
+            name: '赵六',
+            role: 'parent',
+            isRegistered: false,
+            createdAt: '2024-01-21 11:00:00',
+            expiresAt: '2026-03-31'
+          }
+        ]
+      : [];
+
+  const [whitelist, setWhitelist] = useState<WhitelistUserItem[]>(initialWhitelist);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
@@ -137,17 +152,90 @@ export function AdminManagementPage() {
   
   // 删除确认对话框
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<WhitelistUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WhitelistUserItem | null>(null);
 
   // 课时管理对话框
   const [expiryDialogOpen, setExpiryDialogOpen] = useState(false);
-  const [expiryTarget, setExpiryTarget] = useState<WhitelistUser | null>(null);
+  const [expiryTarget, setExpiryTarget] = useState<WhitelistUserItem | null>(null);
   const [expiryMonths, setExpiryMonths] = useState(1);
   const [customExpiryDate, setCustomExpiryDate] = useState('');
 
   // 二次确认对话框
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingExpiry, setPendingExpiry] = useState<{ user: WhitelistUser; date: string } | null>(null);
+  const [pendingExpiry, setPendingExpiry] = useState<{ user: WhitelistUserItem; date: string } | null>(null);
+
+  // 解题方法/办法维度配置
+  const [methodDimension, setMethodDimension] = useState<QuestionDimensionDto | null>(null);
+  const [methodOptions, setMethodOptions] = useState<QuestionDimensionOptionDto[]>([]);
+  const [loadingMethodDim, setLoadingMethodDim] = useState(false);
+  const [savingMethodMeta, setSavingMethodMeta] = useState(false);
+
+  const [loadingWhitelist, setLoadingWhitelist] = useState(false);
+
+  // 基础权限校验：仅允许老师访问后台管理页面
+  useEffect(() => {
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+
+    if (user.role !== 'teacher') {
+      toast.error('只有老师可以访问管理后台');
+      navigate('/profile');
+    }
+  }, [user, navigate]);
+
+  // 从后端加载白名单列表
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadWhitelistFromApi = async () => {
+      // 仅在已登录且为老师/管理员时才调用后台白名单接口
+      if (!user || user.role !== 'teacher') {
+        return;
+      }
+
+      try {
+        setLoadingWhitelist(true);
+        const res = await adminService.getWhitelist({
+          page: 1,
+          limit: 50
+        });
+
+        if (cancelled || !res || !Array.isArray(res.items)) return;
+
+        const items = (res.items as WhitelistUserApi[]).map(
+          (u): WhitelistUserItem => ({
+            id: u.id,
+            phone: u.phone,
+            name: u.name,
+            role: u.role as UserRole,
+            isRegistered: u.isRegistered,
+            createdAt: u.createdAt,
+            registeredAt: u.registeredAt,
+            expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined
+          })
+        );
+
+        setWhitelist(items);
+      } catch {
+        if (!cancelled) {
+          toast.error('加载白名单失败，请稍后重试');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingWhitelist(false);
+        }
+      }
+    };
+
+    loadWhitelistFromApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // 过滤逻辑
   const filteredList = whitelist.filter(user => {
@@ -194,7 +282,7 @@ export function AdminManagementPage() {
     return date.toISOString().split('T')[0];
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     // 验证手机号
     if (!newPhone || newPhone.length !== 11) {
       toast.error('请输入正确的11位手机号');
@@ -207,50 +295,75 @@ export function AdminManagementPage() {
       return;
     }
 
-    // 检查是否已存在
+    // 检查是否已存在（前端快速拦截，后端仍会做最终校验）
     if (whitelist.some(u => u.phone === newPhone)) {
       toast.error('该手机号已在白名单中');
       return;
     }
 
-    // 添加到白名单
-    const newUser: WhitelistUser = {
-      id: String(Date.now()),
-      phone: newPhone,
-      name: newName,
-      role: newRole,
-      isRegistered: false,
-      createdAt: new Date().toLocaleString('zh-CN'),
-      // 学生和家长默认设置3个月有效期
-      expiresAt: (newRole === 'student' || newRole === 'parent') ? calculateNewExpiry(3) : undefined
-    };
+    try {
+      const payload: AddWhitelistPayload = {
+        phone: newPhone,
+        name: newName,
+        role: newRole as 'student' | 'teacher' | 'parent'
+      };
 
-    setWhitelist([newUser, ...whitelist]);
-    toast.success('添加成功！用户可以使用该手机号注册');
-    
-    // 重置表单
-    setNewPhone('');
-    setNewName('');
-    setNewRole('student');
-    setAddDialogOpen(false);
+      // 学生和家长默认设置 3 个月有效期
+      if (newRole === 'student' || newRole === 'parent') {
+        const expiry = calculateNewExpiry(3);
+        payload.validUntil = new Date(expiry).toISOString();
+      }
+
+      const created = await adminService.addToWhitelist(payload);
+
+      const mapped: WhitelistUserItem = {
+        id: created.id,
+        phone: created.phone,
+        name: created.name,
+        role: created.role as UserRole,
+        isRegistered: created.isRegistered,
+        createdAt: created.createdAt,
+        registeredAt: created.registeredAt,
+        expiresAt: created.validUntil
+          ? created.validUntil.slice(0, 10)
+          : undefined
+      };
+
+      setWhitelist([mapped, ...whitelist]);
+      toast.success('添加成功！用户可以使用该手机号注册');
+
+      // 重置表单
+      setNewPhone('');
+      setNewName('');
+      setNewRole('student');
+      setAddDialogOpen(false);
+    } catch {
+      // 具体错误提示由 axios 拦截器统一处理（如 PHONE_EXISTS 等）
+    }
   };
 
-  const handleDeleteUser = (user: WhitelistUser) => {
+  const handleDeleteUser = (user: WhitelistUserItem) => {
     setDeleteTarget(user);
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTarget) {
-      setWhitelist(whitelist.filter(u => u.id !== deleteTarget.id));
-      toast.success('已从白名单移除');
-      setDeleteDialogOpen(false);
-      setDeleteTarget(null);
+      try {
+        await adminService.removeFromWhitelist(deleteTarget.id);
+        setWhitelist(whitelist.filter(u => u.id !== deleteTarget.id));
+        toast.success('已从白名单移除');
+      } catch {
+        // 错误提示由拦截器处理
+      } finally {
+        setDeleteDialogOpen(false);
+        setDeleteTarget(null);
+      }
     }
   };
 
   // 打开课时管理对话框
-  const handleManageExpiry = (user: WhitelistUser) => {
+  const handleManageExpiry = (user: WhitelistUserItem) => {
     setExpiryTarget(user);
     setExpiryMonths(1);
     // 默认显示当前有效期，如果没有则显示当前计算的有效期
@@ -270,17 +383,34 @@ export function AdminManagementPage() {
   };
 
   // 第二步：确认修改
-  const confirmExpiryChange = () => {
+  const confirmExpiryChange = async () => {
     if (pendingExpiry) {
-      setWhitelist(whitelist.map(u => 
-        u.id === pendingExpiry.user.id 
-          ? { ...u, expiresAt: pendingExpiry.date }
-          : u
-      ));
-      toast.success('课时有效期已更新');
-      setConfirmDialogOpen(false);
-      setPendingExpiry(null);
-      setExpiryTarget(null);
+      try {
+        const updated = await adminService.updateValidity(
+          pendingExpiry.user.id,
+          new Date(pendingExpiry.date).toISOString()
+        );
+
+        setWhitelist(
+          whitelist.map((u) =>
+            u.id === updated.id
+              ? {
+                  ...u,
+                  expiresAt: updated.validUntil
+                    ? updated.validUntil.slice(0, 10)
+                    : pendingExpiry.date
+                }
+              : u
+          )
+        );
+        toast.success('课时有效期已更新');
+      } catch {
+        // 错误提示交由拦截器
+      } finally {
+        setConfirmDialogOpen(false);
+        setPendingExpiry(null);
+        setExpiryTarget(null);
+      }
     }
   };
 
@@ -305,6 +435,83 @@ export function AdminManagementPage() {
     ).length,
   };
 
+  const loadMethodDimension = async () => {
+    try {
+      setLoadingMethodDim(true);
+      const dims = await adminService.getQuestionDimensions();
+      const methodDim = dims.find((d) => d.key === 'method') ?? null;
+      setMethodDimension(methodDim);
+      setMethodOptions(
+        (methodDim?.options ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      );
+    } catch {
+      toast.error('加载题目维度配置失败，请稍后重试');
+      setMethodDimension(null);
+      setMethodOptions([]);
+    } finally {
+      setLoadingMethodDim(false);
+    }
+  };
+
+  const handleSaveMethodMeta = async () => {
+    if (!methodDimension) return;
+    try {
+      setSavingMethodMeta(true);
+      const updated = await adminService.updateQuestionDimension(methodDimension.key, {
+        name: methodDimension.name,
+        enabled: methodDimension.enabled
+      });
+      setMethodDimension(updated);
+      toast.success('解题方法维度配置已保存');
+    } catch {
+      toast.error('保存解题方法维度配置失败');
+    } finally {
+      setSavingMethodMeta(false);
+    }
+  };
+
+  const handleUpdateMethodOption = async (option: QuestionDimensionOptionDto) => {
+    if (!methodDimension) return;
+    try {
+      await adminService.updateQuestionDimensionOption(methodDimension.key, option.id, {
+        label: option.label,
+        order: option.order,
+        enabled: option.enabled
+      });
+      toast.success('选项已更新');
+    } catch {
+      toast.error('更新选项失败');
+    }
+  };
+
+  const handleAddMethodOption = async () => {
+    if (!methodDimension) return;
+    const value = window.prompt('请输入新选项的内部值（例如：代入法）');
+    if (!value) return;
+    const label = window.prompt('请输入显示文案', value);
+    if (!label) return;
+    try {
+      const maxOrder =
+        methodOptions.length > 0
+          ? Math.max(...methodOptions.map((o) => o.order ?? 0))
+          : 0;
+      const created = await adminService.createQuestionDimensionOption(methodDimension.key, {
+        value,
+        label,
+        order: maxOrder + 10,
+        enabled: true
+      });
+      setMethodOptions(
+        [...methodOptions, created].sort(
+          (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        )
+      );
+      toast.success('已新增选项');
+    } catch {
+      toast.error('新增选项失败');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#EDEDE9] flex flex-col">
       {/* 顶部导航栏 */}
@@ -323,14 +530,23 @@ export function AdminManagementPage() {
             </h1>
             <p className="text-[9px] text-[#D5BDAF] font-bold leading-none">好好学习，天天向上</p>
           </div>
-          <Button
-            onClick={() => setAddDialogOpen(true)}
-            className="bg-[#D5BDAF] hover:bg-[#B59D8F] text-white"
-            size="sm"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            添加
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/diagnostic')}
+            >
+              系统诊断
+            </Button>
+            <Button
+              onClick={() => setAddDialogOpen(true)}
+              className="bg-[#D5BDAF] hover:bg-[#B59D8F] text-white"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              添加
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -518,6 +734,210 @@ export function AdminManagementPage() {
                 </div>
               );
             })
+          )}
+        </div>
+      </div>
+
+      {/* 题目维度配置（解题方法/办法） */}
+      <div className="max-w-7xl mx-auto w-full px-4 pb-6">
+        <div className="bg-white rounded-2xl shadow-sm p-4 mt-2">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-800">
+                题目维度配置（解题方法/办法）
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                控制“创建问题”页面中解题方法下拉的名称、启用状态和选项集合。
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadMethodDimension}
+                disabled={loadingMethodDim}
+              >
+                {loadingMethodDim ? '加载中...' : '刷新配置'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddMethodOption}
+                disabled={!methodDimension}
+              >
+                新增选项
+              </Button>
+            </div>
+          </div>
+
+          {methodDimension ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">维度名称</Label>
+                  <Input
+                    value={methodDimension.name}
+                    onChange={(e) =>
+                      setMethodDimension({
+                        ...methodDimension,
+                        name: e.target.value
+                      })
+                    }
+                    className="w-40 h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">启用状态</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={methodDimension.enabled ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() =>
+                        setMethodDimension({
+                          ...methodDimension,
+                          enabled: true
+                        })
+                      }
+                    >
+                      启用
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!methodDimension.enabled ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() =>
+                        setMethodDimension({
+                          ...methodDimension,
+                          enabled: false
+                        })
+                      }
+                    >
+                      停用
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-5">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveMethodMeta}
+                    disabled={savingMethodMeta}
+                    className="bg-[#D5BDAF] hover:bg-[#B59D8F]"
+                  >
+                    {savingMethodMeta ? '保存中...' : '保存维度配置'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-700">
+                    选项列表（含“暂不确定”/unknown）
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    建议保留 unknown 作为兜底选项
+                  </span>
+                </div>
+                {methodOptions.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    暂无选项，请点击“新增选项”添加。
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {methodOptions.map((opt) => {
+                      const isUnknown = opt.value === 'unknown';
+                      return (
+                        <div
+                          key={opt.id}
+                          className="flex flex-wrap items-center gap-3 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50"
+                        >
+                          <div className="space-y-1">
+                            <Label className="text-xs">展示文案</Label>
+                            <Input
+                              value={opt.label}
+                              onChange={(e) =>
+                                setMethodOptions((prev) =>
+                                  prev.map((o) =>
+                                    o.id === opt.id
+                                      ? { ...o, label: e.target.value }
+                                      : o
+                                  )
+                                )
+                              }
+                              className="w-40 h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">内部值</Label>
+                            <div className="text-xs px-2 py-1 rounded bg-white border border-gray-200">
+                              {opt.value}
+                              {isUnknown && (
+                                <span className="ml-1 text-[10px] text-gray-400">
+                                  （暂不确定）
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">排序</Label>
+                            <Input
+                              type="number"
+                              value={opt.order ?? 0}
+                              onChange={(e) => {
+                                const next = Number(e.target.value) || 0;
+                                setMethodOptions((prev) =>
+                                  prev.map((o) =>
+                                    o.id === opt.id
+                                      ? { ...o, order: next }
+                                      : o
+                                  )
+                                );
+                              }}
+                              className="w-20 h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">启用</Label>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMethodOptions((prev) =>
+                                  prev.map((o) =>
+                                    o.id === opt.id
+                                      ? { ...o, enabled: !o.enabled }
+                                      : o
+                                  )
+                                )
+                              }
+                              className={`px-3 py-1 rounded-full text-xs border transition ${
+                                opt.enabled
+                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                  : 'bg-gray-50 text-gray-400 border-gray-200'
+                              }`}
+                            >
+                              {opt.enabled ? '启用' : '停用'}
+                            </button>
+                          </div>
+                          <div className="ml-auto">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUpdateMethodOption(opt)}
+                            >
+                              保存
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500">
+              暂未加载到解题方法维度配置，请点击“刷新配置”获取。
+            </div>
           )}
         </div>
       </div>

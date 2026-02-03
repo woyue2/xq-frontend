@@ -98,23 +98,31 @@
   - 将标准输出重定向至日志采集系统（如 ELK / Loki / Cloud Logging）。
   - 为关键错误日志（HTTP 5xx、鉴权失败、数据库异常等）配置告警规则。
 
-#### 5.1.1 本地联调查看正确码/错误码
+#### 5.1.1 本地联调查看正确码/错误码与运行模式
 
-在本地同时运行前端与后端进行接口联调或诊断测试时，可按以下方式通过系统日志查看每一次行动对应的正确码/错误码:
+在本地同时运行前端与后端进行接口联调或诊断测试时，可按以下方式通过系统日志查看每一次行动对应的正确码/错误码与运行模式:
 
 - 启动后端开发服务（在 `backend/` 目录）:
   - `npm run dev`
 - 观察日志输出:
-  - 访问日志: 由 `loggerMiddleware` 输出，包含 `req.method`、`req.url`、`res.statusCode` 等字段，其中 `res.statusCode` 即为当前请求的 HTTP 正确码/错误码。
+  - 访问日志: 由 `loggerMiddleware` 输出，包含以下核心字段:
+    - `method`、`url`、`statusCode`
+    - `mode`: `'mock' | 'normal'`，来自前端请求头 `X-Client-Mode`（`VITE_USE_MOCK=true` 时为 `'mock'`，否则为 `'normal'`）
   - 错误日志: 由 `errorMiddleware` 输出，统一结构为:
     - `type`: `'app_error' | 'validation_error' | 'unknown_error'`
     - `status`: HTTP 状态码
     - `code`: 业务错误码（通常与 HTTP 状态码一致）
     - `error`: 业务错误标识（如 `UNAUTHORIZED`、`VALIDATION_ERROR`、`INTERNAL_SERVER_ERROR`）
     - `path`、`method`: 请求路径与方法
+    - `mode`: `'mock' | 'normal'`，与访问日志一致，便于区分 Mock 模式与真实后端模式
+  - 降级路径结构化日志:
+    - 对于认证模块中的数据库降级路径（如注册时降级为内存用户、RefreshToken 校验退化为仅依赖 JWT 等），会通过 `coreLogger` 输出带有 `mode: 'degraded'` 的结构化日志，典型字段包括:
+      - `feature`: 如 `'auth.register'`、`'auth.refreshToken'`
+      - `reason`: 降级原因简述（如 `userWhitelist lookup failed, skip in non-production`）
 - 常见联调场景示例:
-  - 登录成功: 查看 `POST /api/auth/login` 对应访问日志中的 `res.statusCode=200`。
+  - 登录成功: 查看 `POST /api/auth/login` 对应访问日志中的 `statusCode=200`，并确认 `mode` 是否为 `'normal'`。
   - 验证码错误: 触发登录失败后，在错误日志中找到 `type='app_error'` 或 `type='validation_error'`，并通过 `status` 与 `error` 字段确定错误类型。
+  - 降级诊断: 在开发/测试环境中故意关闭数据库或相关表时，观察日志中是否出现 `mode='degraded'` 且 `feature='auth.register' | 'auth.refreshToken'` 等记录，用于确认降级逻辑是否按预期生效。
 
 ### 5.2 错误处理
 

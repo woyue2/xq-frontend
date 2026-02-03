@@ -1,0 +1,8 @@
+# 1. 重新生成 Prisma Client（修复 TypeScript 错误）
+npx prisma generate
+
+# 2. 创建并应用数据库迁移
+npx prisma migrate dev --name add_question_images
+
+# 3. 运行测试脚本
+npx tsx script/test-question-images.ts

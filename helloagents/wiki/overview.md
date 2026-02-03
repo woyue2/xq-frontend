@@ -27,3 +27,9 @@
 
 - 前端诊断工具与日志联动方法论：`helloagents/docs/前端诊断工具-接口与日志联动判断方法论.md`  
   - 适用于使用前端 Diagnostic 页面（诊断工具）时，结合浏览器 Network 与后端日志进行综合判断和问题定位。
+
+- Mock 功能与真实数据库联调规范：`helloagents/wiki/mock-integration-guidelines.md`  
+  - 适用于统一前端 Mock 使用、真实接口联调与环境配置（含 E2E 测试）的约定。
+
+- 前端集成与 E2E 联调规范：`helloagents/wiki/frontend-integration.md`  
+  - 适用于在关闭 Mock、连真实后端 + 数据库的前提下运行 Playwright E2E 测试，以及本地/CI 环境中统一前后端联调流程。

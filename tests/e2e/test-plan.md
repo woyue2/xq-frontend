@@ -12,11 +12,27 @@
 
 - **前端 E2E 测试（Playwright）**
   - 运行位置：`tests/e2e/*.spec.ts`
-  - 已有文件：
-    - `login-page.spec.ts`：登录/注册页面基础交互与前端表单校验。
-    - `main-flow.spec.ts`：学生免登录进入首页 + 诊断工具页面主流程。
-    - `navigation-flow.spec.ts`：首页浮动按钮跳转提问页、头像跳转个人中心。
-    - `auth-header.spec.ts`：验证携带后端下发 token 的 `Authorization` 头。
+  - 已有文件（节选，按业务链路分组）：
+    - 登录与基础导航：
+      - `login-page.spec.ts`：登录/注册页面基础交互与前端表单校验。
+      - `navigation-flow.spec.ts`：首页浮动按钮跳转提问页、头像跳转个人中心。
+      - `auth-header.spec.ts`：验证携带后端下发 token 的 `Authorization` 头。
+      - `unauth-redirect.spec.ts`：未登录访问受保护路由的跳转与提示。
+    - 学生链路：
+      - `student-flow.spec.ts`：学生提问、我的问题、问题详情等主链路。
+      - `student-question-audit-flow.spec.ts`：学生提问后经后台审核的完整链路。
+      - `student-notification-answer-flow.spec.ts`：学生从通知中心跳转回问题详情查看老师回答。
+    - 家长链路：
+      - `parent-flow.spec.ts`：家长绑定孩子、查看孩子问题与学习概览。
+      - `membership-parent-guard.spec.ts`：家长/学生权限与课时限制相关守卫。
+    - 教师链路：
+      - `teacher-flow.spec.ts`：教师端个人中心入口、审核管理、白名单管理主链路。
+      - `teacher-audit-and-whitelist.spec.ts`：教师审核问题与维护白名单的细节链路。
+      - `teacher-answer-flow.spec.ts`：教师从问题详情进入回答页并提交文字回答，以及从「我的回答」返回问题详情。
+      - `teacher-audio-answer-flow.spec.ts`：教师在回答页完成语音录制与上传，仅依赖语音回答即可提交，并返回问题详情。
+      - `student-notification-new-answer-flow.spec.ts`（规划中，describe.skip）：预留“学生从新回答通知进入问题详情并聚焦到对应回答（含语音回答）”的端到端用例骨架，待 new_answer 通知与 answerId 定位能力落地后启用。
+    - 其他链路：
+      - `main-flow.spec.ts`：学生免登录进入首页 + 诊断工具页面主流程（前端自检型）。
   - 关注点：UI 文案/引导、页面跳转、与后端接口的真实交互（含错误提示）。
 
 ---
@@ -146,5 +162,9 @@
    - FLOW-NEG-10（课时过期下的点赞/收藏容错验证）。
 3. **前端 E2E（与现有 Playwright 测试对齐）：**
    - 在 `tests/e2e` 下以本文件用例 ID 为注释补充对应 spec，尽量复用 `bootstrapAuth` 辅助函数，减少重复登录、造数逻辑。
+   - 对于「老师回答完成后，学生收到『有新回答』通知并从通知进入回答详情」这一链路，已通过：
+     - `teacher-answer-flow.spec.ts`：覆盖教师从问题详情进入回答页、提交回答；
+     - `student-notification-answer-flow.spec.ts`：覆盖学生从通知中心进入问题详情查看回答；
+     - `teacher-audio-answer-flow.spec.ts`：覆盖教师录制并提交语音回答（未来扩展为触发“有新回答”通知时，可在该文件基础上扩展断言逻辑）。
 
-> 所有新增后端链路测试应在 CI 中随 `npm test` 一起运行，并将用例 ID（如 FLOW-NEG-xx）记录到 `codex-develop-doc/后端-测试用例.md` 对应章节，保持测试文档与自动化实现的一致性。*** End Patch***```"/>
+> 所有新增后端链路测试应在 CI 中随 `npm test` 一起运行，并将用例 ID（如 FLOW-NEG-xx）记录到 `codex-develop-doc/后端-测试用例.md` 对应章节，保持测试文档与自动化实现的一致性；新增的前端 E2E 用例应在本计划中登记文件名与覆盖的链路要点，保持“文档 ←→ 代码 ←→ 测试”的一致映射关系。

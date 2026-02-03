@@ -6,6 +6,9 @@ import {
 } from '../middlewares/auth.middleware';
 import { AppError } from '../errors/AppError';
 import { env } from '../config/env';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 
 export const uploadRouter = Router();
 
@@ -25,6 +28,59 @@ const resolveUploadUrl = () => {
   const sep = hasQuery ? '&' : '?';
   return `${base}${sep}token=${token}`;
 };
+
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const baseDir = env.AUDIO_BASE_DIR;
+    const dir = path.isAbsolute(baseDir)
+      ? baseDir
+      : path.join(process.cwd(), baseDir);
+
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const rawExt = path.extname(file.originalname).toLowerCase();
+    const ext = ALLOWED_AUDIO_EXTENSIONS.includes(rawExt) ? rawExt : '.webm';
+    const filename = `answer-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}${ext}`;
+    cb(null, filename);
+  }
+});
+
+const MAX_AUDIO_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+const ALLOWED_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.m4a', '.webm', '.ogg', '.aac'];
+
+const audioUpload = multer({
+  storage: audioStorage,
+  limits: {
+    fileSize: MAX_AUDIO_FILE_SIZE
+  },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!file.mimetype || !file.mimetype.startsWith('audio/')) {
+      return cb(
+        new AppError(
+          400,
+          'INVALID_FILE_TYPE',
+          '仅支持音频文件上传'
+        )
+      );
+    }
+    if (!ALLOWED_AUDIO_EXTENSIONS.includes(ext)) {
+      return cb(
+        new AppError(
+          400,
+          'INVALID_FILE_EXTENSION',
+          `不支持的音频格式: ${ext}`
+        )
+      );
+    }
+    cb(null, true);
+  }
+});
 
 // 获取上传签名（图片/音频）
 uploadRouter.get(
@@ -82,6 +138,48 @@ uploadRouter.get(
           expireAt
         },
         timestamp: now
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// 直接上传音频到本地后端存储，并返回可播放的 /static/audio URL
+uploadRouter.post(
+  '/audio',
+  authMiddleware,
+  audioUpload.single('file'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      if (req.user.role !== 'teacher') {
+        throw new AppError(
+          403,
+          'PERMISSION_DENIED',
+          '只有教师可以上传音频'
+        );
+      }
+
+      const file = (req as any).file as Express.Multer.File | undefined;
+
+      if (!file) {
+        throw new AppError(400, 'NO_FILE', '未找到上传的音频文件');
+      }
+
+      const filename = path.basename(file.filename);
+      const audioUrl = `/static/audio/${filename}`;
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          audioUrl
+        },
+        timestamp: Date.now()
       });
     } catch (err) {
       next(err);

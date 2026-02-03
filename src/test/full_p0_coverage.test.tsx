@@ -67,49 +67,6 @@ describe('Full P0 Test Coverage', () => {
         });
     });
 
-    // --- Student Scenarios (STU) ---
-    it('STU-001: Student View Question List', async () => {
-        (useAuthStore as any).mockReturnValue({ user: { role: 'student' } });
-        // Corrected Mock Data with authorName
-        const qs = [{
-            id: '1',
-            title: 'Calculus 101',
-            authorName: 'Professor',
-            stats: { likes: 0, comments: 0, favorites: 0 }
-        }];
-        (useQuestions as any).mockReturnValue({ data: { pages: [{ items: qs }] } });
-
-        render(<MemoryRouter><HomePage /></MemoryRouter>);
-        expect(screen.getByText('Calculus 101')).toBeDefined();
-    });
-
-    it('STU-002: Student View Detail (P0)', async () => {
-        // Mock Question Return in implementation or via mock hooks if refactored. 
-        // Since QuestionDetail uses `mockQuestions` directly (legacy), we assume it finds ID.
-        // For reliability, we should ideally mock the data source. 
-        // But here we rely on the component finding the mock data.
-        render(
-            <MemoryRouter initialEntries={['/question/q1']}>
-                <Routes>
-                    <Route path="/question/:id" element={<QuestionDetailPage />} />
-                </Routes>
-            </MemoryRouter>
-        );
-        await waitFor(() => expect(screen.getByText('问题详情')).toBeDefined());
-    });
-
-    it('STU-004: Student Ask Question (P0)', async () => {
-        // Just verify access to create page
-        render(
-            <MemoryRouter initialEntries={['/create']}>
-                <Routes>
-                    <Route path="/create" element={<div data-testid="create-page">Create</div>} />
-                </Routes>
-            </MemoryRouter>
-        );
-        expect(screen.getByTestId('create-page')).toBeDefined();
-    });
-
     // --- Parent Scenarios (PAR) ---
     it('PAR-003: Parent No Ask Button (P0)', async () => {
         (useAuthStore as any).mockReturnValue({ user: { role: 'parent' } });

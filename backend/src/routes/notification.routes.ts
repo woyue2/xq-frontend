@@ -102,12 +102,12 @@ notificationRouter.post(
       const body = req.body as any;
       const idsRaw = body?.ids;
 
-      if (!Array.isArray(idsRaw)) {
+      if (!Array.isArray(idsRaw) || idsRaw.length === 0) {
         throw new AppError(400, 'VALIDATION_ERROR', '参数验证失败', {
           errors: [
             {
               field: 'ids',
-              message: 'ids 必须为字符串数组'
+              message: 'ids 必须为非空字符串数组'
             }
           ]
         });
@@ -134,4 +134,3 @@ notificationRouter.post(
     }
   }
 );
-

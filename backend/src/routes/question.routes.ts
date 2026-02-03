@@ -31,16 +31,18 @@ questionRouter.post(
         );
       }
 
-      const { title, content, images, tags, difficulty } = req.body as {
+      const { title, content, images, tags, difficulty, subject } = req.body as {
         title: string;
         content?: string;
         images?: string[];
         tags?: string[];
         difficulty?: string;
+        subject?: string;
       };
 
       const authorId = req.user!.id;
       const authorName = '当前用户'; // 简化处理，后续可从 User 表查询
+      const authorRole = req.user!.role;
 
       const created = await questionService.create({
         title,
@@ -48,8 +50,10 @@ questionRouter.post(
         images,
         tags,
         difficulty,
+        subject,
         authorId,
-        authorName
+        authorName,
+        authorRole
       });
 
       return res.status(201).json({
@@ -70,7 +74,7 @@ questionRouter.get(
   authMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { page, pageSize, status, isGoodQuestion, tags, authorId } =
+      const { page, pageSize, status, isGoodQuestion, tags, authorId, search } =
         req.query as any;
 
       const result = await questionService.list({
@@ -82,7 +86,8 @@ questionRouter.get(
             ? isGoodQuestion === 'true'
             : undefined,
         tags: typeof tags === 'string' ? (tags as string).split(',') : undefined,
-        authorId: typeof authorId === 'string' ? authorId : undefined
+        authorId: typeof authorId === 'string' ? authorId : undefined,
+        search: typeof search === 'string' ? search : undefined
       });
 
       return res.json({
@@ -250,28 +255,49 @@ questionRouter.post(
   }
 );
 
-// 创建回答：仅教师
+// 创建回答：教师可以回答任意问题；学生可以回答教师提出的问题
 questionRouter.post(
   '/:questionId/answers',
   authMiddleware,
   requireActiveMembership,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      if (req.user?.role !== 'teacher') {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '只有教师可以回答问题',
-          undefined,
-          3002
-        );
+      const { questionId } = req.params;
+
+      const question = await prisma.question.findUnique({
+        where: { id: questionId }
+      });
+
+      if (!question) {
+        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
       }
 
-      const { questionId } = req.params;
-      const { content, images, audioUrl } = req.body as {
+      // 权限检查
+      // 1. 如果是教师，允许回答所有问题
+      // 2. 如果是学生，只允许回答“教师发布的”问题
+      const isTeacher = req.user!.role === 'teacher';
+
+      if (!isTeacher) {
+        // 查询题目作者
+        const author = await prisma.user.findUnique({ where: { id: question.authorId } });
+        const isTeacherQuestion = author?.role === 'teacher';
+
+        if (!isTeacherQuestion) {
+          throw new AppError(
+            403,
+            'PERMISSION_DENIED',
+            '学生只能回答教师提出的问题',
+            undefined,
+            3002
+          );
+        }
+      }
+
+      const { content, images, audioUrl, audioUrls } = req.body as {
         content?: string;
         images?: string[];
         audioUrl?: string;
+        audioUrls?: string[];
       };
 
       const created = await answerService.create({
@@ -279,13 +305,47 @@ questionRouter.post(
         authorId: req.user!.id,
         content,
         images,
-        audioUrl
+        audioUrl,
+        audioUrls
       });
+
+      let message = '回答提交成功';
+      if (created.status === 'pending') {
+        message = '回答提交成功，等待审核';
+      } else if (created.status === 'approved') {
+        message = '回答提交成功，已通过审核';
+      } else if (created.status === 'rejected') {
+        message = '回答提交成功，但未通过审核';
+      }
 
       return res.status(201).json({
         code: 201,
-        message: '回答提交成功，等待审核',
+        message,
         data: created,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// 删除问题
+questionRouter.delete(
+  '/:id',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await questionService.delete({
+        id,
+        userId: req.user!.id,
+        role: req.user!.role
+      });
+
+      return res.json({
+        code: 200,
+        message: '删除成功',
         timestamp: Date.now()
       });
     } catch (err) {
@@ -301,7 +361,10 @@ questionRouter.get(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id;
-      const data = await questionService.getById(id);
+      const data = await questionService.getById(id, {
+        userId: req.user!.id,
+        role: req.user!.role
+      });
 
       // 计算当前用户对该问题的点赞 / 收藏状态
       let isLiked = false;

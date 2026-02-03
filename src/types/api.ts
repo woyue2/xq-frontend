@@ -26,6 +26,20 @@ export interface LoginPayload {
     code: string;
 }
 
+export interface PasswordLoginPayload {
+    phone: string;
+    password: string;
+}
+
+export interface RegisterPayload extends LoginPayload {
+    nickname?: string;
+    role?: 'student' | 'teacher' | 'parent';
+    grade?: string;
+    age?: number;
+    school?: string;
+    password: string;
+}
+
 export interface LoginResponse {
     token: string;
     user: User;
@@ -74,11 +88,46 @@ export interface FavoriteResponse {
     favoritesCount: number;
 }
 
+// 个人中心 - 我的点赞/收藏/回答
+export interface MyLikedQuestion {
+    id: string;
+    title: string;
+    content?: string | null;
+    authorName: string;
+    likes: number;
+    favorites: number;
+    answers: number;
+    createdAt: string;
+    likedAt: string;
+}
+
+export interface MyFavoritedQuestion {
+    id: string;
+    title: string;
+    content?: string | null;
+    authorName: string;
+    likes: number;
+    favorites: number;
+    answers: number;
+    createdAt: string;
+    favoritedAt: string;
+}
+
+export interface MyAnswerSummary {
+    id: string;
+    questionId: string;
+    questionTitle: string;
+    content: string;
+    likes: number;
+    status: AuditStatus;
+    createdAt: string;
+}
+
 // 通知相关
 export interface Notification {
     id: string;
     userId: string;
-    type: 'answer' | 'comment' | 'audit_result' | 'system';
+    type: 'answer' | 'comment' | 'audit_result' | 'system' | 'new_answer';
     title: string;
     content?: string;
     targetType?: string;
@@ -116,4 +165,21 @@ export interface AddWhitelistPayload {
     grade?: string;
     validUntil?: string; // ISO String
     notes?: string;
+}
+
+// 题目维度配置（例如解题方法/办法）
+export interface QuestionDimensionOptionDto {
+    id: string;
+    value: string;
+    label: string;
+    order: number;
+    enabled?: boolean;
+}
+
+export interface QuestionDimensionDto {
+    key: string;
+    name: string;
+    enabled: boolean;
+    multiSelect: boolean;
+    options: QuestionDimensionOptionDto[];
 }

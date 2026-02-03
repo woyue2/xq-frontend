@@ -22,8 +22,21 @@ export class AuditService {
   }) {
     const { type, page = 1, pageSize = 20 } = params;
 
-    const skip = (page - 1) * pageSize;
-    const take = pageSize;
+    const isValidInteger = (value: number) =>
+      Number.isFinite(value) && Number.isInteger(value) && value > 0;
+
+    if (!isValidInteger(page) || !isValidInteger(pageSize)) {
+      throw new AppError(
+        400,
+        'INVALID_PAGINATION',
+        '分页参数不合法'
+      );
+    }
+
+    const safePageSize = Math.min(pageSize, 100);
+
+    const skip = (page - 1) * safePageSize;
+    const take = safePageSize;
 
     const cacheKey = `${type}:${page}:${pageSize}`;
     const now = Date.now();
@@ -72,9 +85,9 @@ export class AuditService {
         })),
         pagination: {
           page,
-          pageSize,
+          pageSize: safePageSize,
           total,
-          totalPages: Math.ceil(total / pageSize)
+          totalPages: Math.ceil(total / safePageSize)
         },
         statistics
       };
@@ -163,6 +176,17 @@ export class AuditService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
 
+    // 幂等性校验
+    if (q.status !== 'pending') {
+      return q;
+    }
+
+    // 自审校验
+    if (q.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止角色内自我审核');
+    }
+
+
     const updated = await prisma.$transaction(async (tx) => {
       const res = await tx.question.update({
         where: { id },
@@ -214,6 +238,16 @@ export class AuditService {
       throw new AppError(404, 'COMMENT_NOT_FOUND', '评论不存在');
     }
 
+    // 幂等性校验
+    if (comment.status !== 'pending') {
+      return comment;
+    }
+
+    // 自审校验
+    if (comment.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止审批自己发布的内容');
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const res = await tx.comment.update({
         where: { id },
@@ -230,6 +264,33 @@ export class AuditService {
           action: 'approve'
         }
       });
+
+      // 审核通过时，通知问题作者有人评论（延迟通知逻辑）
+      const question = await tx.question.findUnique({
+        where: { id: comment.questionId },
+        select: { authorId: true, title: true, status: true }
+      });
+
+      if (!question) {
+        throw new AppError(404, 'QUESTION_NOT_FOUND', '所属问题已删除');
+      }
+
+      if (['rejected', 'banned'].includes(question.status)) {
+        throw new AppError(403, 'PARENT_QUESTION_INVALID', '所属问题状态异常（已驳回或已封禁），无法通过评论审核');
+      }
+
+      if (question.authorId !== comment.authorId) {
+        await tx.notification.create({
+          data: {
+            userId: question.authorId,
+            type: 'comment',
+            title: '有人评论了你的问题',
+            content: comment.content || '[图片评论]',
+            targetType: 'question',
+            targetId: comment.questionId
+          }
+        });
+      }
 
       return res;
     });
@@ -256,6 +317,16 @@ export class AuditService {
 
     if (!q) {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+    }
+
+    // 幂等性校验
+    if (q.status !== 'pending') {
+      return q;
+    }
+
+    // 自审校验
+    if (q.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止控制自己发布的内容状态');
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -311,6 +382,16 @@ export class AuditService {
       throw new AppError(404, 'COMMENT_NOT_FOUND', '评论不存在');
     }
 
+    // 幂等性校验
+    if (comment.status !== 'pending') {
+      return comment;
+    }
+
+    // 自审校验
+    if (comment.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止审批自己发布的内容');
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const res = await tx.comment.update({
         where: { id },
@@ -349,6 +430,12 @@ export class AuditService {
     if (!q) {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
+
+    // 自审校验
+    if (q.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止操作自己发布的内容置顶状态');
+    }
+
 
     const newPinned = !q.isPinned;
 

@@ -27,8 +27,9 @@ import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { isMemberActive } from '@/lib/permissions';
 import { useDebounce } from '@/hooks/useDebounce';
-import { mockQuestions } from '@/lib/mock-data';
-import { questionService } from '@/services/api';
+import { questionService, configService } from '@/services/api';
+import type { Question } from '@/types';
+import type { QuestionDimensionDto } from '@/types/api';
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
@@ -55,24 +56,67 @@ export function CreateQuestionPage() {
   // Derived options based on subject
   const currentSubjectConfig = selectedSubject ? TAXONOMY[selectedSubject] : null;
 
-  const [similarQuestions, setSimilarQuestions] = useState<typeof mockQuestions>([]);
+  // 解题方法/办法维度配置（从后端动态获取，可关闭或改名）
+  const [methodDimension, setMethodDimension] = useState<QuestionDimensionDto | null>(null);
+  const [methodOptions, setMethodOptions] = useState<
+    { value: string; label: string; order: number }[]
+  >([]);
+  const [methodConfigLoaded, setMethodConfigLoaded] = useState(false);
+
+  const [similarQuestions, setSimilarQuestions] = useState<Question[]>([]);
   const debouncedTitle = useDebounce(title, 500);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Smart Search Effect
   useEffect(() => {
-    if (debouncedTitle.length > 2) {
-      // Mock Search Logic: Filter questions that contain the title keywords
-      const hits = mockQuestions.filter(q =>
-        q.title.includes(debouncedTitle) ||
-        q.topics?.some(t => debouncedTitle.includes(t))
-      ).slice(0, 3);
-      setSimilarQuestions(hits);
-    } else {
-      setSimilarQuestions([]);
-    }
+    setSimilarQuestions([]);
   }, [debouncedTitle]);
+
+  // 题目维度配置加载：当前仅使用 method 维度
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDimensions = async () => {
+      try {
+        const dims = await configService.getQuestionDimensions();
+        if (cancelled) return;
+
+        const methodDim = dims.find((d) => d.key === 'method');
+        setMethodConfigLoaded(true);
+
+        if (methodDim && methodDim.enabled) {
+          const sortedOptions = [...(methodDim.options ?? [])]
+            .filter((opt) => opt && opt.value && opt.label)
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            .map((opt) => ({
+              value: opt.value,
+              label: opt.label,
+              order: opt.order ?? 0
+            }));
+
+          setMethodDimension(methodDim);
+          setMethodOptions(sortedOptions);
+        } else {
+          setMethodDimension(null);
+          setMethodOptions([]);
+        }
+      } catch {
+        // 静默失败：维度配置失败时继续使用内置 TAXONOMY 配置
+        setMethodDimension(null);
+        setMethodOptions([]);
+        setMethodConfigLoaded(false);
+      }
+    };
+
+    loadDimensions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const showMethodField = !!currentSubjectConfig;
 
   const handleImageUpload = () => {
     if (images.length >= 3) {
@@ -179,11 +223,27 @@ export function CreateQuestionPage() {
 
       const created = await questionService.createQuestion(payload);
 
-      toast.success('问题已提交，AI 正在初筛中...');
-      // 成功后跳转到问题详情页，若后端未返回 id，则回首页兜底
-      if (created?.id) {
-        navigate(`/question/${created.id}`);
+      // 处理 AI 审核结果
+      const aiAudit = (created as any)?.aiAudit;
+      if (aiAudit) {
+        if (!aiAudit.safe) {
+          // 内容违规被拒绝
+          toast.error(`提交失败：${aiAudit.reason || '内容不符合规范'}`);
+          setSubmitting(false);
+          return;
+        }
+        if (aiAudit.qualitySuggestion) {
+          // 有改进建议，显示提示
+          toast.info(aiAudit.qualitySuggestion, { duration: 5000 });
+        }
+      }
+
+      toast.success('问题已提交，已跳转到详情页');
+      // 提交成功后跳转到该问题详情页，便于学生继续查看与分享
+      if (created && (created as Question).id) {
+        navigate(`/question/${(created as Question).id}`);
       } else {
+        // 兜底：如果后端未返回有效 ID，则回首页
         navigate('/');
       }
     } catch {
@@ -247,7 +307,10 @@ export function CreateQuestionPage() {
 
           {/* 2. 考点与方法联动 (Dynamic Chips) */}
           {currentSubjectConfig && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+            <div
+              className={`grid grid-cols-1 ${showMethodField ? 'md:grid-cols-2' : ''
+                } gap-4 animate-in fade-in slide-in-from-top-2`}
+            >
               <div className="space-y-2">
                 <Label className="text-gray-500">核心考点 (Topic)</Label>
                 <Select value={selectedTopic} onValueChange={setSelectedTopic}>
@@ -262,25 +325,46 @@ export function CreateQuestionPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-gray-500">解题方法 (Method)</Label>
-                <Select value={selectedMethod} onValueChange={setSelectedMethod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="尝试了什么方法？" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currentSubjectConfig.methods.map(m => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {showMethodField && (
+                <div className="space-y-2">
+                  <Label className="text-gray-500">
+                    {(methodDimension?.name ?? '解题方法')} (Method)
+                  </Label>
+                  <Select
+                    value={selectedMethod}
+                    onValueChange={setSelectedMethod}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="尝试了什么方法？" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(methodOptions.length > 0
+                        ? methodOptions
+                        : currentSubjectConfig.methods.map((m) => {
+                          if (m === '暂不确定') {
+                            return {
+                              value: 'unknown',
+                              label: m,
+                              order: 999
+                            };
+                          }
+                          return {
+                            value: m,
+                            label: m,
+                            order: 0
+                          };
+                        })
+                      ).map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
-
-
-
-            // ... render part ...
 
           {/* 3. 问题标题 */}
           <div className="space-y-2">

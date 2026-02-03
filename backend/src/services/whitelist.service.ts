@@ -19,6 +19,20 @@ export class WhitelistService {
       searchField
     } = params;
 
+    const safePage = (Number.isInteger(Number(page)) && Number(page) > 0) ? Number(page) : 1;
+    const safePageSize = (Number.isInteger(Number(pageSize)) && Number(pageSize) > 0) ? Math.min(Number(pageSize), 100) : 20;
+
+    if (search && typeof search === 'string') {
+      const MAX_SEARCH_KEYWORD_LENGTH = 64;
+      if (search.trim().length > MAX_SEARCH_KEYWORD_LENGTH) {
+        throw new AppError(
+          400,
+          'SEARCH_KEYWORD_TOO_LONG',
+          `搜索关键词过长，请限制在 ${MAX_SEARCH_KEYWORD_LENGTH} 字符以内`
+        );
+      }
+    }
+
     const where: any = {};
 
     if (role) {
@@ -47,8 +61,8 @@ export class WhitelistService {
             ...where
           },
           orderBy: { createdAt: 'desc' },
-          skip: (page - 1) * pageSize,
-          take: pageSize
+          skip: (safePage - 1) * safePageSize,
+          take: safePageSize
         }),
         prisma.userWhitelist.count({ where: { deletedAt: null, ...where } }),
         prisma.userWhitelist.count({
@@ -71,10 +85,10 @@ export class WhitelistService {
     return {
       list,
       pagination: {
-        page,
-        pageSize,
+        page: safePage,
+        pageSize: safePageSize,
         total,
-        totalPages: Math.ceil(total / pageSize)
+        totalPages: Math.ceil(total / safePageSize)
       },
       statistics: {
         total,
@@ -119,12 +133,49 @@ export class WhitelistService {
       where: { phone }
     });
 
-    if (existing && !existing.deletedAt) {
-      throw new AppError(
-        409,
-        'PHONE_EXISTS',
-        '该手机号已在白名单中'
-      );
+    if (existing) {
+      if (!existing.deletedAt) {
+        throw new AppError(
+          409,
+          'PHONE_EXISTS',
+          '该手机号已在白名单中'
+        );
+      }
+
+      // 如果已存在软删除记录，则恢复并更新
+      const restored = await prisma.userWhitelist.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          role,
+          validUntil: validUntil ?? null,
+          notes: notes ?? null,
+          isRegistered: existing.userId ? true : false, // 保持原有注册状态，或者重置？
+          // 如果用户已被物理删除，isRegistered状态可能不准。但通常用户也是软删除/禁用。
+          // 简单起见，仅恢复白名单。
+          deletedAt: null,
+          deletedBy: null
+        }
+      });
+
+      // 如果关联了用户，可能还需要重新激活用户用户表状态？
+      // 原 remove 逻辑是将用户设为 isActive: false.
+      // 这里应该设为 isActive: true
+      if (restored.userId) {
+        try {
+          await prisma.user.update({
+            where: { id: restored.userId },
+            data: { isActive: true }
+          });
+        } catch {
+          // ignore if user not found
+        }
+      }
+
+      return {
+        ...restored,
+        createdBy
+      };
     }
 
     const record = await prisma.userWhitelist.create({

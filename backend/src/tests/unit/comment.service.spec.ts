@@ -148,9 +148,23 @@ describe('CommentService unit tests', () => {
         }
       });
 
+      // 使用教师身份，确保评论直接通过审核，便于验证计数与状态。
+      const teacherPhone = nextPhone();
+      const teacher = await prisma.user.upsert({
+        where: { phone: teacherPhone },
+        update: {},
+        create: {
+          phone: teacherPhone,
+          nickname: '评论老师',
+          role: 'teacher',
+          isActive: true,
+          isBanned: false
+        }
+      });
+
       const result = await commentService.create({
         questionId: question.id,
-        authorId: user.id,
+        authorId: teacher.id,
         content: '这是评论内容',
         image: 'https://cdn.example.com/comment.png'
       });
@@ -159,7 +173,8 @@ describe('CommentService unit tests', () => {
       expect(result.questionId).toBe(question.id);
       expect(result.content).toBe('这是评论内容');
       expect(result.image).toBe('https://cdn.example.com/comment.png');
-      expect(result.status).toBe('pending');
+      // 教师评论应直接标记为 approved
+      expect(result.status).toBe('approved');
 
       const updatedQuestion = await prisma.question.findUnique({
         where: { id: question.id }

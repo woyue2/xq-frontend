@@ -86,6 +86,14 @@ describe('Parent Flow Integration', () => {
   });
 
   test('ParentQuestionPage loads questions', async () => {
+    // Mock user as parent
+    (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'p1', role: 'parent', nickname: 'ParentUser', avatar: '' },
+      logout: vi.fn(),
+      updateUser: vi.fn(),
+      login: vi.fn(),
+    });
+
     // Mock getChildQuestions
     (parentService.getChildQuestions as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: {
@@ -112,6 +120,28 @@ describe('Parent Flow Integration', () => {
     await waitFor(() => {
       expect(screen.getByText('孩子提问列表')).toBeInTheDocument();
       expect(screen.getByText('Why sky blue?')).toBeInTheDocument();
+    });
+  });
+
+  test('non-parent user is redirected away from ParentQuestionPage', async () => {
+    // 模拟学生用户
+    (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 's1', role: 'student', nickname: 'Student', avatar: '' },
+      logout: vi.fn(),
+      updateUser: vi.fn(),
+      login: vi.fn()
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ParentQuestionPage />
+        </BrowserRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });
 });

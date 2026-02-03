@@ -9,7 +9,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       style={
         {
-          "--normal-bg": "var(--popover)",
+          // 仅降低背景不透明度，文字仍使用正常前景色
+          "--normal-bg": "rgba(255, 255, 255, 0.8)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
         } as React.CSSProperties

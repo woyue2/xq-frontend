@@ -1,6 +1,5 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "windows"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -14,6 +13,8 @@ model User {
   nickname   String
   avatar     String?
   role       String
+  /// 登录密码哈希（可选，存在时支持密码登录）
+  passwordHash String?
   grade      String?
   age        Int?
   school     String?
@@ -26,6 +27,10 @@ model User {
   // 关系
   whitelist  UserWhitelist?
   loginLogs  LoginLog[]
+
+  // 家长-孩子关系
+  children   ParentChild[] @relation("ParentToChildren")
+  parents    ParentChild[] @relation("ChildToParents")
 
   @@index([phone])
   @@index([role])
@@ -103,6 +108,7 @@ model Question {
   content         String?
   subject         String?
   tags            String[]
+  images          String[]
   difficulty      String?
   status          String   @default("pending")
   isGoodQuestion  Boolean  @default(false)
@@ -119,6 +125,9 @@ model Question {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  commentList     Comment[]
+  answerList      Answer[]
+
   @@index([status, createdAt])
   @@index([isGoodQuestion])
 }
@@ -127,6 +136,7 @@ model Question {
 model Answer {
   id           String   @id @default(cuid())
   questionId   String
+  question     Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   content      String
   images       String[]
   audioUrl     String?
@@ -147,6 +157,7 @@ model Answer {
 model Comment {
   id           String   @id @default(cuid())
   questionId   String
+  question     Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   content      String
   image        String?
   authorId     String
@@ -190,7 +201,7 @@ model Favorite {
 model Notification {
   id         String   @id @default(cuid())
   userId     String
-  type       String   // 'answer' | 'comment' | 'audit_result' | 'system'
+  type       String   // 'answer' | 'comment' | 'audit_result' | 'system' | 'new_answer'
   title      String
   content    String?
   targetType String?
@@ -235,3 +246,49 @@ model AuditLog {
   @@index([targetType, targetId])
 }
 
+/// 题目维度定义（例如解题方法/办法等，可扩展）
+model QuestionDimension {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  enabled     Boolean  @default(true)
+  multiSelect Boolean  @default(false)
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  options QuestionDimensionOption[]
+}
+
+/// 题目维度选项
+model QuestionDimensionOption {
+  id           String   @id @default(cuid())
+  dimensionKey String
+  value        String
+  label        String
+  order        Int      @default(0)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dimension QuestionDimension @relation(fields: [dimensionKey], references: [key], onDelete: Cascade)
+
+  @@index([dimensionKey])
+  @@index([value])
+}
+
+/// 家长-孩子绑定关系表
+model ParentChild {
+  id        String   @id @default(cuid())
+  parentId  String
+  childId   String
+  createdAt DateTime @default(now())
+
+  parent    User     @relation("ParentToChildren", fields: [parentId], references: [id])
+  child     User     @relation("ChildToParents", fields: [childId], references: [id])
+
+  @@unique([parentId, childId])
+  @@index([parentId])
+  @@index([childId])
+}

@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { QuestionList } from '@/components/QuestionList';
 import { QuestionFilter } from '@/components/QuestionFilter';
 import { parentService } from '@/services/parentService';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { toast } from 'sonner';
 
 export function ParentQuestionPage() {
+  const { user } = useAuthStore();
   const { childId } = useParams<{ childId: string }>();
   const navigate = useNavigate();
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (user.role !== 'parent') {
+      toast.error('只有家长可以查看孩子问题');
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const {
     data,
@@ -21,7 +35,9 @@ export function ParentQuestionPage() {
   } = useInfiniteQuery({
     queryKey: ['parent-questions', childId, selectedSubject, selectedTopic],
     queryFn: async ({ pageParam = 1 }) => {
-      if (!childId) throw new Error('Child ID is required');
+      if (!childId) {
+        throw new Error('Child ID is required');
+      }
       const res = await parentService.getChildQuestions(childId, {
         page: pageParam,
         limit: 10,
@@ -30,9 +46,10 @@ export function ParentQuestionPage() {
       });
       return res.data.data;
     },
-    getNextPageParam: (lastPage) => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
+    getNextPageParam: (lastPage) =>
+      lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
     initialPageParam: 1,
-    enabled: !!childId
+    enabled: !!childId && !!user && user.role === 'parent'
   });
 
   const allQuestions = data?.pages.flatMap(p => p.items) || [];

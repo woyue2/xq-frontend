@@ -1,15 +1,33 @@
+import { useEffect } from 'react';
 import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { toast } from 'sonner';
 
 export function StatusListPage() {
     const navigate = useNavigate();
     const { status } = useParams<{ status: string }>();
     const { user } = useAuthStore();
-    const { data, isLoading } = useQuestions({ authorId: user?.id });
+    const { data, isLoading } = useQuestions({
+        authorId: user && user.role !== 'parent' ? user.id : undefined
+    });
+
+    // 权限保护：仅已登录的非家长用户可以访问状态列表页
+    useEffect(() => {
+        if (!user) {
+            toast.error('请先登录后查看你的提问状态');
+            navigate('/login');
+            return;
+        }
+
+        if (user.role === 'parent') {
+            toast.error('家长账号无法查看提问状态列表');
+            navigate('/profile');
+        }
+    }, [user, navigate]);
 
     // Filter questions based on route param status
     const allQuestions = data?.pages.flatMap(p => p.items) || [];

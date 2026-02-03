@@ -4,6 +4,33 @@ import { DiagnosticPage } from '@/pages/DiagnosticPage';
 import { BrowserRouter } from 'react-router-dom';
 import { useDiagnosticStore } from '@/stores/useDiagnosticStore';
 
+const useAuthStoreMock = vi.fn();
+const mockNavigate = vi.fn();
+
+vi.mock('@/stores/useAuthStore', () => ({
+  useAuthStore: () => useAuthStoreMock(),
+}));
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+const toastErrorMock = vi.fn();
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: any[]) => toastErrorMock(...args),
+    success: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}));
+
 // Mock the runner to avoid waiting 3s
 vi.mock('@/lib/test-runner', () => ({
   runDiagnosticTests: vi.fn(async () => {
@@ -20,6 +47,11 @@ vi.mock('@/lib/test-runner', () => ({
 
 describe('DiagnosticPage Integration', () => {
   beforeEach(() => {
+    toastErrorMock.mockReset();
+    useAuthStoreMock.mockReturnValue({
+      user: { id: 't1', role: 'teacher', nickname: '老师用户' },
+    });
+    mockNavigate.mockReset();
     useDiagnosticStore.getState().reset();
   });
 
@@ -51,5 +83,37 @@ describe('DiagnosticPage Integration', () => {
     });
     
     expect(screen.getByText('Mock run started', { exact: false })).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated user to login', async () => {
+    useAuthStoreMock.mockReturnValueOnce({ user: null });
+
+    render(
+      <BrowserRouter>
+        <DiagnosticPage />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith('请先登录');
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+    });
+  });
+
+  it('blocks non-teacher user from accessing diagnostic tool', async () => {
+    useAuthStoreMock.mockReturnValueOnce({
+      user: { id: 's1', role: 'student', nickname: '学生用户' },
+    });
+
+    render(
+      <BrowserRouter>
+        <DiagnosticPage />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith('只有老师可以访问诊断工具');
+      expect(mockNavigate).toHaveBeenCalledWith('/');
+    });
   });
 });

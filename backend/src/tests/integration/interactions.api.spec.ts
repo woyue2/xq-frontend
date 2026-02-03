@@ -16,6 +16,8 @@ describe('Interactions API (/api/interactions)', () => {
     await prisma.like.deleteMany();
     await prisma.favorite.deleteMany();
     await prisma.question.deleteMany();
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
     await prisma.user.create({
@@ -152,4 +154,3 @@ describe('Interactions API (/api/interactions)', () => {
     expect(res.body.error).toBe('UNSUPPORTED_TARGET_TYPE');
   });
 });
-

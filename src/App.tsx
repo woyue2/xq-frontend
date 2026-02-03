@@ -67,7 +67,12 @@ export function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
-          <Toaster position="top-center" />
+          <Toaster
+            position="bottom-center"
+            richColors
+            duration={2000}
+            offset={56}
+          />
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>

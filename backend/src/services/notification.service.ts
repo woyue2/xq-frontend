@@ -1,6 +1,19 @@
 import { prisma } from '../config/database';
 
 export class NotificationService {
+  async create(data: {
+    userId: string;
+    type: string;
+    title: string;
+    content?: string;
+    targetType?: string;
+    targetId?: string;
+  }) {
+    return prisma.notification.create({
+      data
+    });
+  }
+
   async listForUser(params: {
     userId: string;
     page?: number;

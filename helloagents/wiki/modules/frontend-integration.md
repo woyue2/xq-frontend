@@ -53,7 +53,7 @@
     1. 选择科目与结构化标签；
     2. 通过隐藏的 `<input type="file" multiple>` + `questionService.uploadImage` 上传图片（最多三张）；
     3. 使用 `questionService.createQuestion` 向后端创建问题；
-    4. 成功后优先跳转到 `/question/:id`，否则回退到首页。
+    4. 提交成功后统一跳转回首页，用户可在主页列表中看到新问题。
 
 - **点赞 / 收藏（QuestionDetailPage）**
   - 入口：问题详情页底部的点赞（Heart）与收藏（Star）按钮；
@@ -64,6 +64,15 @@
       - 调用 `interactionService.favorite({ questionId, action })` 切换收藏状态；
       - 通过 `behaviorService.log('question_like' | 'question_favorite', { questionId, action })` 记录埋点。
   - 说明：当前仍依赖 Mock 初始化 `liked/favorited` 状态，后续将随 `useQuestionDetail` 一并改造。
+
+- **分享链接（QuestionDetailPage / QuestionCard）**
+  - 工具文件：`src/lib/share.ts`
+    - 通过 `VITE_SHARE_BASE_URL` 环境变量作为分享基础域名；
+    - 当该变量未配置或仍为“基础域名/example.com”等占位值时，视为“未配置分享域名”，前端不会复制任何链接，仅提示“暂未配置分享域名，当前不支持复制分享链接”；
+  - 行为：
+    - 详情页顶部/底部分享按钮与首页问题卡片右侧分享按钮统一调用分享工具；
+    - 剪贴板可用时：复制构造好的 `https://<域名>/question/:id` 到剪贴板，并提示“分享链接已复制”；
+    - 剪贴板不可用时：退化为 toast 中展示完整分享链接，由用户手动复制。
 
 ### 四、登录白名单策略（后端配合概览）
 

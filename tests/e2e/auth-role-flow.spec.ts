@@ -4,14 +4,8 @@ import { test, expect } from '@playwright/test';
 async function gotoProfile(page: import('@playwright/test').Page) {
   await page.goto('/');
 
-  const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-  const fallback = page.getByText('我');
-
-  if (await avatarBtn.first().isVisible()) {
-    await avatarBtn.first().click();
-  } else {
-    await fallback.click();
-  }
+  const profileBtn = page.getByTestId('nav-profile');
+  await profileBtn.click();
 
   await expect(page).toHaveURL(/\/profile$/);
 }
@@ -27,6 +21,7 @@ test.describe('角色注册与身份展示 E2E', () => {
 
     await page.getByLabel('手机号').fill(phone);
     await page.getByLabel('验证码').fill('123456'); // 后端 FIXED_CODE
+    await page.getByLabel('密码 *').fill('password123');
     await page.getByLabel('邀请码', { exact: false }).fill('STUDENT2024');
 
     // 学生必填字段
@@ -58,6 +53,7 @@ test.describe('角色注册与身份展示 E2E', () => {
 
     await page.getByLabel('手机号').fill(phone);
     await page.getByLabel('验证码').fill('123456');
+    await page.getByLabel('密码 *').fill('password123');
     await page.getByLabel('邀请码', { exact: false }).fill('TEACHER2024');
 
     await page.getByRole('button', { name: '注册' }).click();
@@ -92,6 +88,7 @@ test.describe('角色注册与身份展示 E2E', () => {
     await page.getByLabel('孩子姓名 *').fill('测试孩子');
     await page.getByLabel('手机号', { exact: false }).nth(1).fill('13900000001'); // 孩子手机号
     await page.getByLabel('验证码 *').fill('123456');
+    await page.getByLabel('密码 *').fill('password123');
 
     await page.getByRole('button', { name: '注册' }).click();
 
@@ -100,12 +97,12 @@ test.describe('角色注册与身份展示 E2E', () => {
     // 进入个人中心
     await gotoProfile(page);
 
-    // 角色 Badge 显示“家长”
-    await expect(page.getByText('家长')).toBeVisible();
+    // 角色 Badge 显示“家长”（限定在 Badge 上，避免匹配到题目标题中的“家长”关键字）
+    const roleBadge = page.locator('span').filter({ hasText: '家长' });
+    await expect(roleBadge.first()).toBeVisible();
 
     // “我的孩子”卡片以及空态
     await expect(page.getByText('我的孩子')).toBeVisible();
     await expect(page.getByText('暂无绑定的孩子')).toBeVisible();
   });
 });
-

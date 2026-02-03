@@ -4,6 +4,16 @@ export class AppError extends Error {
   code: string;
   data?: unknown;
   bizCode?: number;
+  /**
+   * 可选的运行模式字段，用于在日志中标记当前错误是否来自
+   * 正常路径、mock 路径或降级路径。
+   *
+   * 典型取值:
+   * - 'normal'   : 正常路径
+   * - 'mock'     : Mock 模式
+   * - 'degraded' : 降级路径
+   */
+  mode?: 'normal' | 'mock' | 'degraded';
 
   constructor(
     status: number,

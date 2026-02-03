@@ -13,6 +13,10 @@ export class InteractionService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
 
+    if (question.status !== 'approved') {
+      throw new AppError(403, 'INTERACTION_DENIED', '无法对未审核通过的问题进行操作');
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.like.findUnique({
         where: {
@@ -83,6 +87,10 @@ export class InteractionService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
 
+    if (question.status !== 'approved') {
+      throw new AppError(403, 'INTERACTION_DENIED', '无法对未审核通过的问题进行操作');
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.favorite.findUnique({
         where: {
@@ -144,6 +152,19 @@ export class InteractionService {
   }) {
     const { userId, page = 1, pageSize = 20 } = params;
 
+    const isValidInteger = (value: number) =>
+      Number.isFinite(value) && Number.isInteger(value) && value > 0;
+
+    if (!isValidInteger(page) || !isValidInteger(pageSize)) {
+      throw new AppError(
+        400,
+        'INVALID_PAGINATION',
+        '分页参数不合法'
+      );
+    }
+
+    const safePageSize = Math.min(pageSize, 100);
+
     const [likes, total] = await Promise.all([
       prisma.like.findMany({
         where: {
@@ -151,8 +172,8 @@ export class InteractionService {
           targetType: 'question'
         },
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize
+        skip: (page - 1) * safePageSize,
+        take: safePageSize
       }),
       prisma.like.count({
         where: {
@@ -164,7 +185,10 @@ export class InteractionService {
 
     const questionIds = likes.map((l) => l.targetId);
     const questions = await prisma.question.findMany({
-      where: { id: { in: questionIds } }
+      where: {
+        id: { in: questionIds },
+        status: 'approved'
+      }
     });
     const map = new Map(questions.map((q) => [q.id, q]));
 
@@ -188,9 +212,9 @@ export class InteractionService {
         .filter(Boolean),
       pagination: {
         page,
-        pageSize,
+        pageSize: safePageSize,
         total,
-        totalPages: Math.ceil(total / pageSize)
+        totalPages: Math.ceil(total / safePageSize)
       }
     };
   }
@@ -202,19 +226,35 @@ export class InteractionService {
   }) {
     const { userId, page = 1, pageSize = 20 } = params;
 
+    const isValidInteger = (value: number) =>
+      Number.isFinite(value) && Number.isInteger(value) && value > 0;
+
+    if (!isValidInteger(page) || !isValidInteger(pageSize)) {
+      throw new AppError(
+        400,
+        'INVALID_PAGINATION',
+        '分页参数不合法'
+      );
+    }
+
+    const safePageSize = Math.min(pageSize, 100);
+
     const [favorites, total] = await Promise.all([
       prisma.favorite.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize
+        skip: (page - 1) * safePageSize,
+        take: safePageSize
       }),
       prisma.favorite.count({ where: { userId } })
     ]);
 
     const questionIds = favorites.map((f) => f.questionId);
     const questions = await prisma.question.findMany({
-      where: { id: { in: questionIds } }
+      where: {
+        id: { in: questionIds },
+        status: 'approved'
+      }
     });
     const map = new Map(questions.map((q) => [q.id, q]));
 
@@ -238,9 +278,9 @@ export class InteractionService {
         .filter(Boolean),
       pagination: {
         page,
-        pageSize,
+        pageSize: safePageSize,
         total,
-        totalPages: Math.ceil(total / pageSize)
+        totalPages: Math.ceil(total / safePageSize)
       }
     };
   }

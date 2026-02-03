@@ -1,5 +1,6 @@
 import { behaviorLogService } from '../../services/behavior-log.service';
 import { prisma } from '../../config/database';
+import { AppError } from '../../errors/AppError';
 
 describe('BehaviorLogService - 单元测试', () => {
   const prismaAny = prisma as any;
@@ -79,5 +80,26 @@ describe('BehaviorLogService - 单元测试', () => {
       }
     });
   });
-});
 
+  it('应当在事件类型为空时抛出 VALIDATION_ERROR', async () => {
+    await expect(
+      behaviorLogService.logSingle({ type: '' } as any)
+    ).rejects.toMatchObject<Partial<AppError>>({
+      code: 'VALIDATION_ERROR',
+      status: 400
+    });
+    expect(prismaAny.behaviorLog.create).not.toHaveBeenCalled();
+  });
+
+  it('应当在事件类型过长时抛出 VALIDATION_ERROR', async () => {
+    const longType = 'x'.repeat(51);
+
+    await expect(
+      behaviorLogService.logSingle({ type: longType })
+    ).rejects.toMatchObject<Partial<AppError>>({
+      code: 'VALIDATION_ERROR',
+      status: 400
+    });
+    expect(prismaAny.behaviorLog.create).not.toHaveBeenCalled();
+  });
+});

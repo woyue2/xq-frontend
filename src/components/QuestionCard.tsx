@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import type { Question, DifficultyLevel } from '@/types';
 import { DIFFICULTY_LABELS } from '@/config/app-constants';
 import { toast } from 'sonner';
+import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
 
 interface QuestionCardProps {
     question: Question;
@@ -42,6 +43,27 @@ export function QuestionCard({
     const difficultyConfig = DIFFICULTY_LABELS[question.difficulty as DifficultyLevel];
     const handlePin = onPin || onTogglePin;
     const showPin = !!onPin || (isAdmin && !!onTogglePin);
+
+    // 安全统计值：兼容 stats 缺失或不完整的场景，避免出现 NaN
+    const baseLikes =
+        typeof question.stats?.likes === 'number'
+            ? question.stats.likes
+            : typeof (question as any).likeCount === 'number'
+                ? (question as any).likeCount
+                : 0;
+    const baseFavorites =
+        typeof question.stats?.favorites === 'number'
+            ? question.stats.favorites
+            : typeof (question as any).collectionCount === 'number'
+                ? (question as any).collectionCount
+                : 0;
+    const baseComments =
+        typeof question.stats?.comments === 'number'
+            ? question.stats.comments
+            : 0;
+
+    const likesDisplay = baseLikes + (isLiked ? 1 : 0);
+    const favoritesDisplay = baseFavorites + (isFavorited ? 1 : 0);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -144,7 +166,7 @@ export function QuestionCard({
                         className={cn("w-3.5 h-3.5 transition-transform group-active:scale-125", isLiked ? 'fill-red-500 text-red-500' : '')}
                     />
                     <span className={isLiked ? 'text-red-500 font-bold' : ''}>
-                        {question.stats.likes + (isLiked ? 1 : 0)}
+                        {likesDisplay}
                     </span>
                 </button>
 
@@ -156,7 +178,7 @@ export function QuestionCard({
                         className={cn("w-3.5 h-3.5 transition-transform group-active:scale-125", isFavorited ? 'fill-yellow-500 text-yellow-500' : '')}
                     />
                     <span className={isFavorited ? 'text-yellow-500 font-bold' : ''}>
-                         {question.stats.favorites + (isFavorited ? 1 : 0)}
+                         {favoritesDisplay}
                     </span>
                 </button>
 
@@ -168,14 +190,30 @@ export function QuestionCard({
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-blue-500 transition-colors"
                 >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    <span>{question.stats.comments}</span>
+                    <span>{baseComments}</span>
                 </button>
 
                 <button
-                    onClick={(e) => { 
+                    onClick={async (e) => { 
                         e.stopPropagation(); 
-                        if (onShare) onShare(e);
-                        else toast.success('分享链接已复制');
+
+                        if (onShare) {
+                            onShare(e);
+                            return;
+                        }
+
+                        const shareUrl = buildQuestionShareUrl(question.id);
+                        if (!shareUrl) {
+                            toast.error('暂未配置分享域名，当前不支持复制分享链接');
+                            return;
+                        }
+
+                        const copied = await copyToClipboardSafe(shareUrl);
+                        if (copied) {
+                            toast.success('分享链接已复制');
+                        } else {
+                            toast.success(`分享链接：${shareUrl}`);
+                        }
                     }}
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-800 transition ml-auto"
                 >

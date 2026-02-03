@@ -9,6 +9,7 @@ type RateLimitKey = string;
 const behaviorRateMap = new Map<RateLimitKey, { count: number; windowStart: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 分钟窗口
 const RATE_LIMIT_MAX_EVENTS = 30; // 每窗口允许的最大上报次数
+const METADATA_MAX_BYTES = 2 * 1024; // 单次 metadata 最大大小（约 2KB）
 
 export const behaviorRouter = Router();
 
@@ -29,6 +30,28 @@ behaviorRouter.post(
           'VALIDATION_ERROR',
           '缺少行为类型'
         );
+      }
+
+      // metadata 大小限制，避免单次埋点携带过大 payload
+      if (metadata != null) {
+        try {
+          const serialized = JSON.stringify(metadata);
+          const length = Buffer.byteLength(serialized, 'utf8');
+          if (length > METADATA_MAX_BYTES) {
+            throw new AppError(
+              400,
+              'VALIDATION_ERROR',
+              'metadata 过大，单次埋点数据请控制在 2KB 以内'
+            );
+          }
+        } catch {
+          // 如果无法序列化，视为参数错误
+          throw new AppError(
+            400,
+            'VALIDATION_ERROR',
+            'metadata 必须是可序列化的 JSON 对象'
+          );
+        }
       }
 
       let userId: string | undefined;

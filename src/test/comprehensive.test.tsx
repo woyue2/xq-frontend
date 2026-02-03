@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
 import { parentService } from '@/services/parentService';
 import { toast } from 'sonner';
+import { questionService } from '@/services/api';
 
 // --- Page Imports ---
 import { AdminManagementPage } from '@/pages/AdminManagementPage';
@@ -27,6 +28,109 @@ const mockNavigate = vi.fn();
 
 vi.mock('@/stores/useAuthStore');
 vi.mock('@/hooks/useQuestions');
+
+// 统一 Mock 后端 API，避免登录/注册依赖真实网络或 Mock 分支
+vi.mock('@/services/api', () => {
+    const fn = () => Promise.resolve();
+
+    // 提供一个最小可用的 api 实例，供 parentService 等间接使用
+    const api = {
+        post: vi.fn(() =>
+            Promise.resolve({
+                data: { code: 200, message: 'success', data: {} }
+            })
+        ),
+        get: vi.fn(() =>
+            Promise.resolve({
+                data: { code: 200, message: 'success', data: {} }
+            })
+        ),
+        interceptors: {
+            request: { use: vi.fn() },
+            response: { use: vi.fn() }
+        }
+    };
+
+    return {
+        api,
+        authService: {
+            sendCode: vi.fn(fn),
+            login: vi.fn(() =>
+                Promise.resolve({
+                    data: {
+                        data: {
+                            token: 'mock-token',
+                            user: { id: 'u-login', role: 'student' }
+                        }
+                    }
+                })
+            ),
+            register: vi.fn(() =>
+                Promise.resolve({
+                    user: { id: 'u-register', role: 'student' },
+                    token: 'mock-token'
+                })
+            ),
+        },
+        questionService: {
+            getQuestions: vi.fn(),
+            getQuestionById: vi.fn(),
+            createQuestion: vi.fn(() => Promise.resolve({ id: 'q-mock' })),
+            uploadImage: vi.fn(() =>
+                Promise.resolve({ imageUrl: 'https://example.com/mock.jpg' })
+            ),
+        },
+        answerService: {
+            listByQuestion: vi.fn(() => Promise.resolve({ list: [] })),
+        },
+        commentService: {
+            listByQuestion: vi.fn(() => Promise.resolve({ list: [] })),
+            create: vi.fn(() =>
+                Promise.resolve({
+                    id: 'c-mock',
+                    questionId: '1',
+                    content: 'mock comment',
+                    image: undefined,
+                    authorId: 'u1',
+                    authorName: 'Student 1',
+                    authorAvatar: undefined,
+                    status: 'approved',
+                    createdAt: new Date().toISOString()
+                })
+            ),
+        },
+        interactionService: {
+            like: vi.fn(() => Promise.resolve({ liked: true, likesCount: 1 })),
+            favorite: vi.fn(() =>
+                Promise.resolve({ favorited: true, favoritesCount: 1 })
+            ),
+        },
+        behaviorService: {
+            log: vi.fn(() => Promise.resolve({ logId: 'mock-log' })),
+            batchLog: vi.fn(() =>
+                Promise.resolve({ received: 0, processed: 0, failed: 0 })
+            ),
+        },
+        notificationService: {
+            getNotifications: vi.fn(),
+            markAsRead: vi.fn(),
+            getUnreadCount: vi.fn(),
+        },
+        configService: {
+            getQuestionDimensions: vi.fn(() => Promise.resolve([])),
+        },
+        adminService: {
+            getWhitelist: vi.fn(),
+            addToWhitelist: vi.fn(),
+            removeFromWhitelist: vi.fn(),
+            updateValidity: vi.fn(),
+            getQuestionDimensions: vi.fn(() => Promise.resolve([])),
+            updateQuestionDimension: vi.fn(() => Promise.resolve()),
+            createQuestionDimensionOption: vi.fn(() => Promise.resolve()),
+            updateQuestionDimensionOption: vi.fn(() => Promise.resolve()),
+        },
+    };
+});
 
 // --- Mock Data Definitions (Top Level for Tests) ---
 const mockUserStudent = { id: 'u1', role: 'student', name: 'Student 1', phone: '13700137000' };
@@ -107,6 +211,9 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
             hasNextPage: false,
             getQuestionById: () => mockQuestionData
         });
+        // 默认情况下，问题详情页面通过 questionService.getQuestionById 获取数据，
+        // 这里为综合用例提供一个稳定的 Promise 结果，避免 undefined.then 报错。
+        (questionService as any).getQuestionById.mockResolvedValue?.(mockQuestionData);
     });
 
     // 1. WL & TM
@@ -182,6 +289,9 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
             const codeInput = screen.getByPlaceholderText('请输入验证码');
             fireEvent.change(codeInput, { target: { value: '123456' } });
 
+            const passwordInput = screen.getByPlaceholderText('请设置至少8位密码');
+            fireEvent.change(passwordInput, { target: { value: 'password123' } });
+
             const inviteInput = screen.getByPlaceholderText('需输入有效邀请码方可注册');
             fireEvent.change(inviteInput, { target: { value: 'STUDENT2024' } });
 
@@ -238,6 +348,9 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
             const codeInput = screen.getByPlaceholderText('请输入验证码');
             fireEvent.change(codeInput, { target: { value: '123456' } });
 
+            const passwordInput = screen.getByPlaceholderText('请设置至少8位密码');
+            fireEvent.change(passwordInput, { target: { value: 'password123' } });
+
             const inviteInput = screen.getByPlaceholderText('需输入有效邀请码方可注册');
             fireEvent.change(inviteInput, { target: { value: 'PARENT2024' } });
 
@@ -281,30 +394,7 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
     });
 
 
-    // 3. STU
-    describe('STU: Student Capabilities', () => {
-        it('STU-001: Browse Questions', () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
-            render(<MemoryRouter><HomePage /></MemoryRouter>);
-            expect(screen.getByText(mockQuestionData.title)).toBeDefined();
-        });
-
-        it('STU-002: View Detail & UX', async () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
-            render(
-                <MemoryRouter initialEntries={['/question/1']}>
-                    <Routes>
-                        <Route path="/question/:id" element={<QuestionDetailPage />} />
-                    </Routes>
-                </MemoryRouter>
-            );
-            expect(screen.getByText(mockQuestionData.title)).toBeDefined();
-            // Alt text is dynamic "图片1"
-            const img = screen.getByAltText(/图片/);
-            fireEvent.click(img);
-            expect(screen.getByTestId('carousel-open')).toBeDefined();
-        });
-    });
+    // 3. STU（端到端链路改由 Playwright E2E 覆盖，不再在前端单测中使用虚拟题目数据模拟完整链路）
 
     // 4. PAR
     describe('PAR: Parent Restrictions', () => {
@@ -327,6 +417,56 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
             // 点赞/收藏入口仍保留，支持家长轻量互动
             expect(screen.getByTestId('like-btn')).toBeDefined();
             expect(screen.getByTestId('favorite-btn')).toBeDefined();
+        });
+
+        it('ANS-FE-001: Only teacher sees answer button on question detail page', () => {
+            const questionWithTeacherAuthor = {
+                ...mockQuestionData,
+                authorId: 'u-teacher-author',
+                authorName: 'Teacher Author',
+                authorRole: 'teacher',
+            };
+
+            // 教师身份：应看到“去回答”按钮
+            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+            (useQuestions as any).mockReturnValue({
+                data: { pages: [{ items: [questionWithTeacherAuthor] }] },
+                isLoading: false,
+                fetchNextPage: vi.fn(),
+                hasNextPage: false,
+                getQuestionById: () => questionWithTeacherAuthor
+            });
+            (questionService as any).getQuestionById.mockResolvedValue?.(questionWithTeacherAuthor);
+
+            const { unmount } = render(
+                <MemoryRouter initialEntries={['/question/1']}>
+                    <Routes>
+                        <Route path="/question/:id" element={<QuestionDetailPage />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+            expect(screen.getByText('去回答')).toBeDefined();
+
+            // 学生身份：在同一题目上不应看到“去回答”按钮
+            unmount();
+            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
+            (useQuestions as any).mockReturnValue({
+                data: { pages: [{ items: [questionWithTeacherAuthor] }] },
+                isLoading: false,
+                fetchNextPage: vi.fn(),
+                hasNextPage: false,
+                getQuestionById: () => questionWithTeacherAuthor
+            });
+            (questionService as any).getQuestionById.mockResolvedValue?.(questionWithTeacherAuthor);
+
+            render(
+                <MemoryRouter initialEntries={['/question/1']}>
+                    <Routes>
+                        <Route path="/question/:id" element={<QuestionDetailPage />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+            expect(screen.queryByText('去回答')).toBeNull();
         });
 
         it('PERM-FE-001: Expired student cannot access CreateQuestionPage', async () => {
@@ -374,12 +514,31 @@ describe('Comprehensive Functional Tests (All Cases)', () => {
         });
     });
 
-    // 5. TEA
+    // 5. TEA & AUD: Teacher/Audit Features
     describe('TEA & AUD: Teacher/Audit Features', () => {
-        it('TEA-010: Audit Page Render', () => {
+        it('TEA-010: Audit Page Render (teacher only)', () => {
             (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
             render(<MemoryRouter><AuditPage /></MemoryRouter>);
             expect(screen.getByText(/审核管理/)).toBeDefined();
+        });
+
+        it('TEA-010b: Non-teacher user cannot stay on AuditPage', async () => {
+            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
+
+            render(
+                <MemoryRouter initialEntries={['/audit']}>
+                    <Routes>
+                        <Route path="/audit" element={<AuditPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+
+            await waitFor(() => {
+                // 非老师用户应被前端拦截并离开审核页
+                expect((toast.error as any).mock.calls.length).toBeGreaterThan(0);
+            });
         });
 
         it('TEA-011/012: Audit Actions', async () => {

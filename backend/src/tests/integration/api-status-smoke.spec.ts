@@ -21,6 +21,8 @@ describe('API status code smoke test', () => {
   beforeAll(async () => {
     // 清理并准备最小测试数据，避免影响其他集成测试
     await prisma.behaviorLog.deleteMany();
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
     await prisma.like.deleteMany();
     await prisma.favorite.deleteMany();
     await prisma.comment.deleteMany();
@@ -56,10 +58,10 @@ describe('API status code smoke test', () => {
     expect(res.status).toBe(200);
   });
 
-  it('POST /api/auth/send-code should return 200 and code=200', async () => {
+  it('POST /api/auth/send-code should return 200 and code=200 for existing user', async () => {
     const res = await request(app)
       .post('/api/auth/send-code')
-      .send({ phone: '13800138000', type: 'login' });
+      .send({ phone: '13900000999', type: 'login' });
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(200);

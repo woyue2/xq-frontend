@@ -62,7 +62,7 @@ export interface Question {
     answers: number;
     views?: number;
   };
-  
+
   // 扁平化计数 (兼容性)
   answerCount?: number;
   viewCount?: number;
@@ -73,6 +73,7 @@ export interface Question {
   authorId: string;
   authorName: string;
   authorAvatar?: string;
+  authorRole?: string;
 
   createdAt: string;
 }
@@ -101,6 +102,7 @@ export interface Answer {
   content: string;
   images?: string[];
   audioUrl?: string;
+  audioUrls?: string[];
 
   authorId: string;
   authorName: string;

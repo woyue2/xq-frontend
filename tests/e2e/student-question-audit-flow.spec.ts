@@ -4,14 +4,8 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
 async function gotoProfile(page: Page) {
   await page.goto('/');
 
-  const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-  const fallback = page.getByText('我');
-
-  if (await avatarBtn.first().isVisible()) {
-    await avatarBtn.first().click();
-  } else {
-    await fallback.click();
-  }
+  const profileBtn = page.getByTestId('nav-profile');
+  await profileBtn.click();
 
   await expect(page).toHaveURL(/\/profile$/);
 }
@@ -115,4 +109,3 @@ test.describe('学生端完整链路: 提问 → 老师审核 → 我的问题 �
     await expect(page.getByText(titleText)).toBeVisible();
   });
 });
-

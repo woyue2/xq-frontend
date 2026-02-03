@@ -8,14 +8,8 @@ test.describe('教师角色端到端业务链路', () => {
     await page.goto('/');
 
     // 进入个人中心
-    const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-    const fallback = page.getByText('我');
-
-    if (await avatarBtn.first().isVisible()) {
-      await avatarBtn.first().click();
-    } else {
-      await fallback.click();
-    }
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     await expect(page).toHaveURL(/\/profile$/);
     await expect(page.getByText('老师（有权限）')).toBeVisible();
@@ -38,4 +32,3 @@ test.describe('教师角色端到端业务链路', () => {
     await expect(page.getByText('用户白名单管理')).toBeVisible();
   });
 });
-

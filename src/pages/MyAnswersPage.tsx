@@ -2,24 +2,53 @@ import { MessageSquare, ThumbsUp, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { mockAnswers, mockQuestions } from '@/lib/mock-data';
+import { useEffect, useState } from 'react';
+import type { MyAnswerSummary } from '@/types/api';
+import { profileService } from '@/services/api';
+import { toast } from 'sonner';
 
 export function MyAnswersPage() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
+    const [myAnswers, setMyAnswers] = useState<MyAnswerSummary[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Flatten answers and filter by current user
-    const myAnswers = Object.entries(mockAnswers).flatMap(([questionId, answers]) => {
-        return answers.map(answer => ({
-            ...answer,
-            questionId // ensure questionId is present
-        }));
-    }).filter(answer => answer.authorId === user?.id);
+    useEffect(() => {
+        // 未登录用户直接跳转登录页，避免在未授权状态下访问个人回答列表
+        if (!user) {
+            navigate('/login');
+            return;
+        }
 
-    // Helper to find question details
-    const getQuestion = (questionId: string) => {
-        return mockQuestions.find(q => q.id === questionId);
-    };
+        // 业务规则：只有老师才会有回答记录，学生/家长访问该页面时提示并回到个人中心
+        if (user.role !== 'teacher') {
+            toast.error('只有老师可以查看我的回答');
+            navigate('/profile');
+        }
+    }, [user, navigate]);
+
+    useEffect(() => {
+        if (!user || user.role !== 'teacher') return;
+        setIsLoading(true);
+        profileService
+            .getMyAnswers({ page: 1, pageSize: 50 })
+            .then((data) => {
+                setMyAnswers(data.items);
+            })
+            .catch((err) => {
+                // eslint-disable-next-line no-console
+                console.error('加载我的回答失败', err);
+                toast.error('加载我的回答列表失败，请稍后重试');
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    }, [user]);
+
+    // 对未登录或非老师账号在 UI 层直接不渲染内容，避免闪现不符合身份的页面
+    if (!user || user.role !== 'teacher') {
+        return null;
+    }
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -45,7 +74,11 @@ export function MyAnswersPage() {
             </div>
 
             {/* Answer List */}
-            {myAnswers.length === 0 ? (
+            {isLoading ? (
+                <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
+                    <div className="animate-pulse text-gray-400">加载中...</div>
+                </div>
+            ) : myAnswers.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
                     <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">还没有回答过问题哦</p>
@@ -58,52 +91,48 @@ export function MyAnswersPage() {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {myAnswers.map((answer) => {
-                        const question = getQuestion(answer.questionId);
-                        
-                        return (
-                            <div
-                                key={answer.id}
-                                onClick={() => navigate(`/question/${answer.questionId}`)}
-                                className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md transition cursor-pointer"
-                            >
-                                {/* Question Title */}
-                                <div className="mb-3">
-                                    <span className="text-sm font-medium text-gray-500">回答问题：</span>
-                                    <h3 className="text-base font-bold text-gray-800 line-clamp-1">
-                                        {question?.title || '未知问题'}
-                                    </h3>
+                    {myAnswers.map((answer) => (
+                        <div
+                            key={answer.id}
+                            onClick={() => navigate(`/question/${answer.questionId}`)}
+                            className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-md transition cursor-pointer"
+                        >
+                            {/* Question Title */}
+                            <div className="mb-3">
+                                <span className="text-sm font-medium text-gray-500">回答问题：</span>
+                                <h3 className="text-base font-bold text-gray-800 line-clamp-1">
+                                    {answer.questionTitle || '未知问题'}
+                                </h3>
+                            </div>
+
+                            {/* Answer Content Preview */}
+                            <p className="text-gray-600 text-sm line-clamp-2 mb-3 bg-gray-50 p-3 rounded-xl">
+                                {answer.content}
+                            </p>
+
+                            {/* Footer Stats */}
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                        <ThumbsUp className="w-4 h-4" />
+                                        <span>{answer.likes}</span>
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                        {formatDate(answer.createdAt)}
+                                    </span>
                                 </div>
-
-                                {/* Answer Content Preview */}
-                                <p className="text-gray-600 text-sm line-clamp-2 mb-3 bg-gray-50 p-3 rounded-xl">
-                                    {answer.content}
-                                </p>
-
-                                {/* Footer Stats */}
-                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                                        <div className="flex items-center gap-1">
-                                            <ThumbsUp className="w-4 h-4" />
-                                            <span>{answer.likes}</span>
-                                        </div>
-                                        <span className="text-xs text-gray-400">
-                                            {formatDate(answer.createdAt)}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="flex items-center text-xs text-gray-400">
-                                        {answer.status === 'approved' ? (
-                                            <Badge className="bg-green-100 text-green-700 border-0 px-2">已发布</Badge>
-                                        ) : (
-                                            <Badge className="bg-yellow-100 text-yellow-700 border-0 px-2">审核中</Badge>
-                                        )}
-                                        <ChevronRight className="w-4 h-4 ml-2" />
-                                    </div>
+                                
+                                <div className="flex items-center text-xs text-gray-400">
+                                    {answer.status === 'approved' ? (
+                                        <Badge className="bg-green-100 text-green-700 border-0 px-2">已发布</Badge>
+                                    ) : (
+                                        <Badge className="bg-yellow-100 text-yellow-700 border-0 px-2">审核中</Badge>
+                                    )}
+                                    <ChevronRight className="w-4 h-4 ml-2" />
                                 </div>
                             </div>
-                        );
-                    })}
+                        </div>
+                    ))}
                 </div>
             )}
         </div>

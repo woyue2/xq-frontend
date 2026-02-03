@@ -23,6 +23,8 @@ describe('Like & Favorite API', () => {
 
   beforeEach(async () => {
     await prisma.behaviorLog.deleteMany();
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
     await prisma.like.deleteMany();
     await prisma.favorite.deleteMany();
     await prisma.comment.deleteMany();
@@ -426,5 +428,133 @@ describe('Like & Favorite API', () => {
     expect(res.body.code).toBe(200);
     expect(res.body.data.list.length).toBeGreaterThanOrEqual(1);
     expect(res.body.data.list[0].id).toBe(q.id);
+  });
+
+  it('should not return likes of non-approved questions in my likes list', async () => {
+    const approved = await prisma.question.create({
+      data: {
+        id: 'q-like-visible-approved',
+        title: '已通过审核的问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const pending = await prisma.question.create({
+      data: {
+        id: 'q-like-hidden-pending',
+        title: '待审核的问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'pending',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    await prisma.like.createMany({
+      data: [
+        {
+          userId: 'student_001',
+          targetType: 'question',
+          targetId: approved.id
+        },
+        {
+          userId: 'student_001',
+          targetType: 'question',
+          targetId: pending.id
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get('/api/users/me/likes?page=1&pageSize=20')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    const ids = res.body.data.list.map((q: any) => q.id);
+    expect(ids).toContain(approved.id);
+    expect(ids).not.toContain(pending.id);
+  });
+
+  it('should not return favorites of non-approved questions in my favorites list', async () => {
+    const approved = await prisma.question.create({
+      data: {
+        id: 'q-fav-visible-approved',
+        title: '已通过审核的问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const rejected = await prisma.question.create({
+      data: {
+        id: 'q-fav-hidden-rejected',
+        title: '被驳回的问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'rejected',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    await prisma.favorite.createMany({
+      data: [
+        {
+          userId: 'student_001',
+          questionId: approved.id
+        },
+        {
+          userId: 'student_001',
+          questionId: rejected.id
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get('/api/users/me/favorites?page=1&pageSize=20')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    const ids = res.body.data.list.map((q: any) => q.id);
+    expect(ids).toContain(approved.id);
+    expect(ids).not.toContain(rejected.id);
   });
 });

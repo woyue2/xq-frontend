@@ -8,14 +8,8 @@ test.describe('家长角色端到端业务链路', () => {
     await page.goto('/');
 
     // 进入个人中心
-    const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-    const fallback = page.getByText('我');
-
-    if (await avatarBtn.first().isVisible()) {
-      await avatarBtn.first().click();
-    } else {
-      await fallback.click();
-    }
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     await expect(page).toHaveURL(/\/profile$/);
 
@@ -88,15 +82,23 @@ test.describe('家长角色端到端业务链路', () => {
     await expect(page.getByText('用户白名单')).toHaveCount(0);
   });
 
-  test('家长: 个人中心进入“我的点赞”和“我的收藏”页面', async ({ page }) => {
+  test('PAR-008: 家长个人中心菜单与“我的点赞/我的收藏”访问', async ({ page }) => {
     await bootstrapAuth(page, 'parent');
 
     // 直接进入个人中心
-    await page.goto('/profile');
+    await page.goto('/');
+
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     // 家长应该能看到“我的点赞”和“我的收藏”菜单项
     await expect(page.getByText('我的点赞')).toBeVisible();
     await expect(page.getByText('我的收藏')).toBeVisible();
+
+    // 家长不应看到“我的提问”“审核管理”“用户白名单”等仅学生/老师可见入口
+    await expect(page.getByText('我的提问')).toHaveCount(0);
+    await expect(page.getByText('审核管理')).toHaveCount(0);
+    await expect(page.getByText('用户白名单')).toHaveCount(0);
 
     // 进入“我的点赞”页面
     await page.getByText('我的点赞').click();

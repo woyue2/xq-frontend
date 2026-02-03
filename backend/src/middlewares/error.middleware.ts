@@ -31,8 +31,18 @@ interface ErrorLogMeta {
  */
 const logError = (req: RequestWithLog, meta: ErrorLogMeta, err: unknown) => {
   const logger = req.log;
+  const headers = (req.headers ?? {}) as Record<string, string | string[]>;
+  const rawMode = typeof headers['x-client-mode'] === 'string'
+    ? headers['x-client-mode']
+    : undefined;
+  const mode: 'mock' | 'normal' =
+    rawMode === 'mock'
+      ? 'mock'
+      : 'normal';
+
   const payload = {
     ...meta,
+    mode,
     // 仅在错误为 Error 实例时附带 stack，避免日志过大
     stack: err instanceof Error ? err.stack : undefined
   };
@@ -69,6 +79,33 @@ export const errorMiddleware = (
   const request = req as RequestWithLog;
   const path = request.path;
   const method = request.method;
+
+   const anyErr = err as any;
+
+  // 处理 Multer 等上传相关错误，返回更友好的 4xx 提示
+  if (anyErr && typeof anyErr === 'object' && anyErr.code === 'LIMIT_FILE_SIZE') {
+    const status = 400;
+
+    logError(
+      request,
+      {
+        type: 'validation_error',
+        status,
+        code: status,
+        error: 'FILE_TOO_LARGE',
+        path,
+        method
+      },
+      err
+    );
+
+    return res.status(status).json({
+      code: status,
+      message: '上传文件过大',
+      error: 'FILE_TOO_LARGE',
+      timestamp: Date.now()
+    });
+  }
 
   if (err instanceof AppError) {
     const status = err.status;

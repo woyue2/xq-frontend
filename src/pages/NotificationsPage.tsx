@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { notificationService } from '@/services/api';
 import type { Notification } from '@/types/api';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { toast } from 'sonner';
 
 const formatDate = (iso: string) => {
   const date = new Date(iso);
@@ -16,6 +18,7 @@ const formatDate = (iso: string) => {
 
 export function NotificationsPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,9 +40,31 @@ export function NotificationsPage() {
     }
   };
 
+  // 仅允许已登录用户访问通知中心
   useEffect(() => {
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (!user) return;
     void loadNotifications();
-  }, []);
+  }, [user]);
+
+  const parseAnswerIdFromContent = (n: Notification): string | null => {
+    if (n.type !== 'new_answer' || !n.content) return null;
+    try {
+      const parsed = JSON.parse(n.content) as { answerId?: string | null };
+      if (parsed && typeof parsed.answerId === 'string' && parsed.answerId) {
+        return parsed.answerId;
+      }
+    } catch {
+      // 解析失败时退回普通字符串展示
+    }
+    return null;
+  };
 
   const handleItemClick = async (n: Notification) => {
     if (!n.isRead) {
@@ -55,7 +80,12 @@ export function NotificationsPage() {
     }
 
     if (n.targetType === 'question' && n.targetId) {
-      navigate(`/question/${n.targetId}`);
+      const answerId = parseAnswerIdFromContent(n);
+      if (answerId) {
+        navigate(`/question/${n.targetId}?answerId=${encodeURIComponent(answerId)}`);
+      } else {
+        navigate(`/question/${n.targetId}`);
+      }
     }
   };
 
@@ -111,10 +141,13 @@ export function NotificationsPage() {
         ) : (
           items.map((n) => {
             const isAudit = n.type === 'audit_result';
+            const isNewAnswer = n.type === 'new_answer';
             const icon = isAudit ? (
               <CheckCircle className="w-5 h-5 text-emerald-500" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-blue-500" />
+              <AlertCircle
+                className={`w-5 h-5 ${isNewAnswer ? 'text-amber-500' : 'text-blue-500'}`}
+              />
             );
             return (
               <button
@@ -154,4 +187,3 @@ export function NotificationsPage() {
     </div>
   );
 }
-

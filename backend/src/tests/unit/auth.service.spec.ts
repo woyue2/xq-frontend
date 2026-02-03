@@ -49,6 +49,12 @@ describe('AuthService - 单元测试', () => {
     });
 
     it('应当成功发送验证码并返回过期与冷却时间', async () => {
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-login-001',
+        phone: '13800138000',
+        isActive: true,
+        isBanned: false
+      });
       (prismaAny.verificationCode.create as jest.Mock).mockResolvedValue({});
 
       const result = await service.sendCode('13800138000', 'login');
@@ -60,6 +66,12 @@ describe('AuthService - 单元测试', () => {
     });
 
     it('应当对同一手机号在冷却时间内进行限流', async () => {
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-login-002',
+        phone: '13900139000',
+        isActive: true,
+        isBanned: false
+      });
       (prismaAny.verificationCode.create as jest.Mock).mockResolvedValue({});
 
       const nowSpy = jest.spyOn(Date, 'now');
@@ -79,6 +91,25 @@ describe('AuthService - 单元测试', () => {
       });
 
       nowSpy.mockRestore();
+    });
+
+    it('应当在验证码记录写入失败时抛出内部错误而不是静默成功', async () => {
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-login-003',
+        phone: '13700137000',
+        isActive: true,
+        isBanned: false
+      });
+      (prismaAny.verificationCode.create as jest.Mock).mockRejectedValue(
+        new Error('db error')
+      );
+
+      await expect(
+        service.sendCode('13700137000', 'login')
+      ).rejects.toMatchObject<Partial<AppError>>({
+        status: 500,
+        code: 'INTERNAL_SERVER_ERROR'
+      });
     });
   });
 
@@ -198,15 +229,65 @@ describe('AuthService - 单元测试', () => {
   });
 
   describe('register', () => {
-    it('应当在缺少昵称时抛出 MISSING_REQUIRED_FIELD', async () => {
+    it('应当在密码长度不足 8 位时抛出 INVALID_PASSWORD_FORMAT', async () => {
       await expect(
         service.register({
           phone: '13800138000',
-          code: '123456'
-        } as any)
+          code: '123456',
+          nickname: '新用户',
+          password: '1234567'
+        })
       ).rejects.toMatchObject<Partial<AppError>>({
-        code: 'MISSING_REQUIRED_FIELD'
+        code: 'INVALID_PASSWORD_FORMAT',
+        status: 400
       });
+    });
+
+    it('在缺少昵称时应当自动生成默认昵称', async () => {
+      (prismaAny.verificationCode.findFirst as jest.Mock).mockResolvedValue({
+        id: 'vc1',
+        phone: '13800138000',
+        code: '123456',
+        type: 'register',
+        used: false,
+        expireAt: new Date(Date.now() + 60 * 1000)
+      });
+      (prismaAny.verificationCode.update as jest.Mock).mockResolvedValue({});
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prismaAny.user.create as jest.Mock).mockImplementation((args: any) => {
+        return {
+          id: 'user1',
+          phone: args.data.phone,
+          nickname: args.data.nickname,
+          avatar: null,
+          role: args.data.role,
+          grade: args.data.grade,
+          age: args.data.age,
+          school: args.data.school,
+          expiresAt: args.data.expiresAt
+        };
+      });
+      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue(
+        null
+      );
+      (prismaAny.refreshToken.create as jest.Mock).mockResolvedValue({});
+
+      jest.spyOn(jwtUtils, 'signAccessToken').mockReturnValue('access-token');
+      jest
+        .spyOn(jwtUtils, 'signRefreshToken')
+        .mockReturnValue('refresh-token');
+
+      const result = await service.register({
+        phone: '13800138000',
+        code: '123456',
+        // 不提供 nickname，期望后端自动生成
+        password: '12345678'
+      } as any);
+
+      expect(result.user.nickname).toBeDefined();
+      // 默认昵称以手机号后 4 位拼接，形如 "用户_8000"
+      expect(result.user.nickname.startsWith('用户_')).toBe(true);
+      expect(result.user.nickname.slice(-4)).toBe('8000');
     });
 
     it('应当在验证码无效时抛出 INVALID_CODE', async () => {
@@ -218,7 +299,8 @@ describe('AuthService - 单元测试', () => {
         service.register({
           phone: '13800138000',
           code: '000000',
-          nickname: '新用户'
+          nickname: '新用户',
+          password: '12345678'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
         code: 'INVALID_CODE'
@@ -243,7 +325,8 @@ describe('AuthService - 单元测试', () => {
         service.register({
           phone: '13800138000',
           code: '123456',
-          nickname: '已存在用户'
+          nickname: '已存在用户',
+          password: '12345678'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
         code: 'USER_EXISTS',
@@ -288,7 +371,8 @@ describe('AuthService - 单元测试', () => {
       const result = await service.register({
         phone: '13800138000',
         code: '123456',
-        nickname: '新用户'
+        nickname: '新用户',
+        password: '12345678'
       });
 
       expect(signAccessSpy).toHaveBeenCalled();

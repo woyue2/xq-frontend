@@ -1,14 +1,25 @@
-import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
+import { toast } from 'sonner';
+import { questionService } from '@/services/api';
+import { useEffect } from 'react';
 
 export function MyQuestionsPage() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const { data, isLoading } = useQuestions({ authorId: user?.id });
+    const { data, isLoading, refetch } = useQuestions({ authorId: user?.id });
+
+    // 未登录用户访问“我的提问”时统一跳转登录页，避免误展示公共列表
+    useEffect(() => {
+        if (!user) {
+            toast.error('请先登录');
+            navigate('/login');
+        }
+    }, [user, navigate]);
 
     // 获取当前用户的问题
     const myQuestions = data?.pages.flatMap(p => p.items) || [];
@@ -30,6 +41,36 @@ export function MyQuestionsPage() {
             banned: { label: '已封禁', className: 'bg-gray-100 text-gray-700' },
         };
         return statusMap[status] || statusMap.pending;
+    };
+
+    const canDeleteQuestion = (question: any) => {
+        const isTeacher = user?.role === 'teacher';
+        const isAuthor = user?.id === question.authorId;
+        const answers =
+            question.answerCount ??
+            (question.stats && typeof question.stats.answers === 'number'
+                ? question.stats.answers
+                : 0);
+        const hasAnyAnswer = (answers as number) > 0;
+
+        if (isTeacher) return true;
+        return isAuthor && !hasAnyAnswer;
+    };
+
+    const handleDelete = async (e: React.MouseEvent, question: any) => {
+        e.stopPropagation();
+        if (!window.confirm('确定要删除这个问题吗？此操作无法撤销。')) return;
+
+        try {
+            await questionService.delete(question.id);
+            toast.success('删除成功');
+            await refetch();
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.message ||
+                '删除失败，请稍后重试';
+            toast.error(message);
+        }
     };
 
     return (
@@ -85,6 +126,11 @@ export function MyQuestionsPage() {
                     {myQuestions.map((question) => {
                         const difficultyBadge = getDifficultyBadge(question.difficulty);
                         const statusBadge = getStatusBadge(question.status);
+                        const answers =
+                            question.answerCount ??
+                            (question.stats && typeof question.stats.answers === 'number'
+                                ? question.stats.answers
+                                : 0);
 
                         return (
                             <div
@@ -120,7 +166,7 @@ export function MyQuestionsPage() {
                                     <div className="flex items-center gap-3">
                                         <span>{question.subject}</span>
                                         <span>•</span>
-                                        <span>{question.answerCount || 0} 回答</span>
+                                        <span>{answers as number} 回答</span>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1">
@@ -131,6 +177,17 @@ export function MyQuestionsPage() {
                                             <Heart className="w-3 h-3" />
                                             <span>{question.likeCount || 0}</span>
                                         </div>
+                                        {canDeleteQuestion(question) && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => handleDelete(e, question)}
+                                                className="text-red-400 hover:text-red-500 transition-colors p-1"
+                                                title="删除问题"
+                                                data-testid={`delete-question-${question.id}`}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

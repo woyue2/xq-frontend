@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
 
 import { AdminManagementPage } from '@/pages/AdminManagementPage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
-import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { TestApiPage } from '@/pages/TestApiPage';
+import { adminService } from '@/services/api';
 
 // --- Mocks ---
 const mockNavigate = vi.fn();
@@ -26,36 +27,73 @@ vi.mock('@/services/api', () => {
     return {
         authService: {
             sendCode: vi.fn(fn),
-            login: vi.fn(() => Promise.resolve({ data: { data: { token: 'mock', user: { id: 'u1' } } } })),
-            register: vi.fn(() => Promise.resolve({ user: { id: 'u1' }, token: 'mock' })),
+            login: vi.fn(() =>
+                Promise.resolve({
+                    data: { data: { token: 'mock', user: { id: 'u1' } } }
+                })
+            ),
+            register: vi.fn(() =>
+                Promise.resolve({ user: { id: 'u1' }, token: 'mock' })
+            ),
         },
         questionService: {
             getQuestions: vi.fn(),
             getQuestionById: vi.fn(),
             createQuestion: vi.fn(() => Promise.resolve({ id: 'q-mock' })),
-            uploadImage: vi.fn(() => Promise.resolve({ imageUrl: 'https://example.com/mock.jpg' })),
+            uploadImage: vi.fn(() =>
+                Promise.resolve({ imageUrl: 'https://example.com/mock.jpg' })
+            ),
         },
         answerService: {
             listByQuestion: vi.fn(() => Promise.resolve({ list: [] })),
         },
+        commentService: {
+            listByQuestion: vi.fn(() => Promise.resolve({ list: [] })),
+            create: vi.fn(() =>
+                Promise.resolve({
+                    id: 'c1',
+                    questionId: '1',
+                    questionTitle: 'Q1',
+                    content: 'mock comment',
+                    image: undefined,
+                    authorId: 'u1',
+                    authorName: 'Student 1',
+                    authorAvatar: undefined,
+                    status: 'approved',
+                    aiResult: '无违规',
+                    createdAt: new Date().toISOString()
+                })
+            )
+        },
         interactionService: {
             like: vi.fn(() => Promise.resolve({ liked: true, likesCount: 1 })),
-            favorite: vi.fn(() => Promise.resolve({ favorited: true, favoritesCount: 1 })),
+            favorite: vi.fn(() =>
+                Promise.resolve({ favorited: true, favoritesCount: 1 })
+            ),
         },
         behaviorService: {
             log: vi.fn(() => Promise.resolve({ logId: 'mock-log' })),
-            batchLog: vi.fn(() => Promise.resolve({ received: 0, processed: 0, failed: 0 })),
+            batchLog: vi.fn(() =>
+                Promise.resolve({ received: 0, processed: 0, failed: 0 })
+            ),
         },
         notificationService: {
             getNotifications: vi.fn(),
             markAsRead: vi.fn(),
             getUnreadCount: vi.fn(),
         },
+        configService: {
+            getQuestionDimensions: vi.fn(() => Promise.resolve([])),
+        },
         adminService: {
             getWhitelist: vi.fn(),
             addToWhitelist: vi.fn(),
             removeFromWhitelist: vi.fn(),
             updateValidity: vi.fn(),
+            getQuestionDimensions: vi.fn(() => Promise.resolve([])),
+            updateQuestionDimension: vi.fn(() => Promise.resolve()),
+            createQuestionDimensionOption: vi.fn(() => Promise.resolve()),
+            updateQuestionDimensionOption: vi.fn(() => Promise.resolve()),
         },
     };
 });
@@ -208,60 +246,102 @@ describe('Advanced Coverage Tests', () => {
                 expect(screen.queryByText('上传图片')).toBeNull();
             });
         });
+
+        it('WL-000: Unauthenticated user is redirected away from admin page', async () => {
+            // 未登录用户访问 /admin
+            (useAuthStore as any).mockReturnValue({ user: null });
+
+            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('请先登录');
+                expect(mockNavigate).toHaveBeenCalledWith('/login');
+            });
+        });
+
+        it('WL-000b: Non-teacher user cannot access admin page', async () => {
+            // 学生或家长访问 /admin
+            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
+
+            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('只有老师可以访问管理后台');
+                expect(mockNavigate).toHaveBeenCalledWith('/profile');
+            });
+        });
     });
 
-    // 3. STU-010: Like/Unlike (QuestionDetail)
-    describe('STU: Interaction', () => {
-        it('STU-010: Like toggles state', async () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
-            // Mock data for this specific test
-            const qData = {
-                id: '1',
-                title: 'Q1',
-                content: 'C1',
-                authorId: 'u1',
-                authorName: 'Student 1',
-                status: 'approved',
-                difficulty: 'easy',
-                createdAt: new Date().toISOString(),
-                stats: { likes: 0, comments: 0, favorites: 0 },
-                images: []
-            };
-            (useQuestions as any).mockReturnValue({
-                getQuestionById: () => qData,
-                data: { pages: [] },
-                isLoading: false,
-                fetchNextPage: vi.fn(),
-                hasNextPage: false
-            });
+    // 3. TEST: TestApiPage access control
+    describe('TEST: TestApiPage Access Control', () => {
+        it('TEST-001: Unauthenticated user is redirected to login', async () => {
+            (useAuthStore as any).mockReturnValue({ user: null });
 
             render(
-                <MemoryRouter initialEntries={['/question/1']}>
-                    <Routes>
-                        <Route path="/question/:id" element={<QuestionDetailPage />} />
-                    </Routes>
+                <MemoryRouter>
+                    <TestApiPage />
                 </MemoryRouter>
             );
 
-            // 使用 QuestionDetailPage 上暴露的 data-testid 精确选择点赞按钮
-            const likeButton = await screen.findByTestId('like-btn');
-
-            // 首次点击：应触发“点赞成功”类提示
-            fireEvent.click(likeButton);
             await waitFor(() => {
-                expect(toast.success).toHaveBeenCalledWith(
-                    expect.stringContaining('点赞成功')
-                );
+                expect(mockNavigate).toHaveBeenCalledWith('/login');
             });
+        });
 
-            (toast.success as vi.Mock).mockClear();
+        it('TEST-002: Non-teacher user cannot access TestApiPage', async () => {
+            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
 
-            // 再次点击：应触发“已取消点赞”类提示
-            fireEvent.click(likeButton);
+            render(
+                <MemoryRouter>
+                    <TestApiPage />
+                </MemoryRouter>
+            );
+
             await waitFor(() => {
-                expect(toast.success).toHaveBeenCalledWith(
-                    expect.stringContaining('已取消点赞')
-                );
+                expect(toast.error).toHaveBeenCalledWith('只有老师可以访问测试页面');
+                expect(mockNavigate).toHaveBeenCalledWith('/');
+            });
+        });
+
+        it('TEST-003: Teacher can see TestApiPage content', async () => {
+            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+
+            render(
+                <MemoryRouter>
+                    <TestApiPage />
+                </MemoryRouter>
+            );
+
+            await waitFor(() => {
+                expect(
+                    screen.getByText('系统配置中心（教师专用）')
+                ).toBeDefined();
+            });
+        });
+    });
+
+    // 4. DIM: Question Dimension Config (Admin UI glue only)
+    describe('DIM: Question Dimension Config', () => {
+        it('DIM-001: Admin can see dimension config card', async () => {
+            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
+
+            expect(
+                screen.getByText('题目维度配置（解题方法/办法）')
+            ).toBeDefined();
+        });
+
+        it('DIM-002: Refresh button triggers adminService.getQuestionDimensions', async () => {
+            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+            const spy = vi.spyOn(adminService, 'getQuestionDimensions');
+
+            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
+
+            const refreshBtn = screen.getByText('刷新配置');
+            fireEvent.click(refreshBtn);
+
+            await waitFor(() => {
+                expect(spy).toHaveBeenCalled();
             });
         });
     });

@@ -14,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { mockQuestions } from '@/lib/mock-data';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Question } from '@/types';
 import { questionService, answerService } from '@/services/api';
@@ -34,19 +33,31 @@ export function AnswerQuestionPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [question, setQuestion] = useState<Question | null>(() => {
-    return mockQuestions.find((q) => q.id === questionId) ?? null;
-  });
+  const [question, setQuestion] = useState<Question | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const MAX_RECORDING_SECONDS = 60;
+
+  // 基础权限校验：仅允许教师进入回答页面
+  useEffect(() => {
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+
+    if (user.role !== 'teacher') {
+      toast.error('只有老师可以回答问题');
+      navigate(-1);
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (!questionId) return;
-
-    if (question && question.id === questionId) {
-      return;
-    }
 
     let cancelled = false;
 
@@ -54,7 +65,7 @@ export function AnswerQuestionPage() {
       .getQuestionById(questionId)
       .then((q) => {
         if (!cancelled && q) {
-          setQuestion((prev) => prev ?? q);
+          setQuestion(q);
         }
       })
       .catch(() => {
@@ -119,38 +130,139 @@ export function AnswerQuestionPage() {
     setImages(newImages);
   };
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setRecordingTime(0);
-    setAudioUrl(null);
-    
-    recordingTimerRef.current = setInterval(() => {
-      setRecordingTime((prev) => prev + 1);
-    }, 1000);
-    
-    toast.success('开始录音');
+  const handleStartRecording = async () => {
+    if (isRecording) return;
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error('当前浏览器不支持录音功能');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      mediaStreamRef.current = stream;
+      setAudioUrl(null);
+      setRecordingTime(0);
+      setIsRecording(true);
+
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        try {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+
+          // 停止所有音轨，释放麦克风
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            mediaStreamRef.current = null;
+          }
+          mediaRecorderRef.current = null;
+
+          if (blob.size === 0) {
+            toast.error('录音失败，请重试');
+            setAudioUrl(null);
+            setRecordingTime(0);
+            return;
+          }
+
+          toast.success('录音完成，正在上传...');
+          const { audioUrl: uploadedUrl } = await questionService.uploadAudio(blob);
+          setAudioUrl(uploadedUrl);
+          if (audioElementRef.current) {
+            audioElementRef.current.src = uploadedUrl;
+          }
+          toast.success('录音上传成功');
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('audio upload failed', error);
+          toast.error('音频上传失败，请稍后重试');
+          setAudioUrl(null);
+          setRecordingTime(0);
+        }
+      };
+
+      recorder.start();
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => {
+          const next = prev + 1;
+          if (next >= MAX_RECORDING_SECONDS) {
+            if (recordingTimerRef.current) {
+              clearInterval(recordingTimerRef.current);
+              recordingTimerRef.current = null;
+            }
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              mediaRecorderRef.current.stop();
+            }
+            setIsRecording(false);
+            return MAX_RECORDING_SECONDS;
+          }
+          return next;
+        });
+      }, 1000);
+
+      toast.success('开始录音');
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('start recording failed', error);
+      toast.error('无法访问麦克风，请检查浏览器权限设置');
+    }
   };
 
   const handleStopRecording = () => {
+    if (!isRecording) return;
+
     setIsRecording(false);
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
     }
-    
-    // 模拟生成录音文件
-    setAudioUrl(`mock-audio-${Date.now()}.mp3`);
-    toast.success('录音完成');
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+
+    toast.success('录音结束，正在处理中...');
   };
 
   const handleDeleteAudio = () => {
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
     setAudioUrl(null);
     setRecordingTime(0);
     toast.success('已删除录音');
   };
 
   const handlePlayAudio = () => {
-    setIsPlaying(!isPlaying);
-    toast.success(isPlaying ? '暂停播放' : '开始播放');
+    if (!audioUrl || !audioElementRef.current) return;
+
+    const el = audioElementRef.current;
+    if (isPlaying) {
+      el.pause();
+      setIsPlaying(false);
+      toast.success('暂停播放');
+    } else {
+      el
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          toast.success('开始播放');
+        })
+        .catch(() => {
+          toast.error('无法播放音频，请稍后重试');
+        });
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -185,12 +297,21 @@ export function AnswerQuestionPage() {
 
     try {
       setIsSubmitting(true);
-      await answerService.create(questionId, {
+      const result = await answerService.create(questionId, {
         content: content.trim() || undefined,
         images: images.length > 0 ? images : undefined,
         audioUrl: audioUrl ?? undefined
       });
-      toast.success('回答已提交，等待审核');
+
+      // 处理 AI 审核结果
+      const aiAudit = (result as any)?.aiAudit;
+      if (aiAudit && !aiAudit.safe) {
+        toast.error(`回答被拒绝：${aiAudit.reason || '内容不符合规范'}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success('回答已提交');
       navigate(`/question/${questionId}`);
     } catch {
       toast.error('提交回答失败，请稍后重试');
@@ -349,6 +470,7 @@ export function AnswerQuestionPage() {
                 </div>
               )}
             </div>
+            <audio ref={audioElementRef} src={audioUrl ?? undefined} className="hidden" />
           </div>
 
           {/* 审核提示 */}

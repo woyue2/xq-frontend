@@ -40,6 +40,7 @@
 - `POST /api/auth/send-code`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+ - `POST /api/auth/password-login`
 - `POST /api/auth/refresh-token`
 - `POST /api/auth/logout`
 - `GET /api/users/me`

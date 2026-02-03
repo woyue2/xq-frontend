@@ -141,6 +141,34 @@ describe('WhitelistService - 单元测试', () => {
       expect(result.statistics.registered).toBe(1);
       expect(prismaAny.userWhitelist.findMany).toHaveBeenCalled();
     });
+
+    it('应当在 page/pageSize 非法时回退到安全默认值', async () => {
+      (prismaAny.userWhitelist.findMany as jest.Mock).mockResolvedValue([]);
+      (prismaAny.userWhitelist.count as jest.Mock)
+        .mockResolvedValueOnce(0) // total
+        .mockResolvedValueOnce(0) // registered
+        .mockResolvedValueOnce(0) // pending
+        .mockResolvedValueOnce(0) // students
+        .mockResolvedValueOnce(0) // parents
+        .mockResolvedValueOnce(0); // teachers
+
+      const result = await service.list({
+        page: -1,
+        pageSize: 1000
+      } as any);
+
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.pageSize).toBe(20);
+      expect(result.pagination.totalPages).toBe(0);
+      expect(prismaAny.userWhitelist.findMany).toHaveBeenCalledWith({
+        where: {
+          deletedAt: null
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: 0,
+        take: 20
+      });
+    });
   });
 
   describe('update', () => {
@@ -230,4 +258,3 @@ describe('WhitelistService - 单元测试', () => {
     });
   });
 });
-

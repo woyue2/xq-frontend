@@ -7,6 +7,7 @@ describe('AI Callback API', () => {
   const app = createApp();
 
   beforeEach(async () => {
+    await prisma.user.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.answer.deleteMany();
     await prisma.question.deleteMany();
@@ -31,6 +32,17 @@ describe('AI Callback API', () => {
   });
 
   it('should approve question when AI marks it safe', async () => {
+    await prisma.user.create({
+      data: {
+        id: 'user-001',
+        phone: '13900009999',
+        nickname: 'AI审核老师',
+        role: 'teacher',
+        isActive: true,
+        isBanned: false
+      }
+    });
+
     const q = await prisma.question.create({
       data: {
         id: 'q-ai-001',
@@ -77,10 +89,29 @@ describe('AI Callback API', () => {
   });
 
   it('should reject answer when AI marks it unsafe', async () => {
+    const q = await prisma.question.create({
+      data: {
+        id: 'q-ai-002',
+        title: '待审核问题-回答',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'user-001',
+        authorName: '作者'
+      }
+    });
+
     const answer = await prisma.answer.create({
       data: {
         id: 'ans-ai-001',
-        questionId: 'q-ai-002',
+        questionId: q.id,
         content: '待审核回答',
         images: [],
         authorId: 'teacher-001',
@@ -117,10 +148,29 @@ describe('AI Callback API', () => {
   });
 
   it('should reject comment when AI marks it unsafe', async () => {
+    const q = await prisma.question.create({
+      data: {
+        id: 'q-ai-003',
+        title: '待审核问题-评论',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'user-001',
+        authorName: '作者'
+      }
+    });
+
     const comment = await prisma.comment.create({
       data: {
         id: 'cmt-ai-001',
-        questionId: 'q-ai-003',
+        questionId: q.id,
         content: '待审核评论',
         authorId: 'user-002',
         authorName: '评论者',
@@ -165,6 +215,23 @@ describe('AI Callback API', () => {
         targetId: 'missing-type',
         result: {}
       });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe(400);
+    expect(res.body.error).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 400 when result is missing or not an object', async () => {
+    const reqAgent = request(app).post('/api/internal/ai-check');
+    const reqWithAuth = env.AI_INTERNAL_TOKEN
+      ? reqAgent.set('X-Internal-Token', env.AI_INTERNAL_TOKEN)
+      : reqAgent;
+
+    const res = await reqWithAuth.send({
+      targetType: 'question',
+      targetId: 'q-missing-result',
+      result: null
+    });
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe(400);

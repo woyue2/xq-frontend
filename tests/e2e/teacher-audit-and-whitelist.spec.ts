@@ -8,14 +8,8 @@ test.describe('教师角色审核与白名单管理 E2E', () => {
     await page.goto('/');
 
     // 进入个人中心
-    const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-    const fallback = page.getByText('我');
-
-    if (await avatarBtn.first().isVisible()) {
-      await avatarBtn.first().click();
-    } else {
-      await fallback.click();
-    }
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     await expect(page).toHaveURL(/\/profile$/);
 
@@ -43,14 +37,8 @@ test.describe('教师角色审核与白名单管理 E2E', () => {
     await page.goto('/');
 
     // 进入个人中心
-    const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-    const fallback = page.getByText('我');
-
-    if (await avatarBtn.first().isVisible()) {
-      await avatarBtn.first().click();
-    } else {
-      await fallback.click();
-    }
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     await expect(page).toHaveURL(/\/profile$/);
 

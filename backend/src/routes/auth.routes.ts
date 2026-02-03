@@ -45,10 +45,31 @@ authRouter.post(
 );
 
 authRouter.post(
+  '/password-login',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { phone, password } = req.body as {
+        phone: string;
+        password: string;
+      };
+      const result = await authService.passwordLogin(phone, password);
+      return res.json({
+        code: 200,
+        message: '登录成功',
+        data: result,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+authRouter.post(
   '/register',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { phone, code, nickname, grade, age, school, role } = req.body as {
+      const { phone, code, nickname, grade, age, school, role, password } = req.body as {
         phone: string;
         code: string;
         nickname?: string;
@@ -56,6 +77,7 @@ authRouter.post(
         age?: number;
         school?: string;
         role?: 'student' | 'teacher' | 'parent';
+        password?: string;
       };
       const result = await authService.register({
         phone,
@@ -64,7 +86,8 @@ authRouter.post(
         grade,
         age,
         school,
-        role
+        role,
+        password
       });
       return res.status(201).json({
         code: 201,
@@ -138,3 +161,47 @@ authRouter.get(
     }
   }
 );
+
+authRouter.post(
+  '/set-password',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { newPassword } = req.body as { newPassword: string };
+      await authService.setPassword(req.user!.id, newPassword);
+      return res.json({
+        code: 200,
+        message: '密码已更新',
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+authRouter.post(
+  '/reset-password',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { phone, code, newPassword } = req.body as {
+        phone: string;
+        code: string;
+        newPassword: string;
+      };
+      await authService.resetPasswordWithCode({
+        phone,
+        code,
+        newPassword
+      });
+      return res.json({
+        code: 200,
+        message: '密码已重置，请重新登录',
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+

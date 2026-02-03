@@ -31,6 +31,7 @@ export const TAXONOMY: Record<string, SubjectConfig> = {
             "数形结合",
             "反证法",
             "换元法",
+            "暂不确定",
         ],
     },
     physics: {
@@ -50,6 +51,7 @@ export const TAXONOMY: Record<string, SubjectConfig> = {
             "理想模型法",
             "转换法",
             "等效替代法",
+            "暂不确定",
         ],
     },
     chemistry: {
@@ -66,6 +68,7 @@ export const TAXONOMY: Record<string, SubjectConfig> = {
             "对比实验法",
             "归纳法",
             "实验探究法",
+            "暂不确定",
         ],
     },
 };

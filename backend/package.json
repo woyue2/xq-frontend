@@ -10,6 +10,8 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "seed:question-dimensions": "tsx script/seed-question-dimensions.ts",
+    "seed:admin": "tsx script/seed-admin.ts",
     "test": "jest --runInBand",
     "test:unit": "jest --runInBand --testPathPattern=unit",
     "test:integration": "jest --runInBand --testPathPattern=integration",

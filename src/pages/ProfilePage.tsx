@@ -1,4 +1,4 @@
-import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2, Baby, Phone, Plus } from 'lucide-react';
+import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2, Baby, Phone, Plus, KeyRound } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -32,6 +32,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { UI_CONFIG } from '@/config/ui-config';
 import { aiTextConfig } from '@/config/ai-text';
 import { parentService } from '@/services/parentService';
+import { authService, userService, questionService } from '@/services/api';
 import type { ChildInfo } from '@/types/parent';
 import { Label } from '@/components/ui/label';
 
@@ -58,6 +59,9 @@ export function ProfilePage() {
   const [showNicknameDialog, setShowNicknameDialog] = useState(false);
   const [newNickname, setNewNickname] = useState('');
   const [isSubmittingNickname, setIsSubmittingNickname] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
 
   // 家长绑定相关状态
   const [children, setChildren] = useState<ChildInfo[]>([]);
@@ -129,39 +133,31 @@ export function ProfilePage() {
     }
   };
 
-  // 模拟AI审核API调用
-  const simulateAIReview = async (content: string): Promise<{ passed: boolean, reason?: string }> => {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // 模拟API延迟
-    // 简单模拟：检查敏感词
-    const sensitiveWords = ['admin', '管理员', '系统', '官方', '客服'];
-    if (sensitiveWords.some(w => content.toLowerCase().includes(w))) {
-      return { passed: false, reason: aiTextConfig.auditMessages.nicknameSensitive };
-    }
-    if (content.length < 2) {
-      return { passed: false, reason: aiTextConfig.auditMessages.nicknameTooShort };
-    }
-    if (content.length > 20) {
-      return { passed: false, reason: aiTextConfig.auditMessages.nicknameTooLong };
-    }
-    return { passed: true };
-  };
-
   const handleUpdateNickname = async () => {
     if (!newNickname.trim()) {
       toast.error('请输入昵称');
       return;
     }
+
+    // 简单的前端校验
+    if (newNickname.length < 2) {
+      toast.error(aiTextConfig.auditMessages.nicknameTooShort);
+      return;
+    }
+
     setIsSubmittingNickname(true);
     try {
-      const result = await simulateAIReview(newNickname);
-      if (result.passed) {
-        updateUser({ nickname: newNickname });
-        toast.success(aiTextConfig.auditMessages.nicknameUpdated);
-        setShowNicknameDialog(false);
-        setNewNickname('');
-      } else {
-        toast.error(result.reason || aiTextConfig.auditMessages.nicknameRejected);
-      }
+      // 调用后端 API 更新（含 AI 审核）
+      const updatedUser = await userService.updateProfile({ nickname: newNickname });
+
+      // 更新本地状态
+      updateUser(updatedUser);
+      toast.success(aiTextConfig.auditMessages.nicknameUpdated);
+      setShowNicknameDialog(false);
+      setNewNickname('');
+    } catch (error: any) {
+      // 错误由拦截器统一处理，但对于业务错误（如审核失败）可以在此额外提示
+      console.error('Update nickname failed', error);
     } finally {
       setIsSubmittingNickname(false);
     }
@@ -201,10 +197,72 @@ export function ProfilePage() {
     navigate('/login');
   };
 
-  const handleSelectAvatar = (url: string) => {
-    updateUser({ avatar: url });
-    toast.success('头像已更新');
-    setShowAvatarDialog(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const handleUpdateAvatar = async (url: string) => {
+    setIsUploadingAvatar(true);
+    try {
+      // 调用后端更新（含 AI 审核）
+      const updatedUser = await userService.updateProfile({ avatar: url });
+      updateUser(updatedUser);
+      toast.success('头像已更新');
+      setShowAvatarDialog(false);
+    } catch (err) {
+      console.error('Update avatar failed', err);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 校验图片大小 (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('图片大小不能超过 2MB');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      toast.loading('正在上传...', { id: 'upload-avatar' });
+      // 1. 上传图片到 OSS/本地
+      const { imageUrl } = await questionService.uploadImage(file, {
+        purpose: 'avatar',
+        senderName: currentUser?.nickname
+      });
+
+      // 2. 更新用户头像（触发后端 AI 审核）
+      await handleUpdateAvatar(imageUrl);
+
+      toast.dismiss('upload-avatar');
+    } catch (err) {
+      toast.dismiss('upload-avatar');
+      // 错误由拦截器处理
+    } finally {
+      setIsUploadingAvatar(false);
+      // 清空 input 防止重复选择同一文件不触发 onChange
+      e.target.value = '';
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('密码至少需 8 位');
+      return;
+    }
+    try {
+      setIsSubmittingPassword(true);
+      await authService.setPassword(newPassword);
+      toast.success('密码已更新');
+      setShowPasswordDialog(false);
+      setNewPassword('');
+    } catch {
+      // 具体错误由拦截器处理
+    } finally {
+      setIsSubmittingPassword(false);
+    }
   };
 
   const menuItems = [
@@ -224,7 +282,7 @@ export function ProfilePage() {
     },
     {
       icon: Phone,
-      label: '图床配置测试',
+      label: '系统配置中心',
       color: 'text-purple-500',
       visible: currentUser.role === 'teacher',
       onClick: () => navigate('/test'),
@@ -327,7 +385,7 @@ export function ProfilePage() {
                   添加
                 </Button>
               </div>
-              
+
               <div className="space-y-3">
                 {children.length === 0 ? (
                   <div className="text-center py-4 text-gray-400 text-sm bg-gray-50 rounded-xl">
@@ -350,17 +408,17 @@ export function ProfilePage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                           onClick={() => navigate(`/parent/questions/${child.id}`)}
                         >
                           查看提问
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 px-2 text-gray-400 hover:text-red-500 hover:bg-red-50"
                           onClick={() => toast.info('如需解绑请联系班主任')}
                         >
@@ -403,6 +461,17 @@ export function ProfilePage() {
                 <ShieldCheck className="w-5 h-5 text-gray-500" />
               </div>
               <span className="flex-1 text-left font-medium text-gray-700">切换账号</span>
+              <ChevronRight className="w-5 h-5 text-gray-300" />
+            </button>
+
+            <button
+              onClick={() => setShowPasswordDialog(true)}
+              className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
+            >
+              <div className="p-2 rounded-2xl bg-blue-50">
+                <KeyRound className="w-5 h-5 text-blue-500" />
+              </div>
+              <span className="flex-1 text-left font-medium text-gray-700">设置登录密码</span>
               <ChevronRight className="w-5 h-5 text-gray-300" />
             </button>
 
@@ -470,22 +539,48 @@ export function ProfilePage() {
           <DialogHeader>
             <DialogTitle className="text-center">选择新头像</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-4 gap-4 py-4">
-            {PREDEFINED_AVATARS.map((url, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSelectAvatar(url)}
-                className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${currentUser?.avatar === url ? 'border-morandi-5' : 'border-transparent'
+          <div className="flex flex-col gap-4 py-4">
+            <div className="grid grid-cols-4 gap-4">
+              {PREDEFINED_AVATARS.map((url, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleUpdateAvatar(url)}
+                  disabled={isUploadingAvatar}
+                  className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${currentUser?.avatar === url ? 'border-morandi-5' : 'border-transparent'
+                    } ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <img src={url} alt={`avatar-${idx}`} className="w-full h-full object-cover" />
+                  {currentUser?.avatar === url && (
+                    <div className="absolute inset-0 bg-morandi-5 bg-opacity-20 flex items-center justify-center">
+                      <Check className="w-6 h-6 text-white drop-shadow-md" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                id="avatar-upload-input"
+                onChange={handleFileUpload}
+                disabled={isUploadingAvatar}
+              />
+              <Label
+                htmlFor="avatar-upload-input"
+                className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-morandi-5 hover:text-morandi-5 cursor-pointer transition-colors ${isUploadingAvatar ? 'opacity-50 pointer-events-none' : ''
                   }`}
               >
-                <img src={url} alt={`avatar-${idx}`} className="w-full h-full object-cover" />
-                {currentUser?.avatar === url && (
-                  <div className="absolute inset-0 bg-morandi-5 bg-opacity-20 flex items-center justify-center">
-                    <Check className="w-6 h-6 text-white drop-shadow-md" />
-                  </div>
+                {isUploadingAvatar ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Camera className="w-5 h-5" />
                 )}
-              </button>
-            ))}
+                <span>上传自定义头像</span>
+              </Label>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -510,6 +605,45 @@ export function ProfilePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 设置密码对话框 */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">设置登录密码</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">新密码</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="请输入至少 6 位密码"
+                disabled={isSubmittingPassword}
+              />
+              <p className="text-xs text-gray-400">
+                设置后可以在登录页选择“使用密码登录”，通过手机号 + 密码直接登录。
+              </p>
+            </div>
+            <Button
+              onClick={handleUpdatePassword}
+              disabled={isSubmittingPassword || !newPassword}
+              className="w-full bg-morandi-5 hover:bg-morandi-5/90 rounded-xl"
+            >
+              {isSubmittingPassword ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                '确认保存'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 绑定孩子对话框 */}
       <Dialog open={showBindDialog} onOpenChange={setShowBindDialog}>
@@ -546,8 +680,8 @@ export function ProfilePage() {
                   placeholder="请输入手机号"
                   maxLength={11}
                 />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleGetBindCode}
                   disabled={bindCountdown > 0 || !bindPhone}
                   className="whitespace-nowrap w-24"

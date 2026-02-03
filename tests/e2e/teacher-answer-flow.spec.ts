@@ -55,7 +55,7 @@ test.describe('教师回答与我的回答列表 E2E', () => {
     // 成功后通常会有 toast 提示，并返回问题详情
     await expect(page).toHaveURL(/\/question\//, { timeout: 10_000 });
     await expect(
-      page.getByText(/回答已提交，等待审核/)
+      page.getByText(/回答已提交/)
     ).toBeVisible();
   });
 
@@ -65,19 +65,13 @@ test.describe('教师回答与我的回答列表 E2E', () => {
     await page.goto('/');
 
     // 进入个人中心
-    const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-    const fallback = page.getByText('我');
-
-    if (await avatarBtn.first().isVisible()) {
-      await avatarBtn.first().click();
-    } else {
-      await fallback.click();
-    }
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     await expect(page).toHaveURL(/\/profile$/);
 
     // 点击“我的回答”入口
-    await page.getByText('我的回答').click();
+    await page.getByRole('button', { name: '我的回答' }).click();
     await expect(page).toHaveURL(/\/my-answers$/);
     await expect(page.getByText('我的回答')).toBeVisible();
 

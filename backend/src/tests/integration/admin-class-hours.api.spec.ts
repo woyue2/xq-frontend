@@ -210,8 +210,22 @@ describe('Admin Class Hours API', () => {
         months: 2
       });
 
-    expect(res.status).toBe(200);
-    expect(res.body.code).toBe(200);
-    expect(res.body.data.successCount).toBe(1);
+      expect(res.status).toBe(200);
+      expect(res.body.code).toBe(200);
+      expect(res.body.data.successCount).toBe(1);
+    });
+
+  it('should reject batch-update when months is invalid', async () => {
+    const res = await request(app)
+      .patch('/api/admin/class-hours/batch-update')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        userIds: ['user-xxx'],
+        action: 'extend',
+        months: 0
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('VALIDATION_ERROR');
   });
 });

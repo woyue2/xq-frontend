@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
+import { aiAuditService } from './ai-audit.service';
 
 export class AnswerService {
   async create(params: {
@@ -8,8 +9,9 @@ export class AnswerService {
     content?: string;
     images?: string[];
     audioUrl?: string;
+    audioUrls?: string[];
   }) {
-    const { questionId, authorId, content, images, audioUrl } = params;
+    const { questionId, authorId, content, images, audioUrl, audioUrls } = params;
 
     const question = await prisma.question.findUnique({
       where: { id: questionId }
@@ -19,9 +21,22 @@ export class AnswerService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
 
+    // 边界保护：禁止在未审核通过的问题下发表回答
+    if (question.status !== 'approved') {
+      throw new AppError(403, 'ANSWER_DENIED', '无法在未审核通过的问题下发表回答');
+    }
+
     const hasText = !!content && content.trim().length > 0;
     const hasImages = !!images && images.length > 0;
-    const hasAudio = !!audioUrl;
+
+    let normalizedAudioUrl: string | null = null;
+    if (audioUrls && audioUrls.length > 0) {
+      normalizedAudioUrl = JSON.stringify(audioUrls);
+    } else if (audioUrl && audioUrl.trim().length > 0) {
+      normalizedAudioUrl = audioUrl.trim();
+    }
+
+    const hasAudio = !!normalizedAudioUrl;
 
     if (!hasText && !hasImages && !hasAudio) {
       throw new AppError(
@@ -39,8 +54,55 @@ export class AnswerService {
       throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
     }
 
-    // 老师回答无需审核，默认直接通过；其他角色仍走审核。
-    const initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+    // AI 内容审核（所有用户都需审核，确保回答内容安全）
+    let auditResult: { safe: boolean; reason?: string; category?: string; quality?: { clear: boolean; suggestion?: string } } = {
+      safe: true,
+      quality: { clear: true }
+    };
+    let initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+    let aiResultText = '无违规';
+
+    // 1. 文本审核
+    if (hasText) {
+      const result = await aiAuditService.auditContent(content!, 'answer');
+      auditResult = {
+        safe: result.safe,
+        reason: result.reason,
+        category: result.category,
+        quality: result.quality
+      };
+
+      if (!result.safe) {
+        initialStatus = 'rejected';
+        aiResultText = JSON.stringify({
+          safe: false,
+          reason: result.reason,
+          category: result.category
+        });
+      } else {
+        if (author.role === 'teacher') {
+          initialStatus = 'approved';
+        }
+        aiResultText = JSON.stringify({ safe: true });
+      }
+    }
+
+    // 2. 图片审核（如果有图片且文本审核通过）
+    if (auditResult.safe && hasImages) {
+      const imageResults = await aiAuditService.auditImages(images!);
+      const unsafeImage = imageResults.find(r => !r.safe);
+      if (unsafeImage) {
+        auditResult.safe = false;
+        auditResult.reason = `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}`;
+        auditResult.category = unsafeImage.category || 'image_violation';
+        initialStatus = 'rejected';
+        aiResultText = JSON.stringify({
+          safe: false,
+          reason: auditResult.reason,
+          category: auditResult.category
+        });
+      }
+    }
 
     const [created] = await prisma.$transaction([
       prisma.answer.create({
@@ -48,13 +110,13 @@ export class AnswerService {
           questionId,
           content: content ?? '',
           images: images ?? [],
-          audioUrl: audioUrl ?? null,
+          audioUrl: normalizedAudioUrl,
           authorId,
           authorName: author.nickname,
           authorAvatar: author.avatar ?? null,
           likes: 0,
           status: initialStatus,
-          aiResult: '无违规'
+          aiResult: aiResultText
         }
       }),
       prisma.question.update({
@@ -67,18 +129,65 @@ export class AnswerService {
       })
     ]);
 
+    // 回答创建成功后，若已审核通过，则为提问者生成一条"有新回答"通知（new_answer）
+    if (initialStatus === 'approved') {
+      try {
+        const notificationContent = JSON.stringify({
+          answerId: created.id,
+          questionTitle: question.title
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: question.authorId,
+            type: 'new_answer',
+            title: '你的问题有新的回答',
+            content: notificationContent,
+            targetType: 'question',
+            targetId: question.id
+          }
+        });
+      } catch {
+        // 通知创建失败不影响回答主流程，错误由日志系统统一处理（此处静默容错）
+      }
+    }
+
+
+    let audioUrlsArr: string[] = [];
+    if (created.audioUrl) {
+      const trimmed = created.audioUrl.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            audioUrlsArr = parsed.filter((url: unknown) => typeof url === 'string');
+          }
+        } catch {
+          audioUrlsArr = [created.audioUrl];
+        }
+      } else {
+        audioUrlsArr = [created.audioUrl];
+      }
+    }
+
     return {
       id: created.id,
       questionId: created.questionId,
       content: created.content,
       images: created.images,
       audioUrl: created.audioUrl,
+      audioUrls: audioUrlsArr,
       authorId: created.authorId,
       authorName: created.authorName,
       authorAvatar: created.authorAvatar ?? undefined,
       likes: created.likes,
       status: created.status,
-      createdAt: created.createdAt
+      createdAt: created.createdAt,
+      // 返回审核结果供前端显示
+      aiAudit: {
+        safe: auditResult.safe,
+        reason: auditResult.reason
+      }
     };
   }
 
@@ -112,20 +221,40 @@ export class AnswerService {
     }
 
     return {
-      list: answers.map((a) => ({
-        id: a.id,
-        questionId: a.questionId,
-        content: a.content,
-        images: a.images,
-        audioUrl: a.audioUrl,
-        authorId: a.authorId,
-        authorName: a.authorName,
-        authorAvatar: a.authorAvatar ?? undefined,
-        likes: a.likes,
-        isLiked: likedIds.has(a.id),
-        status: a.status,
-        createdAt: a.createdAt
-      })),
+      list: answers.map((a) => {
+        let audioUrlsArr: string[] = [];
+        if (a.audioUrl) {
+          const trimmed = a.audioUrl.trim();
+          if (trimmed.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (Array.isArray(parsed)) {
+                audioUrlsArr = parsed.filter((url: unknown) => typeof url === 'string');
+              }
+            } catch {
+              audioUrlsArr = [a.audioUrl];
+            }
+          } else {
+            audioUrlsArr = [a.audioUrl];
+          }
+        }
+
+        return {
+          id: a.id,
+          questionId: a.questionId,
+          content: a.content,
+          images: a.images,
+          audioUrl: a.audioUrl,
+          audioUrls: audioUrlsArr,
+          authorId: a.authorId,
+          authorName: a.authorName,
+          authorAvatar: a.authorAvatar ?? undefined,
+          likes: a.likes,
+          isLiked: likedIds.has(a.id),
+          status: a.status,
+          createdAt: a.createdAt
+        };
+      }),
       total: answers.length
     };
   }

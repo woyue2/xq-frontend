@@ -5,8 +5,9 @@ import { MyQuestionsPage } from '@/pages/MyQuestionsPage';
 import { StatusListPage } from '@/pages/StatusListPage';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { toast } from 'sonner';
 
-// Mock hooks
+// Mock hooks & toast
 vi.mock('@/hooks/useQuestions', () => ({
     useQuestions: vi.fn()
 }));
@@ -15,9 +16,19 @@ vi.mock('@/stores/useAuthStore', () => ({
     useAuthStore: vi.fn()
 }));
 
+vi.mock('sonner', () => ({
+    toast: {
+        error: vi.fn(),
+        success: vi.fn(),
+        info: vi.fn()
+    }
+}));
+
 describe('Status Navigation Tests', () => {
     beforeEach(() => {
-        // Mock User
+        vi.clearAllMocks();
+
+        // Mock User（默认学生）
         (useAuthStore as any).mockReturnValue({
             user: { id: 'u1', nickname: 'Test User', role: 'student' }
         });
@@ -33,8 +44,13 @@ describe('Status Navigation Tests', () => {
                             content: 'Content 1',
                             status: 'approved',
                             createdAt: new Date().toISOString(),
-                            stats: { likes: 0, comments: 0 },
-                            isGoodQuestion: true
+                            stats: { likes: 0, comments: 0, answers: 0 },
+                            isGoodQuestion: true,
+                            answerCount: 0,
+                            subject: 'math',
+                            likeCount: 0,
+                            collectionCount: 0,
+                            authorId: 'u1'
                         },
                         {
                             id: 'q2',
@@ -42,13 +58,19 @@ describe('Status Navigation Tests', () => {
                             content: 'Content 2',
                             status: 'pending',
                             createdAt: new Date().toISOString(),
-                            stats: { likes: 0, comments: 0 },
-                            isGoodQuestion: false
+                            stats: { likes: 0, comments: 0, answers: 0 },
+                            isGoodQuestion: false,
+                            answerCount: 0,
+                            subject: 'math',
+                            likeCount: 0,
+                            collectionCount: 0,
+                            authorId: 'u1'
                         }
                     ]
                 }]
             },
-            isLoading: false
+            isLoading: false,
+            refetch: vi.fn()
         });
     });
 
@@ -93,6 +115,44 @@ describe('Status Navigation Tests', () => {
             expect(screen.getByText('已通过提问')).toBeDefined(); // Title of StatusListPage
             expect(screen.getByText('Approved Question')).toBeDefined();
             expect(screen.queryByText('Pending Question')).toBeNull(); // Should be filtered out
+        });
+    });
+
+    it('redirects unauthenticated user to login when accessing status list directly', async () => {
+        // 模拟未登录用户
+        (useAuthStore as any).mockReturnValue({
+            user: null
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/my-questions/status/pending']}>
+                <Routes>
+                    <Route path="/my-questions/status/:status" element={<StatusListPage />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalled();
+        });
+    });
+
+    it('blocks parent user from accessing status list', async () => {
+        // 模拟家长用户
+        (useAuthStore as any).mockReturnValue({
+            user: { id: 'p1', nickname: 'Parent', role: 'parent' }
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/my-questions/status/pending']}>
+                <Routes>
+                    <Route path="/my-questions/status/:status" element={<StatusListPage />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith('家长账号无法查看提问状态列表');
         });
     });
 });

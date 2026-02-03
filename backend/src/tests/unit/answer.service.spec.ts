@@ -175,10 +175,12 @@ describe('AnswerService unit tests', () => {
       expect(result.content).toBe('详细回答内容');
       expect(result.images).toHaveLength(1);
       expect(result.audioUrl).toBe('https://cdn.example.com/audio.mp3');
+      expect(result.audioUrls).toEqual(['https://cdn.example.com/audio.mp3']);
       expect(result.authorId).toBe(author.id);
       expect(result.authorName).toBe('李老师');
       expect(result.likes).toBe(0);
-      expect(result.status).toBe('pending');
+      // 老师回答在当前实现中经过 AI 审核后应直接为 approved
+      expect(result.status).toBe('approved');
 
       const updatedQuestion = await prisma.question.findUnique({
         where: { id: question.id }

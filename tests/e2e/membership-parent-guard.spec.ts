@@ -102,18 +102,17 @@ test.describe('课时与家长权限防护 E2E', () => {
     ).toHaveCount(0);
   });
 
-  test('家长点击提问按钮不会进入编辑页（被视为无有效会员）', async ({ page }) => {
+  test('家长无法通过提问入口进入编辑页（被视为无有效会员）', async ({ page }) => {
     await bootstrapAuth(page, 'parent');
 
     await page.goto('/');
 
+    // 首页对家长不展示“提问”浮动按钮
     const createBtn = page.getByTestId('nav-create');
-    await expect(createBtn).toBeVisible();
+    await expect(createBtn).toHaveCount(0);
 
-    await createBtn.click();
-
-    // 家长角色在 CreateQuestionPage 中会被 isMemberActive 判定为无效会员，
-    // 会被立即拦截回首页
+    // 即使家长直接访问 /create，也会被 CreateQuestionPage 判定为无有效会员并拦截回首页
+    await page.goto('/create');
     await expect(page).toHaveURL(/\/$/);
     await expect(
       page.getByRole('heading', { name: '编辑我的问题' })

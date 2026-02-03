@@ -12,6 +12,19 @@ describe('Auth API', () => {
 
   // 用例：AUTH-API-001 正常发送验证码
   it('should send verification code normally (AUTH-API-001)', async () => {
+    await prisma.user.deleteMany({
+      where: { phone: '13800138000' }
+    });
+    await prisma.user.create({
+      data: {
+        phone: '13800138000',
+        nickname: '验证码测试用户',
+        role: 'student',
+        isActive: true,
+        isBanned: false
+      }
+    });
+
     const res = await request(app)
       .post('/api/auth/send-code')
       .send({ phone: '13800138000', type: 'login' });
@@ -35,7 +48,22 @@ describe('Auth API', () => {
 
   // 用例：AUTH-API-003 发送频率限制
   it('should limit frequent send code requests (AUTH-API-003)', async () => {
-    const payload = { phone: '13900139000', type: 'login' };
+    const phone = '13900139000';
+
+    await prisma.user.deleteMany({
+      where: { phone }
+    });
+    await prisma.user.create({
+      data: {
+        phone,
+        nickname: '频率限制测试用户',
+        role: 'student',
+        isActive: true,
+        isBanned: false
+      }
+    });
+
+    const payload = { phone, type: 'login' };
 
     const first = await request(app).post('/api/auth/send-code').send(payload);
     expect(first.status).toBe(200);
@@ -43,6 +71,54 @@ describe('Auth API', () => {
     const second = await request(app).post('/api/auth/send-code').send(payload);
     expect(second.status).toBe(429);
     expect(second.body.error).toBe('TOO_MANY_REQUESTS');
+  });
+
+  // 用例：AUTH-API-003b 登录场景下为不存在用户发送验证码时直接提示账号不存在
+  it('should reject send-code for login when user does not exist (AUTH-API-003b)', async () => {
+    const phone = '13700001111';
+
+    await prisma.verificationCode.deleteMany({
+      where: { phone }
+    });
+    await prisma.user.deleteMany({
+      where: { phone }
+    });
+
+    const res = await request(app)
+      .post('/api/auth/send-code')
+      .send({ phone, type: 'login' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('USER_NOT_FOUND');
+  });
+
+  // 用例：AUTH-API-003c 登录场景下为被封禁/停用用户发送验证码时直接拒绝
+  it('should reject send-code for login when user is disabled (AUTH-API-003c)', async () => {
+    const phone = '13700002222';
+
+    await prisma.verificationCode.deleteMany({
+      where: { phone }
+    });
+    await prisma.user.deleteMany({
+      where: { phone }
+    });
+
+    await prisma.user.create({
+      data: {
+        phone,
+        nickname: '封禁用户',
+        role: 'student',
+        isActive: false,
+        isBanned: true
+      }
+    });
+
+    const res = await request(app)
+      .post('/api/auth/send-code')
+      .send({ phone, type: 'login' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('USER_DISABLED');
   });
 
   // 用例：AUTH-API-004 不在白名单的手机号（注册场景）
@@ -58,6 +134,8 @@ describe('Auth API', () => {
   // 注册成功（验证基础响应结构，未依赖真实数据库）
   it('should register user and return token + user (AUTH-API-005)', async () => {
     // 确保测试手机号不存在，避免因多次运行导致 409 冲突
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany({
       where: { phone: '13600136000' }
     });
@@ -67,6 +145,7 @@ describe('Auth API', () => {
       .send({
         phone: '13600136000',
         code: '123456',
+        password: '12345678',
         nickname: '新学生',
         grade: '初三',
         age: 15,
@@ -78,6 +157,27 @@ describe('Auth API', () => {
     expect(res.body.data.token).toBeDefined();
     expect(res.body.data.user).toBeDefined();
     expect(res.body.data.user.phone).toBe('13600136000');
+  });
+
+  // 用例：AUTH-API-006 注册密码长度不足
+  it('should reject register when password is too short (AUTH-API-006)', async () => {
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany({
+      where: { phone: '13600136001' }
+    });
+
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        phone: '13600136001',
+        code: '123456',
+        password: '1234567',
+        nickname: '新学生'
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_PASSWORD_FORMAT');
   });
 
   // 简单验证 /api/auth/me 返回当前用户信息（基础 happy path）

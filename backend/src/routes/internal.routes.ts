@@ -12,18 +12,44 @@ internalRouter.post(
   '/ai-check',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // 简单的内部鉴权：仅当配置了 AI_INTERNAL_TOKEN 时才启用
-      const expectedToken = env.AI_INTERNAL_TOKEN;
-      if (expectedToken) {
-        const received =
-          (req.headers['x-internal-token'] as string | undefined) ?? '';
-        if (!received || received !== expectedToken) {
+      // 可选的 IP 白名单检查（通过环境变量配置，逗号分隔）
+      const ipAllowlist = process.env.AI_CALLBACK_IP_ALLOWLIST;
+      if (ipAllowlist) {
+        const normalizeIp = (ip: string) =>
+          ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+
+        const forwardedFor =
+          (req.headers['x-forwarded-for'] as string | undefined) ?? '';
+        const rawIpCandidate = forwardedFor.split(',')[0]?.trim() ?? '';
+
+        const rawIp =
+          rawIpCandidate || req.ip || req.socket.remoteAddress || '';
+        const clientIp = normalizeIp(rawIp);
+
+        const allowedIps = ipAllowlist
+          .split(',')
+          .map(ip => normalizeIp(ip.trim()))
+          .filter(ip => ip.length > 0);
+
+        if (!allowedIps.includes(clientIp) && !allowedIps.includes('*')) {
           throw new AppError(
             403,
-            'INTERNAL_ACCESS_DENIED',
-            '未授权访问内部审核回调接口'
+            'IP_NOT_ALLOWED',
+            '请求来源 IP 不在白名单中'
           );
         }
+      }
+
+      // 内部鉴权：强制校验，防止未授权访问
+      const expectedToken = env.AI_INTERNAL_TOKEN;
+      const received = (req.headers['x-internal-token'] as string | undefined) ?? '';
+
+      if (!expectedToken || received !== expectedToken) {
+        throw new AppError(
+          403,
+          'INTERNAL_ACCESS_DENIED',
+          '未通过内部验证，禁止访问回调接口'
+        );
       }
 
       type AiResultPayload = {
@@ -37,7 +63,13 @@ internalRouter.post(
       const targetId = String(body.targetId ?? '');
       const result = body.result as AiResultPayload | undefined;
 
-      if (!targetType || !targetId || typeof result !== 'object') {
+      if (
+        !targetType ||
+        !targetId ||
+        !result ||
+        typeof result !== 'object' ||
+        Array.isArray(result)
+      ) {
         throw new AppError(
           400,
           'VALIDATION_ERROR',
@@ -45,54 +77,80 @@ internalRouter.post(
         );
       }
 
-      const safe = result.safe === true;
-      const aiResult = JSON.stringify(result);
-      const nextStatus = safe ? 'approved' : 'rejected';
+      let aiResult: string;
+      try {
+        aiResult = JSON.stringify(result);
+      } catch {
+        throw new AppError(
+          400,
+          'INVALID_RESULT_PAYLOAD',
+          'AI 回调结果字段不可序列化'
+        );
+      }
 
-      let updated:
-        | { id: string; status: string; aiResult?: string | null }
-        | null = null;
+      const safe = result.safe === true;
+
+      let updated: any = null;
 
       if (targetType === 'question') {
+        // 获取作者角色，判断逻辑：仅当作者是老师且 AI 判定安全时，才设为 approved
+        const question = await prisma.question.findUnique({
+          where: { id: targetId },
+          select: { authorId: true }
+        });
+
+        if (!question) throw new AppError(404, 'CONTENT_NOT_FOUND', '问题不存在');
+
+        const author = await prisma.user.findUnique({
+          where: { id: question.authorId },
+          select: { role: true }
+        });
+
+        // 核心逻辑修复：如果 safe 且作者是 teacher，则 approved；
+        // 如果 safe 但作者是 student/parent，则保持 pending (除非人工干预，回调不应自动通过学生内容)
+        // 注意：此处回调逻辑应保证：违规必 rejected；合规则根据角色决定是 approved 还是继续 pending。
+        let nextStatus = 'rejected';
+        if (safe) {
+          nextStatus = (author?.role === 'teacher') ? 'approved' : 'pending';
+        }
+
         updated = await prisma.question.update({
           where: { id: targetId },
           data: {
             aiResult,
-            status: nextStatus,
-            score:
-              typeof result.score === 'number' ? result.score : undefined
+            status: nextStatus as any,
+            score: typeof result.score === 'number' ? result.score : undefined
           },
-          select: {
-            id: true,
-            status: true,
-            aiResult: true
-          }
+          select: { id: true, status: true, aiResult: true }
         });
       } else if (targetType === 'answer') {
+        // 处理回答（通常只有老师能回答，但逻辑应一致）
+        const nextStatus = safe ? 'approved' : 'rejected';
         updated = await prisma.answer.update({
           where: { id: targetId },
-          data: {
-            aiResult,
-            status: nextStatus
-          },
-          select: {
-            id: true,
-            status: true,
-            aiResult: true
-          }
+          data: { aiResult, status: nextStatus as any },
+          select: { id: true, status: true, aiResult: true }
         });
       } else if (targetType === 'comment') {
+        // 处理评论：目前评论默认为人工审核流，AI 判定安全后仍应由老师审核？ 
+        // 参照 Question 逻辑，设为 pending 如果是学生。
+        const comment = await prisma.comment.findUnique({
+          where: { id: targetId },
+          select: { authorId: true }
+        });
+        if (!comment) throw new AppError(404, 'CONTENT_NOT_FOUND', '评论不存在');
+
+        const author = await prisma.user.findUnique({
+          where: { id: comment.authorId },
+          select: { role: true }
+        });
+
+        const nextStatus = (safe && author?.role === 'teacher') ? 'approved' : (safe ? 'pending' : 'rejected');
+
         updated = await prisma.comment.update({
           where: { id: targetId },
-          data: {
-            aiResult,
-            status: nextStatus
-          },
-          select: {
-            id: true,
-            status: true,
-            aiResult: true
-          }
+          data: { aiResult, status: nextStatus as any },
+          select: { id: true, status: true, aiResult: true }
         });
       } else {
         throw new AppError(
@@ -132,8 +190,13 @@ internalRouter.post(
   '/test-token',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // 生产环境禁止使用该接口
-      if (env.NODE_ENV === 'production') {
+      // 多重检查：生产环境绝对禁止使用该接口
+      const isProduction =
+        env.NODE_ENV === 'production' ||
+        process.env.NODE_ENV === 'production' ||
+        process.env.DISABLE_TEST_ENDPOINTS === 'true';
+
+      if (isProduction) {
         throw new AppError(404, 'NOT_FOUND', '接口不存在');
       }
 

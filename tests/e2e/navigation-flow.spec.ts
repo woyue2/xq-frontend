@@ -22,18 +22,10 @@ test.describe('主界面导航与页面跳转', () => {
 
     await page.goto('/');
 
-    // Header 中的头像按钮
-    const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-    // 为避免选择过宽，这里用文本“我”作为兜底
-    const fallback = page.getByText('我');
-
-    if (await avatarBtn.first().isVisible()) {
-      await avatarBtn.first().click();
-    } else {
-      await fallback.click();
-    }
+    // 使用带 data-testid 的导航头像按钮，避免误点通知按钮
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
 
     await expect(page).toHaveURL(/\/profile$/);
   });
 });
-

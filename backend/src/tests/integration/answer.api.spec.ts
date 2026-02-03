@@ -18,6 +18,8 @@ describe('Answer API', () => {
 
   beforeEach(async () => {
     await prisma.behaviorLog.deleteMany();
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
     await prisma.like.deleteMany();
     await prisma.favorite.deleteMany();
     await prisma.comment.deleteMany();
@@ -82,7 +84,7 @@ describe('Answer API', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.code).toBe(201);
-    expect(res.body.message).toBe('回答提交成功，等待审核');
+    expect(res.body.message).toBe('回答提交成功，已通过审核');
     expect(res.body.data.questionId).toBe(question.id);
     expect(res.body.data.content).toBe(payload.content);
     expect(res.body.data.images).toHaveLength(1);
@@ -295,6 +297,48 @@ describe('Answer API', () => {
       where: { id: answer.id }
     });
     expect(updatedAnswer?.deletedAt).not.toBeNull();
+
+    const updatedQuestion = await prisma.question.findUnique({
+      where: { id: question.id }
+    });
+    expect(updatedQuestion?.answers).toBe(0);
+  });
+
+  // A-API-006 未审核通过的问题下禁止创建回答
+  it('should forbid creating answer on unapproved question (A-API-006)', async () => {
+    const question = await prisma.question.create({
+      data: {
+        id: 'q-ans-006',
+        title: '待审核的问题',
+        content: '问题内容',
+        subject: 'math',
+        tags: ['二次函数'],
+        status: 'pending',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const res = await request(app)
+      .post(`/api/questions/${question.id}/answers`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        content: '老师尝试回答待审核问题'
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('ANSWER_DENIED');
+
+    const answers = await prisma.answer.findMany({
+      where: { questionId: question.id }
+    });
+    expect(answers.length).toBe(0);
 
     const updatedQuestion = await prisma.question.findUnique({
       where: { id: question.id }

@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Fixed
+- **诊断工具接入真实后端并纳入老师后台**:
+  - 将 `src/lib/test-runner.ts` 中的诊断用例从前端 Mock 数据改为调用真实后端 API（`GET /api/users/me`、`GET /api/questions`、`GET /api/notifications/unread-count`、`GET /api/config/question-dimensions`、`GET /api/admin/whitelist`），作为老师可用的线上健康检查模板；
+  - 为 `src/pages/DiagnosticPage.tsx` 添加登录与角色校验，仅允许老师访问诊断工具，并在 `AdminManagementPage` 顶部增加“系统诊断”按钮，方便从老师后台一键跳转到该页面；
+  - 更新前端测试（`src/test/diagnostic/page.test.tsx`、`tests/e2e/main-flow.spec.ts`）以反映“仅老师可用的诊断工具”新行为：在单测中显式覆盖“未登录用户访问时跳转 `/login` + toast 提示”“学生等非教师访问时跳回首页并提示‘只有老师可以访问诊断工具’”两种权限边界，并保持诊断日志仍输出 `Diagnostic engine started / Diagnostic complete` 关键片段便于观察。
 - **App Component Failure**: Fixed a critical `ReferenceError: ParentQuestionPage is not defined` that caused the application to crash on startup.
   - Added missing import `import { ParentQuestionPage } from '@/pages/ParentQuestionPage';` in `src/App.tsx`.
   - Resolved `net::ERR_ABORTED` chunk loading errors caused by the unresolved dependency.
@@ -15,6 +19,47 @@
 - **前端会员与家长权限一致性**:
   - 更新 `src/lib/permissions.ts` 中的 `isMemberActive` 实现，将家长（`parent`）统一视为非有效会员，仅支持浏览，不参与提问/评论写操作；老师始终视为有效会员，学生则根据 `expiresAt` 判断有效期。
   - 调整 `CreateQuestionPage` 与相关 E2E 测试（`tests/e2e/membership-parent-guard.spec.ts` / `tests/e2e/parent-flow.spec.ts`），确保课时过期学生与家长账号在访问 `/create` 或点击浮动提问按钮时会被正确拦截，并覆盖“家长在问题详情页无法看到评论输入框”等边界场景。
+- **登录页前端 Mock 分支收紧**:
+  - 移除 `src/pages/LoginPage.tsx` 中基于 `VITE_USE_MOCK` 的前端登录/注册 Mock 分支，统一通过 `authService.login` / `authService.register` 与后端交互，避免在长期开启 Mock 时出现“前端显示已登录但数据库无记录”的不一致状态。
+  - 在前端综合用例 `src/test/comprehensive.test.tsx` 中为 `@/services/api` 增加统一 Mock，实现验证码发送、登录、注册与家长绑定等路径的稳定单测覆盖，同时不再依赖组件内部的 Mock 逻辑。 
+
+- **家长绑定与课时有效期一致性**:
+  - 在 `backend/src/services/parent.service.ts` 中移除基于 `NODE_ENV === 'development'` 的绑定验证码“万能码”逻辑，改为统一依赖 `VerificationCode` 表校验 `type='bind_child'` 记录，避免环境配置错误时家长绑定流程被固定验证码绕过。
+  - 在 `backend/src/services/class-hours.service.ts` 中获取白名单记录时显式过滤 `deletedAt IS NULL`，并在批量课时调整时同样仅对未删除白名单生效，防止已移除白名单的用户在课时查询接口中仍显示为“有效”状态。
+  - 清理 `backend/prisma/schema.prisma` 中 `QuestionDimensionOption` 的重复定义，保持 Prisma Schema 与现有数据库结构的一致性，降低后续迁移或重新生成客户端时代码中断的风险。
+
+- **提问与评论端到端链路稳定性**:
+  - 调整 `CreateQuestionPage` 提问成功后的行为：从“统一跳转回首页”改为“跳转到新创建问题的详情页”，便于后续点赞/收藏及 E2E 测试复用问题 URL（`tests/e2e/main-flow.spec.ts` / `tests/e2e/question-api-bridge.spec.ts` 等已对齐）。
+  - 修复 `QuestionDetailPage` 评论提交逻辑：显式引入 `USE_MOCK`、统一通过 `commentService.create` 与后端 `/api/questions/:id/comments` 对接，并在教师/学生场景下通过 Playwright 用例校验评论成功 toast 与刷新后评论仍可见（`student-flow` / `student-teacher-parent-bridge` 系列用例全部通过）。
+- **回答创建接口文案与审核流程一致性**:
+  - 调整 `backend/src/routes/question.routes.ts` 中 `POST /api/questions/:questionId/answers` 的返回文案：根据 `status` 动态返回“回答提交成功，等待审核 / 已通过审核 / 但未通过审核”，其中老师回答在 AI 审核通过后会直接返回“已通过审核”，不再暗示还需要人工审核。
+  - 同步更新集成测试 `backend/src/tests/integration/answer.api.spec.ts` 中 A-API-001 用例的断言，确保测试行为与老师回答仅经 AI 审核即可生效的规则保持一致。
+- **家长视角问题列表只展示已审核内容**:
+  - 更新 `backend/src/services/parent.service.ts` 中 `getChildQuestions` 的查询条件，仅返回 `status = 'approved'` 的问题，保证家长在“我的孩子的问题”列表中只能看到已通过审核的正式题目。
+  - 补充集成测试 `backend/src/tests/integration/parent.api.spec.ts`，新增“家长查看孩子问题时仅返回已通过审核的问题”用例，覆盖 approved/pending/rejected 三种状态的过滤行为。
+- **点赞/收藏列表过滤未审核问题**:
+  - 更新 `backend/src/services/interaction.service.ts` 中 `listUserLikes/listUserFavorites` 的实现，在根据 `Like/Favorite` 反查问题详情时仅加载 `status = 'approved'` 的问题，避免列表中出现已被驳回或仍在待审核状态的问题。
+  - 补充集成测试 `backend/src/tests/integration/interaction-like-favorite.api.spec.ts`，验证“我的点赞/收藏”列表会自动过滤掉指向未审核问题的记录，确保前端“我的收藏/点赞”页面只展示当前可见的正式题目。
+- **密码长度规则统一为至少 8 位**:
+  - 将 `backend/src/services/auth.service.ts` 中 `passwordLogin` 与 `setPassword` 的密码长度校验从“至少 6 位”提升为“至少 8 位”，与注册接口及 `helloagents/wiki/modules/backend-auth.md` 中的安全规则保持一致。
+  - 更新前端 `src/pages/ProfilePage.tsx` 中“修改密码”对话框的前端校验与提示文案为“密码至少需 8 位”，避免前后端规则不一致导致的体验差异。
+  - 调整单元测试 `backend/src/tests/unit/auth.service.spec.ts` 中 `sendCode` 相关用例，显式模拟登录场景下已存在且未封禁的用户，确保验证码发送逻辑与“仅为真实账号发送登录验证码”的新规则一致，并保持验证码写入失败时抛出 `500/INTERNAL_SERVER_ERROR` 的行为不变。
+- **行为日志上报类型边界校验**:
+  - 在 `backend/src/services/behavior-log.service.ts` 中为 `logSingle` 增加 `type` 字段的边界保护：当事件类型为空、非字符串或长度超过 50 时，直接返回 `400/VALIDATION_ERROR`，并阻止写入数据库，避免恶意超长或异常类型干扰行为统计与查询性能。
+  - 补充单元测试 `backend/src/tests/unit/behavior-log.service.spec.ts`，覆盖“类型为空/过长时抛出 VALIDATION_ERROR”场景；更新冒烟测试 `backend/src/tests/integration/api-status-smoke.spec.ts` 中的验证码发送用例，使其使用已存在用户手机号，保证与登录场景下“仅为真实账号发送验证码”的业务约束一致。
+- **问题详情访问权限收紧与分页安全性**:
+  - 在 `backend/src/services/question.service.ts` 的 `getById` 中新增 `userContext` 参数，强制仅作者本人或教师可以查看 `status !== 'approved'` 的问题详情；配合 `question.routes.ts` 中 `/api/questions/:id` 路由传入当前用户身份，防止未审核/已驳回问题通过分享链接被普通用户直接访问。
+  - 补充单元测试 `backend/src/tests/unit/question.service.spec.ts` 与集成测试 `backend/src/tests/integration/question.api.spec.ts`，覆盖“非作者/非教师访问 pending/rejected 问题得到 403/ PERMISSION_DENIED，以及作者/教师仍可正常查看”的边界场景。
+  - 为白名单列表接口 `WhitelistService.list` 增加 `page/pageSize` 的安全兜底逻辑，将非法页码回退到 `page=1,pageSize=20`，并在 `backend/src/tests/unit/whitelist.service.spec.ts` 中验证 skip/take 行为，避免不当参数导致后台一次性查询过多记录。
+- **用户资料更新类型校验与边界保护**:
+  - 在 `backend/src/routes/user-me.routes.ts` 的 `PATCH /api/users/me` 中增加字段类型与取值校验：仅允许更新 `nickname/avatar/grade/school` 的字符串值与 `age` 的 0~120 整数值，非法类型或范围触发 `400/INVALID_PARAMS`，从路由层阻止异常 payload 传入 `UserService.updateProfile` 与底层 Prisma。
+  - 新增集成测试 `backend/src/tests/integration/user-me-profile.api.spec.ts`，验证“年龄为非数字字符串时返回 400/INVALID_PARAMS”以及“合法昵称/年龄/学校更新能正常落库”，确保用户资料更新在类型边界上行为可预期。
+- **课时批量调整参数校验**:
+  - 在 `backend/src/routes/admin-class-hours.routes.ts` 的 `/api/admin/class-hours/batch-update` 路由中增加请求体验证：要求 `userIds` 为非空字符串数组、`action` 为 `'extend' | 'reduce'` 且 `months` 为大于 0 的整数，非法参数将返回 `400/VALIDATION_ERROR`，避免批量课时调整以异常参数触发大范围数据库操作。
+  - 扩展集成测试 `backend/src/tests/integration/admin-class-hours.api.spec.ts`，新增“months 非法时返回 400/VALIDATION_ERROR”的用例，在原有 CH-API-003/004 基础上补足批量调整入口的边界保护覆盖率。
+ - **“我的回答”分页参数边界保护**:
+   - 在 `backend/src/routes/profile.routes.ts` 的 `/api/profile/my-answers` 路由中增加分页参数的安全兜底逻辑：当 `page<=0` 或非数字时回退到 1，当 `pageSize` 非数字或超出 1~100 区间时回退到 20，防止异常分页参数导致负数 skip 或一次性加载过多回答记录。
+   - 新增集成测试 `backend/src/tests/integration/profile-my-answers.api.spec.ts`，验证在 `page=-1&pageSize=1000` 的情况下接口仍返回 200，且响应中的 `page` 被规范化为 1，确保教师“我的回答”页面在分页参数异常时行为可预期且对数据库压力可控。
 
 ### Added
 - **Tests**:
@@ -22,10 +67,12 @@
   - 为后端核心 Service（`AuthService`、`WhitelistService`、`ClassHoursService` 以及 Question/Answer/Comment/Interaction 相关 Service）新增单元测试文件（`backend/src/tests/unit/*.spec.ts`），覆盖验证码校验、白名单与课时有效期计算、状态流转与计数维护等关键分支逻辑，使 `src/services` 目录语句覆盖率提升到约 96%，为后续补足路由与中间件层测试打下基础。
 - **HelloAGENTS 知识库**:
   - 初始化 `helloagents/project.md` 及 `helloagents/wiki/*` 核心文档，作为后续前后端开发与方案包迁移的统一知识来源。
+  - 新增 `helloagents/wiki/mock-integration-guidelines.md`《Mock 功能与真实数据库联调规范》，系统梳理前端 Mock 使用场景、真实数据库联调方式、后端降级逻辑与 E2E 测试运行约定，并在 `去除Mock改造清单.md` 第 6 节中建立与该规范的双向维护流程。
 - **后端认证模块扩展**:
   - 在 `backend` 中实现 `/api/auth/refresh-token` 与 `/api/auth/logout` 端点，接入 RefreshToken 持久化与撤销逻辑。
   - 新增集成测试 `src/tests/integration/auth-refresh-logout.api.spec.ts`，覆盖 `AUTH-API-012/013/014` 三个用例。
   - 使用 Prisma `migrate dev` 为认证相关表（用户、验证码、RefreshToken、登录日志）生成并应用初始迁移脚本。
+  - 为注册流程新增登录密码能力：`POST /api/auth/register` 现在要求请求体中提供 `password` 字段（至少 8 位），在 `backend/src/services/auth.service.ts` 中完成长度校验与 `passwordHash` 写入，并在 `backend/src/tests/unit/auth.service.spec.ts` 与 `backend/src/tests/integration/auth.api.spec.ts` 中补充了对应的单元与集成测试。
 - **白名单管理模块**:
   - 在 `backend` 中实现 `/api/admin/whitelist` 列表、创建、更新与删除接口，接入教师角色鉴权中间件。
   - 新增 `src/services/whitelist.service.ts` 与 `src/routes/admin-whitelist.routes.ts`，封装白名单分页、统计与软删除逻辑。
@@ -99,6 +146,9 @@
  - 新增 `src/lib/image-compress.ts`，在浏览器端统一实现 JPG 压缩与 1MB 体积控制，并在 `questionService.uploadImage` 中串联签名获取与直传逻辑；
   - 将 `CreateQuestionPage` 提问提交逻辑切换为调用后端 `POST /api/questions`，并在问题详情页接入 `/api/interactions/like|favorite` 与 `POST /api/behavior/log`，使点赞/收藏行为真实落地到后端；
   - 在 `AuthService.login` 中引入可配置的 `AUTH_STRICT_WHITELIST_FOR_LOGIN` 白名单校验开关，为后续统一登录与课时策略提供基础能力。
+- **问题详情页评论持久化**:
+  - 将 `QuestionDetailPage` 中的评论提交逻辑从纯本地 `comments` 状态更新改为在非 Mock 模式下调用后端 `POST /api/questions/:id/comments`，通过前端 `commentService` 真实落库；
+  - 页面加载时在非 Mock 模式下调用 `GET /api/questions/:id/comments` 填充评论列表，仅展示已审核通过的评论；在 `VITE_USE_MOCK=true` 场景下保留原有基于 `mockComments` 的前端演示行为，避免误写数据库。
 
 ### Changed / Extended (2026-02-02 后续迭代)
 - **家长 & 过期学生权限链路（前端）**:
@@ -128,6 +178,12 @@
   - 在 `backend/src/tests/integration/contract-route-diff.api.spec.ts` 中补充对白名单与通知模块返回结构的合同检查，明确当前实现与文档示例之间的结构性差异：
     - 白名单列表：确认 `GET /api/admin/whitelist` 返回 `data.list + data.pagination + data.statistics`，而非文档中的 `items/total/page/limit`，将其记录为“已知合同差异（结构字段名差异）”；
     - 通知列表：确认 `GET /api/notifications` 返回 `notifications/unreadCount/total` 三个字段，与文档中未细化字段名的描述保持语义一致但命名上存在差异，为后续文档更新提供依据。
+- **认证模块扩展：密码登录能力**:
+  - 在 `backend/prisma/schema.prisma` 中为 `User` 模型新增可选字段 `passwordHash`，并通过 `prisma migrate dev` 生成迁移 `20260202170756_add_user_password_hash`，以支持数据库层面的登录密码持久化；
+  - 在 `backend/src/services/auth.service.ts` 中新增 `passwordLogin(phone, password)`，基于 `bcryptjs` 校验 `passwordHash`，并复用现有白名单/课时检查、RefreshToken 持久化与登录日志逻辑，返回与短信验证码登录完全一致的 `LoginResponse` 结构；
+  - 在 `backend/src/routes/auth.routes.ts` 中新增 `POST /api/auth/password-login` 路由，作为纯密码登录入口，不影响现有 `send-code/login/register` 合同；
+  - 前端 `src/services/api.ts` 增加 `authService.passwordLogin` 封装，并在 `src/pages/LoginPage.tsx` 中加入“验证码登录/密码登录”切换：在密码模式下使用手机号+密码调用新接口，在 Mock 模式下由 axios 拦截器对 `/auth/password-login` 返回与原登录接口一致的 Mock 数据。
+  - 修复“登录验证码记录可空保存”的降级逻辑：在 `AuthService.sendCode` 中去掉对 `prisma.verificationCode.create` 的静默吞错，当验证码写入失败时改为抛出 `500/INTERNAL_SERVER_ERROR/验证码服务暂不可用，请稍后重试`，并在 `backend/src/tests/unit/auth.service.spec.ts` 中新增单元测试，确保不会再出现“前端收到发送成功但数据库无验证码记录”的不一致状态。
 
 - **用户白名单管理页面状态与课时筛选增强**:
   - 在前端 `src/pages/AdminManagementPage.tsx` 中扩展白名单状态展示与课时状态筛选能力，使教师/管理员可以一目了然查看白名单整体状态，并快速筛出“快要过期”的学生与家长：
@@ -135,6 +191,53 @@
     - 在统计卡片区域补充课时维度统计卡片：“即将过期（学生/家长）”“已过期（学生/家长）”，通过 `expiryStats.expiringSoon/expired` 直观展示当前课时风险分布。
     - 扩展列表过滤逻辑 `filteredList`，引入 `filterExpiry` 状态（`all | expiring | expired`），在保持原有角色/注册状态/搜索筛选的基础上，对学生与家长按课时状态进行过滤；在“课时状态≠全部”时默认不展示老师记录，聚焦需要课时管理的对象。
     - 在筛选器区域新增“课时状态”下拉框（全部 / 仅看即将过期（学生/家长）/ 仅看已过期（学生/家长）），满足“用户白名单管理页面的全部状态 + 筛选快要过期的学生和家长”的需求，同时不改变现有后端 `/api/admin/whitelist` 合同，为未来对接真实接口预留 `validUntil -> expiresAt` 适配空间。
+    - 补充管理页访问权限防护：在 `AdminManagementPage` 中显式依赖 `useAuthStore.user`，仅在“已登录且角色为 teacher”时才向后端发起 `adminService.getWhitelist` 请求，并新增前端单测 `src/test/admin_management_permissions.test.tsx` 覆盖“未登录用户自动跳转登录页”和“非教师账号访问后台时被重定向回个人中心/首页”的场景，避免无权限用户产生多余的 401/403 日志。
+
+- **个人中心模块权限与边界保护（我的点赞/收藏/回答）**:
+  - 在 `src/pages/MyAnswersPage.tsx` 中补充严格的角色与登录校验：
+    - 未登录用户访问 `/my-answers` 时立即重定向到 `/login`，不再在未授权状态下展示“还没有回答过问题”的误导性文案；
+    - 将业务规则固化为“只有老师可以查看自己的回答列表”：当检测到当前用户 `role !== 'teacher'` 时，通过 `toast.error('只有老师可以查看我的回答')` 给出明确提示，并导航回个人中心 `/profile`；
+    - 将回答列表加载逻辑收紧为“仅在 `user && user.role === 'teacher'` 时调用 `profileService.getMyAnswers`”，避免学生/家长账号在异常情况下触发无意义的后端调用。
+  - 新增后端集成测试 `backend/src/tests/integration/profile-my-answers.api.spec.ts`，在教师身份下以 `page=-1&pageSize=1000` 调用 `/api/profile/my-answers`，验证路由层会自动将分页参数规范化并返回合理的分页信息，确保异常分页参数不会导致负数 offset 或一次性拉取过多记录。
+- **问题详情页回答入口权限对齐（QuestionDetailPage → AnswerQuestionPage）**:
+  - 在 `src/pages/QuestionDetailPage.tsx` 中收紧“去回答”按钮的展示条件，将 `canAnswer` 统一为仅依赖 `isTeacher`，避免在后端返回 `authorRole = 'teacher'` 时学生账号错误看到“去回答”按钮而点击后仍被 handler 拦截的前后端语义不一致状态；
+  - 保留 `handleAnswer` 中“只有老师可以回答问题”的运行时校验逻辑，与页面 UI 显示的按钮保持一致，使“学生提问 → 老师回答 → 家长查看”这一核心三端联动路径在前端完全按角色预期展示；
+  - 在 `src/test/comprehensive.test.tsx` 中新增用例 `ANS-FE-001`：通过构造 `authorRole = 'teacher'` 的问题数据，分别以教师与学生身份渲染 `QuestionDetailPage`，断言教师账号可以看到“去回答”按钮，而学生账号在同一题目上不会看到该入口，为问题详情页回答入口的角色边界提供前端单元测试保障。
+
+- **注册内存降级策略收紧（后端 AuthService）**:
+  - 在 `backend/src/services/auth.service.ts` 中调整注册逻辑：当 `NODE_ENV === 'production'` 时，`prisma.user.create` 或 `prisma.refreshToken.create` 失败会抛出 `500/INTERNAL_SERVER_ERROR/注册服务暂不可用，请稍后重试`，禁止“内存用户 + 未持久化 RefreshToken”的降级行为，避免生产环境中出现“前端注册成功但数据库无用户或无 RefreshToken 记录”的不一致状态。
+  - 在开发/测试环境中保留原有降级策略，以便在本地无数据库或迁移未完成时仍可联调前端注册与登录流程；相关环境与降级策略已在 `helloagents/wiki/modules/backend-auth.md` 中同步说明。
+  - 为认证模块的降级分支补充结构化日志：在 `AuthService.sendCode/login/passwordLogin/register/refreshToken` 的非生产降级路径中，通过 `coreLogger.warn` 输出带有 `mode: 'degraded'`、`feature` 与 `reason` 字段的日志，便于在日志系统中快速筛查“白名单跳过校验”“注册降级为内存用户”“RefreshToken 校验退化为仅依赖 JWT”等场景。
+  - 在前端 `src/services/api.ts` 的请求拦截器中增加 `X-Client-Mode` 请求头，结合后端 `loggerMiddleware` 与 `errorMiddleware` 的扩展，使所有访问日志与错误日志统一包含 `mode: 'mock' | 'normal'` 字段，满足《去除 Mock 与接入真实数据库改造清单》中“对 mock/降级路径输出 mode 字段”的监控要求。
+
+- **题目维度配置与“解题方法/办法”动态下拉**:
+  - 在后端 Prisma 模型中新增 `QuestionDimension` 与 `QuestionDimensionOption`，并通过 `script/seed-question-dimensions.ts` 初始化 `key='method'` 维度以及包含 `'unknown'`（“暂不确定”）在内的默认选项集合；
+  - 新增公共配置接口 `GET /api/config/question-dimensions`（`src/routes/config.routes.ts` + `QuestionDimensionService.getPublicDimensions`），为前端提问页提供启用维度及选项的统一读取能力；
+  - 新增管理端接口 `GET/PUT /api/admin/question-dimensions` 与 `POST/PUT /api/admin/question-dimensions/:key/options`（`src/routes/admin-question-dimensions.routes.ts`），支持教师角色在后台调整维度名称、启用状态及选项集合；
+  - 在前端 `src/services/api.ts` 中新增 `configService.getQuestionDimensions`，并在 `CreateQuestionPage` 中接入该配置：当检测到启用的 `method` 维度时，使用后端返回的 `name` 与 `options` 渲染“解题方法/办法”下拉，否则回退到内置 `TAXONOMY`；当用户选择“暂不确定”时，提交 payload 中的 `tags` 将包含 `'unknown'`；
+  - 新增后端集成测试 `backend/src/tests/integration/question-dimensions.api.spec.ts`，覆盖配置读取与管理端增删改行为；新增 Playwright 用例 `tests/e2e/question-method-dimension-config.spec.ts`，通过真实前端提问流程拦截 `/api/questions` 请求，校验选择“暂不确定”时 `tags` 字段中包含 `'unknown'`。
+
+- **STU-010 测试从前端单测迁移到真实 E2E**:
+  - 移除 `src/test/advanced_coverage.test.tsx` 中基于虚拟数据与 Mock Service 的 `STU-010: Like toggles state` 前端单元测试，不再在 jsdom 环境下用本地假数据验证点赞切换逻辑。
+  - 新增 Playwright 用例 `tests/e2e/student-like-toggle.spec.ts`，使用 `bootstrapAuth(page, 'student')` + 真实后端 `/api/questions` 与 `/api/interactions/like`，覆盖“学生在问题详情页点赞后再次点击变为取消点赞”的完整链路，确保 STU-010 用例仅依赖真实数据库数据。
+
+- **白名单 & 管理端（WL）真实后端桥接 E2E**:
+  - 在 E2E 层新增 `tests/e2e/admin-whitelist-api-bridge.spec.ts`，通过 Playwright `request` 客户端直接调用真实后端 `/api/internal/test-token` 与 `/api/admin/whitelist`，覆盖 WL-API-002/004/005/006/007/008/009 等关键用例：
+    - 教师创建白名单记录后，在 `status=pending` 列表中可以检索到（对应 WL-API-004 + WL-API-001 的组合行为）；
+    - 重复手机号添加返回 `409/PHONE_EXISTS`，非法参数返回 `400/VALIDATION_ERROR`；
+    - 学生/家长访问 `/api/admin/whitelist` 返回 `403/PERMISSION_DENIED`；
+    - 更新 `validUntil` 成功及不存在 ID 返回 `404/WHITELIST_NOT_FOUND`；
+    - 删除待注册白名单用户返回 `200/删除成功`。
+  - 通过 `npm run test:e2e -- tests/e2e/admin-whitelist-api-bridge.spec.ts` 已验证上述用例在真实数据库环境下全部通过，为白名单 & 管理端相关业务提供无 Mock 的端到端 API 级保障。
+
+- **审核管理页接入后端 Admin Audit API**:
+  - 在前端 `src/services/api.ts` 中扩展 `adminService`，新增：
+    - `getPendingQuestions/getPendingComments` 对接 `GET /api/admin/audit/pending?type=question|comment`；
+    - `approveQuestion/rejectQuestion/approveComment/banComment/togglePinQuestion` 对接审核通过、驳回、封禁与置顶接口；
+  - 将 `src/pages/AuditPage.tsx` 从纯 Demo 模式改为真实后台审核页：
+    - 加载时按 Tab（问题/评论）调用对应 API 拉取待审核列表，并展示 `aiResult` 作为 AI 初筛结果提示；
+    - 点击“通过/驳回/封禁/好问题/打分”按钮时调用后端审核 API，成功后更新本地列表状态，保持与后端 `status` 字段一致；
+    - 在 Vitest 环境中保留 demo 注入兜底逻辑，确保既有前端测试（TEA 系列）仍可运行。
 
 ## [2026-02-02]
 - Initial parent-child binding flow implementation.

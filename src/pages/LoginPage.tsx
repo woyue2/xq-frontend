@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -13,15 +11,13 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Eye, EyeOff, X } from 'lucide-react';
-import { validInviteCodes, mockUsers } from '@/lib/mock-data';
+import { validInviteCodes } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
 import { parentService } from '@/services/parentService';
 import { authService } from '@/services/api';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -30,9 +26,14 @@ export function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [loginMode, setLoginMode] = useState<'code' | 'password'>('code');
+
+  // 注册场景下用于展示的姓名（昵称）
+  const [nickname, setNickname] = useState('');
 
   // 学生注册专用字段
   const [grade, setGrade] = useState('');
@@ -111,8 +112,23 @@ export function LoginPage() {
       return;
     }
 
-    if (!code) {
+    if (isLogin && loginMode === 'code' && !code) {
       toast.error('请输入验证码');
+      return;
+    }
+
+    if (isLogin && loginMode === 'password' && !password) {
+      toast.error('请输入密码');
+      return;
+    }
+
+    if (!isLogin && !code) {
+      toast.error('请输入验证码');
+      return;
+    }
+
+    if (!isLogin && (!password || password.length < 8)) {
+      toast.error('请设置至少 8 位登录密码');
       return;
     }
 
@@ -163,71 +179,21 @@ export function LoginPage() {
       }
     }
 
-    // 分支 1：前端 mock 模式（用于纯前端体验与测试）
-    if (USE_MOCK) {
-      // 模拟登录/注册
-      let user = mockUsers.find((u) => u.phone === phone);
-
-      if (!user && isLogin) {
-        toast.error('账号不存在，请先注册');
-        return;
-      }
-
-      if (!user && !isLogin) {
-        // 注册新用户
-        const roleMap: Record<string, UserRole> = {
-          'ZHISHIXINGQIU2024': 'student',
-          'STUDENT2024': 'student',
-          'TEACHER2024': 'teacher',
-          'PARENT2024': 'parent',
-        };
-
-        user = {
-          id: String(mockUsers.length + 1),
-          phone,
-          nickname: `用户${phone.slice(-4)}`,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${phone}`,
-          role: roleMap[inviteCode] || 'student',
-          // 学生专属字段
-          ...(isStudentInvite && {
-            grade,
-            age: parseInt(age),
-            school,
-          }),
-        };
-
-        mockUsers.push(user);
-        toast.success('注册成功');
-      }
-
-      if (user) {
-        login(user, 'mock-jwt-token');
-        
-        // 如果是家长注册，执行绑定逻辑
-        if (isParentInvite) {
-          try {
-            await parentService.bindChild({
-              childName,
-              phone: childPhone,
-              code: childCode,
-              school: childSchool
-            });
-            toast.success('自动绑定孩子成功');
-          } catch (error) {
-            console.error('自动绑定失败:', error);
-            toast.error('自动绑定孩子失败，请稍后重试');
-          }
-        }
-
-        toast.success('登录成功');
-        navigate('/');
-      }
-      return;
-    }
-
-    // 分支 2：真实后端联调模式
+    // 统一走真实后端联调模式（在测试环境下由 api.ts Mock 拦截器兜底）
     try {
       if (isLogin) {
+        if (loginMode === 'password') {
+          const response = await authService.passwordLogin({
+            phone,
+            password
+          });
+          const { token, user } = response.data.data;
+          login(user, token);
+          toast.success('登录成功');
+          navigate('/');
+          return;
+        }
+
         const response = await authService.login({
           phone,
           code
@@ -246,7 +212,8 @@ export function LoginPage() {
       const registerResult = await authService.register({
         phone,
         code,
-        nickname: `用户${phone.slice(-4)}`,
+        password,
+        nickname: nickname.trim() || `用户${phone.slice(-4)}`,
         grade: isStudentInvite ? grade : undefined,
         age: isStudentInvite ? parseInt(age, 10) : undefined,
         school: isStudentInvite ? school : undefined,
@@ -279,7 +246,18 @@ export function LoginPage() {
     }
   };
 
-  const canSubmit = phone.length === 11 && code && (isLogin || (inviteCode && (!isStudentInvite || (grade && age && school))));
+  const basePhoneValid = phone.length === 11;
+  const loginValid =
+    isLogin &&
+    ((loginMode === 'code' && !!code) ||
+      (loginMode === 'password' && !!password));
+  const registerValid =
+    !isLogin &&
+    !!inviteCode &&
+    !!code &&
+    password.length >= 8 &&
+    (!isStudentInvite || (grade && age && school));
+  const canSubmit = basePhoneValid && (loginValid || registerValid);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -326,17 +304,40 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* 验证码输入 */}
+          {/* 验证码 / 密码输入 */}
           <div className="space-y-2">
-            <Label htmlFor="code">验证码</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="code">
+                {isLogin && loginMode === 'password' ? '密码' : '验证码'}
+              </Label>
+              {isLogin && (
+                <button
+                  type="button"
+                  className="text-xs text-blue-500 hover:underline"
+                  onClick={() => {
+                    setLoginMode(loginMode === 'code' ? 'password' : 'code');
+                    setCode('');
+                    setPassword('');
+                  }}
+                >
+                  {loginMode === 'code' ? '使用密码登录' : '使用验证码登录'}
+                </button>
+              )}
+            </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
                   id="code"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="请输入验证码"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  placeholder={isLogin && loginMode === 'password' ? '请输入密码' : '请输入验证码'}
+                  value={isLogin && loginMode === 'password' ? password : code}
+                  onChange={(e) => {
+                    if (isLogin && loginMode === 'password') {
+                      setPassword(e.target.value);
+                    } else {
+                      setCode(e.target.value);
+                    }
+                  }}
                   className="pr-8"
                 />
                 <button
@@ -346,16 +347,56 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <Button
-                onClick={handleGetCode}
-                disabled={countdown > 0}
-                variant="outline"
-                className="whitespace-nowrap"
-              >
-                {countdown > 0 ? `${countdown}秒` : '获取验证码'}
-              </Button>
+              {(!isLogin || loginMode === 'code') && (
+                <Button
+                  onClick={handleGetCode}
+                  disabled={countdown > 0}
+                  variant="outline"
+                  className="whitespace-nowrap"
+                >
+                  {countdown > 0 ? `${countdown}秒` : '获取验证码'}
+                </Button>
+              )}
             </div>
           </div>
+
+          {/* 注册姓名输入（仅注册模式） */}
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="registerName">姓名</Label>
+              <Input
+                id="registerName"
+                type="text"
+                placeholder="请输入姓名（用于展示的昵称，可选）"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* 注册密码输入（仅注册模式，位于姓名下方） */}
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="registerPassword">密码 *</Label>
+              <div className="relative">
+                <Input
+                  id="registerPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="请设置至少8位密码"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-8"
+                />
+                <button
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">密码至少 8 位，建议包含数字和字母</p>
+            </div>
+          )}
 
           {/* 邀请码输入（仅注册时显示） */}
           {!isLogin && (

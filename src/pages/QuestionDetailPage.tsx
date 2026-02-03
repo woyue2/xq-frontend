@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { mockQuestions, mockComments, mockAnswers, userLikes, userFavorites } from '@/lib/mock-data';
+import { userLikes, userFavorites } from '@/lib/mock-data';
 import type { Comment, DifficultyLevel, Answer } from '@/types';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { cn } from '@/lib/utils';
 import { ImageCarousel } from '@/components/ui/image-carousel';
@@ -16,8 +16,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UI_CONFIG } from '@/config/ui-config';
 import { Pin } from 'lucide-react';
 import { interactionService, behaviorService, questionService, answerService, commentService } from '@/services/api';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+import { USE_MOCK } from '@/lib/mock-env';
+import { useQuestions } from '@/hooks/useQuestions';
+import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
 
 const normalizeQuestion = (raw: any) => {
   if (!raw) return null;
@@ -56,7 +57,10 @@ const normalizeQuestion = (raw: any) => {
 export function QuestionDetailPage() {
   const { id: questionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user: currentUser } = useAuthStore();
+  const { getQuestionById } = useQuestions();
   const safeQuestionId = questionId || '';
   const commentImageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -64,36 +68,13 @@ export function QuestionDetailPage() {
   // 这样在前端单元测试中仍然可以通过 mock useQuestions 提供数据，无需真实网络请求。
   const [rawQuestion, setRawQuestion] = useState<any>(() => {
     if (!safeQuestionId) return null;
-
-    // 1) runtime 下由 useQuestions 提供；在部分测试中会被 vi.mock 掉
-    try {
-      // 动态引入，避免在测试中强耦合 hooks 实现
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { useQuestions } = require('@/hooks/useQuestions') as typeof import('@/hooks/useQuestions');
-      const { getQuestionById } = useQuestions();
-      const fromHook = getQuestionById(safeQuestionId);
-      if (fromHook) {
-        return fromHook;
-      }
-    } catch {
-      // ignore
-    }
-
-    // 2) 兜底：使用 mockQuestions（便于单元测试与纯静态演示）
-    const fromMock = mockQuestions.find(
-      (q: any) => String(q.id) === String(safeQuestionId)
-    );
-    return fromMock ?? null;
+    const fromList = getQuestionById?.(safeQuestionId);
+    return fromList ?? null;
   });
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   useEffect(() => {
     if (!safeQuestionId) return;
-
-    // 如果本地已有（来自列表缓存或测试 mock），不强制重新拉取
-    if (rawQuestion && rawQuestion.id === safeQuestionId) {
-      return;
-    }
 
     let cancelled = false;
     setIsLoadingDetail(true);
@@ -102,7 +83,7 @@ export function QuestionDetailPage() {
       .getQuestionById(safeQuestionId)
       .then((q) => {
         if (!cancelled && q) {
-          setRawQuestion((prev: any) => prev ?? q);
+          setRawQuestion(q);
         }
       })
       .catch(() => {
@@ -117,15 +98,12 @@ export function QuestionDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [safeQuestionId, rawQuestion]);
+  }, [safeQuestionId]);
 
   const question = normalizeQuestion(rawQuestion);
 
-  // 回答列表：优先使用本地 Mock，随后尝试从后端拉取
-  const [answers, setAnswers] = useState<Answer[]>(() => {
-    const initial = mockAnswers[safeQuestionId] || [];
-    return initial as Answer[];
-  });
+  // 回答列表：仅依赖后端接口
+  const [answers, setAnswers] = useState<Answer[]>([]);
   const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
 
   useEffect(() => {
@@ -155,7 +133,7 @@ export function QuestionDetailPage() {
       cancelled = true;
     };
   }, [safeQuestionId]);
-  const [comments, setComments] = useState<Comment[]>(mockComments[safeQuestionId] || []);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
@@ -166,9 +144,18 @@ export function QuestionDetailPage() {
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const questionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const answerAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  const answerCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [targetAnswerId, setTargetAnswerId] = useState<string | null>(() => {
+    const fromQuery = searchParams.get('answerId');
+    const fromState = (location.state as any)?.answerId as string | undefined;
+    return (fromQuery || fromState) ?? null;
+  });
+  const [highlightAnswerId, setHighlightAnswerId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!safeQuestionId || USE_MOCK) return;
+    if (!safeQuestionId) return;
 
     let cancelled = false;
     setIsLoadingComments(true);
@@ -177,11 +164,11 @@ export function QuestionDetailPage() {
       .listByQuestion(safeQuestionId)
       .then((res) => {
         if (!cancelled && res && Array.isArray(res.list)) {
-          setComments((prev) => (prev && prev.length > 0 ? prev : res.list));
+          setComments(res.list);
         }
       })
       .catch(() => {
-        // 出错时保留现有 comments（通常来自 mock），由 UI 做兜底展示
+        // 出错时保持当前 comments 状态，由 UI 做兜底展示
       })
       .finally(() => {
         if (!cancelled) {
@@ -193,6 +180,24 @@ export function QuestionDetailPage() {
       cancelled = true;
     };
   }, [safeQuestionId]);
+
+  // 当回答列表加载完成并且存在目标 answerId 时，自动滚动并高亮目标回答卡片
+  useEffect(() => {
+    if (!targetAnswerId) return;
+    if (!answers || answers.length === 0) return;
+
+    const card = answerCardRefs.current[targetAnswerId];
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightAnswerId(targetAnswerId);
+      const timer = setTimeout(() => {
+        setHighlightAnswerId((prev) => (prev === targetAnswerId ? null : prev));
+      }, 3000);
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [answers, targetAnswerId]);
 
   if (!question) {
     // 统一在“加载中 / 未找到”状态下也提供返回按钮，
@@ -211,7 +216,7 @@ export function QuestionDetailPage() {
             <h1 className="text-base font-bold text-gray-800">问题详情</h1>
           </div>
           <button
-            onClick={() => toast.success('分享链接已复制')}
+            onClick={() => toast.error('当前无法分享该问题')}
             className="p-2 hover:bg-gray-100 rounded-full transition"
           >
             <Share2 className="w-5 h-5 text-gray-600" />
@@ -302,8 +307,20 @@ export function QuestionDetailPage() {
     }
   };
 
-  const handleShare = () => {
-    toast.success('分享链接已复制');
+  const handleShare = async () => {
+    const shareUrl = buildQuestionShareUrl(question.id);
+    if (!shareUrl) {
+      toast.error('暂未配置分享域名，当前不支持复制分享链接');
+      return;
+    }
+
+    const copied = await copyToClipboardSafe(shareUrl);
+    if (copied) {
+      toast.success('分享链接已复制');
+    } else {
+      // 剪贴板不可用时，退化为直接展示链接，交由用户手动复制
+      toast.success(`分享链接：${shareUrl}`);
+    }
   };
 
   const handleAnswer = () => {
@@ -404,6 +421,13 @@ export function QuestionDetailPage() {
         image: commentImage || undefined
       });
 
+      // 处理 AI 审核结果
+      const aiAudit = (created as any)?.aiAudit;
+      if (aiAudit && !aiAudit.safe) {
+        toast.error(`评论被拒绝：${aiAudit.reason || '内容不符合规范'}`);
+        return;
+      }
+
       if (created.status === 'approved') {
         setComments((prev) => [created, ...prev]);
       }
@@ -430,18 +454,53 @@ export function QuestionDetailPage() {
   };
 
   const handlePlayAudio = () => {
-    setIsPlayingAudio(!isPlayingAudio);
-    toast.success(isPlayingAudio ? '暂停播放' : '开始播放');
+    if (!question.audioUrl || !questionAudioRef.current) return;
+
+    const el = questionAudioRef.current;
+    if (isPlayingAudio) {
+      el.pause();
+      setIsPlayingAudio(false);
+      toast.success('暂停播放');
+    } else {
+      el
+        .play()
+        .then(() => {
+          setIsPlayingAudio(true);
+          toast.success('开始播放');
+        })
+        .catch(() => {
+          toast.error('无法播放音频，请稍后重试');
+        });
+    }
   };
 
   const handlePlayAnswerAudio = (answerId: string) => {
+    const currentAudio = answerAudioRefs.current[answerId];
+    if (!currentAudio) {
+      toast.error('音频加载中，请稍后重试');
+      return;
+    }
+
     if (playingAnswerId === answerId) {
+      currentAudio.pause();
       setPlayingAnswerId(null);
       toast.success('暂停播放');
-    } else {
-      setPlayingAnswerId(answerId);
-      toast.success('开始播放');
+      return;
     }
+
+    if (playingAnswerId && answerAudioRefs.current[playingAnswerId]) {
+      answerAudioRefs.current[playingAnswerId]?.pause();
+    }
+
+    currentAudio
+      .play()
+      .then(() => {
+        setPlayingAnswerId(answerId);
+        toast.success('开始播放');
+      })
+      .catch(() => {
+        toast.error('无法播放音频，请稍后重试');
+      });
   };
 
   const formatDate = (dateStr: string) => {
@@ -465,6 +524,26 @@ export function QuestionDetailPage() {
   };
 
   const isQuestionAuthor = currentUser?.id === question.authorId;
+  const isTeacher = currentUser?.role === 'teacher';
+  const hasAnyAnswer = (question.stats.answers ?? 0) > 0;
+  const canDelete =
+    isTeacher ||
+    (isQuestionAuthor &&
+      !hasAnyAnswer);
+  // 仅老师可以看到并使用“去回答”入口，防止前端 UI 与后端权限语义出现不一致
+  const canAnswer = isTeacher;
+
+  const handleDelete = async () => {
+    if (!window.confirm('确定要删除这个问题吗？此操作无法撤销。')) return;
+
+    try {
+      await questionService.delete(question.id);
+      toast.success('删除成功');
+      navigate('/', { replace: true });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || '删除失败，请稍后重试');
+    }
+  };
 
 
 
@@ -592,6 +671,11 @@ export function QuestionDetailPage() {
                   </div>
                 </div>
                 <span className="text-xs font-bold text-morandi-5">00:45</span>
+                <audio
+                  ref={questionAudioRef}
+                  src={question.audioUrl}
+                  className="hidden"
+                />
               </div>
             </div>
           )}
@@ -633,7 +717,16 @@ export function QuestionDetailPage() {
                 <Share2 className="w-6 h-6" />
               </button>
             </div>
-            {currentUser?.role === 'teacher' && (
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                className="text-red-400 hover:text-red-500 transition-colors p-2"
+                title="删除问题"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+            {canAnswer && (
               <button
                 onClick={handleAnswer}
                 className="bg-[#D5BDAF] text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm active:scale-95 transition-transform"
@@ -654,7 +747,21 @@ export function QuestionDetailPage() {
 
             <div className="space-y-6">
               {answers.filter(a => a.status === 'approved').map((answer) => (
-                <div key={answer.id} className="space-y-3 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0">
+                <div
+                  key={answer.id}
+                  ref={(el) => {
+                    if (el) {
+                      answerCardRefs.current[answer.id] = el;
+                    }
+                  }}
+                  data-answer-id={answer.id}
+                  className={cn(
+                    'space-y-3 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0 transition-colors',
+                    highlightAnswerId === answer.id
+                      ? 'bg-amber-50 border-amber-200'
+                      : ''
+                  )}
+                >
                   <div className="flex items-center gap-2">
                     <Avatar className="w-8 h-8 border border-gray-100">
                       <AvatarImage src={answer.authorAvatar} />
@@ -702,7 +809,40 @@ export function QuestionDetailPage() {
                           {playbackRate}x
                         </button>
                         <span className="text-[10px] font-bold text-[#1D4ED8]">01:20</span>
+                        <audio
+                          ref={(el) => {
+                            if (el) {
+                              answerAudioRefs.current[answer.id] = el;
+                              el.onended = () => {
+                                setPlayingAnswerId((prev) => (prev === answer.id ? null : prev));
+                              };
+                            }
+                          }}
+                          src={answer.audioUrl}
+                          className="hidden"
+                          data-testid={`answer-audio-${answer.id}`}
+                        />
                       </div>
+                    </div>
+                  )}
+
+                  {answer.audioUrls && answer.audioUrls.length > 1 && (
+                    <div className="mt-2 space-y-1">
+                      {answer.audioUrls.map((url, idx) => {
+                        if (idx === 0) return null;
+                        return (
+                          <div key={idx} className="flex items-center gap-2 text-[11px] text-gray-500">
+                            <span className="px-2 py-0.5 bg-gray-100 rounded-full">
+                              补充录音 {idx + 1}
+                            </span>
+                            <audio
+                              controls
+                              src={url}
+                              className="h-7 flex-1"
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

@@ -136,6 +136,16 @@ describe('Admin Audit API', () => {
     expect(item.aiResult).toContain('疑似违规');
   });
 
+  // AU-API-001P 非法分页参数应返回 400
+  it('should return 400 when pending list pagination params are invalid (AU-API-001P)', async () => {
+    const res = await request(app)
+      .get('/api/admin/audit/pending?type=question&page=0&pageSize=20')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_PAGINATION');
+  });
+
   // AU-API-003 审核通过问题
   it('should approve question (AU-API-003)', async () => {
     await prisma.question.create({
@@ -263,6 +273,25 @@ describe('Admin Audit API', () => {
 
   // AU-API-007 封禁评论
   it('should ban comment (AU-API-007)', async () => {
+    await prisma.question.create({
+      data: {
+        id: 'q-audit-comment-1',
+        title: '所属问题标题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'user-001',
+        authorName: '作者'
+      }
+    });
+
     await prisma.comment.create({
       data: {
         id: 'c-audit-ban-1',

@@ -7,7 +7,8 @@
 | 接口 | 路径 | 成功 HTTP 状态 | 成功 `code` | 说明 |
 |------|------|----------------|-------------|------|
 | 发送验证码 | `POST /api/auth/send-code` | 200 | 200 | 发送短信验证码 |
-| 登录 | `POST /api/auth/login` | 200 | 200 | 登录并返回 token + 用户信息 |
+| 登录 | `POST /api/auth/login` | 200 | 200 | 手机号 + 短信验证码登录，返回 token + 用户信息 |
+| 密码登录 | `POST /api/auth/password-login` | 200 | 200 | 手机号 + 密码登录，返回 token + 用户信息 |
 | 注册 | `POST /api/auth/register` | 201 | 201 | 注册成功 |
 | 刷新 token | `POST /api/auth/refresh-token` | 200 | 200 | 刷新访问令牌 |
 | 退出登录 | `POST /api/auth/logout` | 200 | 200 | 撤销 refresh token |
@@ -82,4 +83,3 @@
 | 接口 | 路径 | 成功 HTTP 状态 | 成功 `code` | 说明 |
 |------|------|----------------|-------------|------|
 | 健康检查 | `GET /health` | 200 | — | 不走统一 `ApiResponse`，仅用于本地/监控 |
-

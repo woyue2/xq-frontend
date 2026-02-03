@@ -2,15 +2,8 @@ import { test, expect, type Page } from '@playwright/test';
 import { bootstrapAuth } from './utils/bootstrapAuth';
 
 async function navigateToProfile(page: Page) {
-  // Header 中的头像按钮
-  const avatarBtn = page.getByRole('button').locator('..').locator('img, span');
-  const fallback = page.getByText('我');
-
-  if (await avatarBtn.first().isVisible()) {
-    await avatarBtn.first().click();
-  } else {
-    await fallback.click();
-  }
+  const profileBtn = page.getByTestId('nav-profile');
+  await profileBtn.click();
 
   await expect(page).toHaveURL(/\/profile$/);
 }
@@ -33,8 +26,8 @@ test.describe('前端主流程冒烟测试', () => {
     ).toBeVisible();
   });
 
-  test('学生免登录访问诊断工具页面并启动一次诊断', async ({ page }) => {
-    await bootstrapAuth(page);
+  test('老师免登录访问诊断工具页面并启动一次诊断', async ({ page }) => {
+    await bootstrapAuth(page, 'teacher');
 
     await page.goto('/diagnostic');
 

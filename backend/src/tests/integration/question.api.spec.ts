@@ -26,10 +26,40 @@ describe('Question API', () => {
     role: 'teacher'
   });
 
+  const TEST_USER_IDS = [
+    'student_001',
+    'student_expired_001',
+    'parent_001',
+    'teacher_001'
+  ];
+
+  const TEST_USER_PHONES = [
+    '13900000001',
+    '13900000002',
+    '13900000003',
+    '13900000011'
+  ];
+
   beforeEach(async () => {
-    // 确保测试用到的用户在数据库中存在，避免会员校验时报 USER_NOT_FOUND
-    await prisma.user.deleteMany();
-    await prisma.userWhitelist.deleteMany();
+    // 清理本文件中使用到的测试用户与相关白名单记录，避免污染其他数据
+    await prisma.userWhitelist.deleteMany({
+      where: {
+        phone: {
+          in: ['13900000003', '18888888888']
+        }
+      }
+    });
+
+    await prisma.loginLog.deleteMany();
+    await prisma.refreshToken.deleteMany();
+
+    await prisma.user.deleteMany({
+      where: {
+        id: {
+          in: TEST_USER_IDS
+        }
+      }
+    });
 
     await prisma.user.createMany({
       data: [
@@ -68,10 +98,48 @@ describe('Question API', () => {
       ]
     });
 
-    await prisma.question.deleteMany();
+    // 仅清理本测试文件中使用到的固定 ID 问题记录，避免误删其他测试或手工数据
+    await prisma.question.deleteMany({
+      where: {
+        id: {
+          in: [
+            'q-001',
+            'q-002',
+            'q-good',
+            'q-status-1',
+            'q-status-2',
+            'q-tags-1',
+            'q-tags-2',
+            'q-author-1',
+            'q-author-2',
+            'q-author-other',
+            'q-detail-1'
+          ]
+        }
+      }
+    });
   });
 
-  // Q-API-001 学生正常创建问题（仍需审核）
+  afterAll(async () => {
+    // 用例执行完成后，再次清理本文件创建的测试用户与白名单记录
+    await prisma.userWhitelist.deleteMany({
+      where: {
+        phone: {
+          in: ['13900000003', '18888888888']
+        }
+      }
+    });
+
+    await prisma.user.deleteMany({
+      where: {
+        id: {
+          in: TEST_USER_IDS
+        }
+      }
+    });
+  });
+
+  // Q-API-001 学生正常创建问题（当前实现：通过 AI 审核后仍为 pending，等待人工复核）
   it('should create question successfully (Q-API-001)', async () => {
     const res = await request(app)
       .post('/api/questions')
@@ -224,6 +292,83 @@ describe('Question API', () => {
     expect(res.body.data.pagination.page).toBe(1);
   });
 
+  // Q-API-005P 非法分页参数应返回 400
+  it('should return 400 when pagination params are invalid (Q-API-005P)', async () => {
+    const res1 = await request(app)
+      .get('/api/questions?page=0&pageSize=20')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res1.status).toBe(400);
+    expect(res1.body.error).toBe('INVALID_PAGINATION');
+
+    const res2 = await request(app)
+      .get('/api/questions?page=1&pageSize=0')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.error).toBe('INVALID_PAGINATION');
+
+    const res3 = await request(app)
+      .get('/api/questions?page=abc&pageSize=20')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res3.status).toBe(400);
+    expect(res3.body.error).toBe('INVALID_PAGINATION');
+  });
+
+  // Q-API-005K 关键字搜索（按标题/内容模糊匹配）
+  it('should filter questions by keyword in title or content (Q-API-005K)', async () => {
+    await prisma.question.createMany({
+      data: [
+        {
+          id: 'q-search-1',
+          title: '勾股定理基础练习',
+          content: '这是一道关于勾股定理的入门题',
+          subject: 'math',
+          tags: ['勾股定理'],
+          difficulty: 'easy',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'user-001',
+          authorName: '搜索同学A'
+        },
+        {
+          id: 'q-search-2',
+          title: '相似三角形综合题',
+          content: '与勾股定理无关的题目内容',
+          subject: 'math',
+          tags: ['相似三角形'],
+          difficulty: 'medium',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'user-002',
+          authorName: '搜索同学B'
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get('/api/questions?page=1&pageSize=20&search=勾股定理')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.list.length).toBeGreaterThanOrEqual(1);
+
+    const titles: string[] = res.body.data.list.map((q: any) => q.title);
+    expect(titles.some((t) => t.includes('勾股定理'))).toBe(true);
+  });
+
   // Q-API-006 筛选好问题
   it('should filter good questions (Q-API-006)', async () => {
     await prisma.question.createMany({
@@ -326,7 +471,7 @@ describe('Question API', () => {
     ).toBe(true);
   });
 
-  // Q-API-010 按作者查询时返回该作者的所有状态问题
+  // Q-API-010 按作者查询时返回该作者的所有状态问题（当前业务仅使用 pending/approved 两种状态）
   it('should list all questions for given authorId regardless of status (Q-API-010)', async () => {
     await prisma.question.createMany({
       data: [
@@ -390,7 +535,8 @@ describe('Question API', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(200);
-    expect(res.body.data.list.length).toBe(2);
+    // 仅断言“至少包含该作者的两条记录”，避免被其他用例创建的同 authorId 数据干扰
+    expect(res.body.data.list.length).toBeGreaterThanOrEqual(2);
     expect(
       res.body.data.list.every(
         (q: any) =>
@@ -475,5 +621,197 @@ describe('Question API', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('QUESTION_NOT_FOUND');
+  });
+
+  // Q-API-013 非作者且非教师无法查看未审核问题详情
+  it('should forbid non-author non-teacher from viewing non-approved question detail (Q-API-013)', async () => {
+    const pendingQuestion = await prisma.question.create({
+      data: {
+        id: 'q-detail-pending-1',
+        title: '待审核问题详情',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        difficulty: 'easy',
+        status: 'pending',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const res = await request(app)
+      .get(`/api/questions/${pendingQuestion.id}`)
+      .set('Authorization', `Bearer ${parentToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('PERMISSION_DENIED');
+  });
+
+  // Q-API-014 作者可以查看自己未审核的问题详情
+  it('should allow author to view own non-approved question detail (Q-API-014)', async () => {
+    const pendingQuestion = await prisma.question.create({
+      data: {
+        id: 'q-detail-pending-author-1',
+        title: '作者待审核问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        difficulty: 'easy',
+        status: 'pending',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const res = await request(app)
+      .get(`/api/questions/${pendingQuestion.id}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.id).toBe(pendingQuestion.id);
+    expect(res.body.data.status).toBe('pending');
+  });
+
+  // Q-API-015 教师可以查看任意未审核问题详情
+  it('should allow teacher to view any non-approved question detail (Q-API-015)', async () => {
+    const rejectedQuestion = await prisma.question.create({
+      data: {
+        id: 'q-detail-rejected-1',
+        title: '被驳回问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        difficulty: 'easy',
+        status: 'rejected',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const res = await request(app)
+      .get(`/api/questions/${rejectedQuestion.id}`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.id).toBe(rejectedQuestion.id);
+    expect(res.body.data.status).toBe('rejected');
+  });
+
+  // Q-API-011 学生只能删除自己且尚无回答的问题
+  it('should allow student to delete own question without answers but forbid when answers > 0 (Q-API-011)', async () => {
+    // 学生自己的无回答问题
+    const noAnswerQuestion = await prisma.question.create({
+      data: {
+        title: '可删除问题',
+        content: '还没有回答',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const okRes = await request(app)
+      .delete(`/api/questions/${noAnswerQuestion.id}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(okRes.status).toBe(200);
+    expect(okRes.body.code).toBe(200);
+
+    const deleted = await prisma.question.findUnique({
+      where: { id: noAnswerQuestion.id }
+    });
+    expect(deleted).toBeNull();
+
+    // 学生自己的已有回答问题
+    const answeredQuestion = await prisma.question.create({
+      data: {
+        title: '已有回答的问题',
+        content: '已经有人回答了',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 1,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const forbiddenRes = await request(app)
+      .delete(`/api/questions/${answeredQuestion.id}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(forbiddenRes.status).toBe(403);
+    expect(forbiddenRes.body.error).toBe('PERMISSION_DENIED');
+
+    const stillThere = await prisma.question.findUnique({
+      where: { id: answeredQuestion.id }
+    });
+    expect(stillThere).not.toBeNull();
+  });
+
+  // Q-API-012 教师可以删除已有回答的问题
+  it('should allow teacher to delete question even when answers > 0 (Q-API-012)', async () => {
+    const question = await prisma.question.create({
+      data: {
+        title: '老师删除的问题',
+        content: '已有回答由老师处理删除',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 2,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const res = await request(app)
+      .delete(`/api/questions/${question.id}`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+
+    const deleted = await prisma.question.findUnique({
+      where: { id: question.id }
+    });
+    expect(deleted).toBeNull();
   });
 });
