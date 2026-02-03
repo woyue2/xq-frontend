@@ -3,6 +3,22 @@
 ## [Unreleased]
 
 ### Fixed
+- **Mock 去除与真实链路对齐（前后端一体）**:
+  - 前端页面权限与数据源：
+    - 为“我的提问/我的回答/我的点赞/我的收藏/通知中心”等页面补充 `useAuthStore` 守卫，未登录访问一律跳转 `/login` 并给出提示；教师/家长/学生在各自“不该看到”的页面会收到明确错误提示并被带离当前页；
+    - 将 `MyAnswersPage/MyLikesPage/MyFavoritesPage/NotificationsPage` 等页面从本地 mock 数据切换为调用 `profileService`、`notificationService` 等真实后端接口，仅在单测中使用 Mock 拦截，彻底移除运行时对 `mock-data.ts` 的依赖；
+    - 为 `StatusListPage/MyQuestionsPage/AdminManagementPage/AuditPage/TestApiPage/DiagnosticPage/ParentQuestionPage` 加上组件级角色守卫，与 `MainLayout` 导航控制形成双重保护，防止通过直接输入 URL 越权访问。
+  - 教师回答链路与通知：
+    - 在后端 `AnswerService.create` 中增加“仅允许在已审核通过的问题下发表回答”的边界校验，并在老师回答通过审核后为提问者生成 `new_answer` 通知（包含 `answerId` 与问题标题），实现“回答创建 → 通知中心 → 问题详情”的端到端闭环；
+    - 前端 `AnswerQuestionPage` 接入 `answerService.create` 的 `aiAudit` 返回结果，当内容被 AI 判定为不安全时给出明确拒绝提示并阻止跳转；成功路径统一使用“回答已提交”提示文案，配合 `student-notification-new-answer-flow.spec.ts` 等 E2E 用例验证通知链路；
+    - 调整 `teacher-answer-flow.spec.ts` 与 `student-notification-answer-flow.spec.ts`，统一期望最新的 toast 文案和通知内容结构，避免因早期“等待审核”提示残留导致 E2E 误报。
+  - 家长与课时权限：
+    - 将 `MainLayout` 中的提问浮动按钮改为仅对“已登录且 `role !== 'parent'` 且会员有效”的用户显示，家长与课时过期学生在首页不会看到提问入口；
+    - 在 `CreateQuestionPage` 中通过 `isMemberActive` 对课时进行双重校验：挂载时拦截过期学生/家长进入编辑页，提交前再次校验避免通过 URL 直达绕过限制；
+    - 完整覆盖课时与家长权限边界的 E2E 用例 `membership-parent-guard.spec.ts`：验证课时过期学生访问 `/create` 会被拦截回首页、家长无法通过任何方式进入提问编辑页、家长在问题详情页不展示评论输入框。
+  - E2E 与单测对齐：
+    - 全量运行 `npm run test:e2e` 与 `npm test` 后，将仅依赖旧 Mock 文案或弱边界假设的用例（如旧版“回答已提交，等待审核”提示、家长可见提问按钮）调整为与最新产品行为一致，同时保留所有负面/边界用例（未登录访问、课时过期、越权访问后台/审核页）；
+    - 新增权限与边界相关的前端单测（`status_navigation.test.tsx`、`advanced_coverage.test.tsx`、`notifications_page_boundaries.test.tsx`、`create_button_permissions.test.tsx` 等），形成“组件级守卫 + E2E 真实链路”的双重回归网。
 - **诊断工具接入真实后端并纳入老师后台**:
   - 将 `src/lib/test-runner.ts` 中的诊断用例从前端 Mock 数据改为调用真实后端 API（`GET /api/users/me`、`GET /api/questions`、`GET /api/notifications/unread-count`、`GET /api/config/question-dimensions`、`GET /api/admin/whitelist`），作为老师可用的线上健康检查模板；
   - 为 `src/pages/DiagnosticPage.tsx` 添加登录与角色校验，仅允许老师访问诊断工具，并在 `AdminManagementPage` 顶部增加“系统诊断”按钮，方便从老师后台一键跳转到该页面；

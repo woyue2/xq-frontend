@@ -47,20 +47,24 @@
   - 评论发布逻辑位于 `QuestionDetailPage` 内（`handleSubmitComment`），当前实现仍主要以本地状态为主；
   - 后续改造目标：使用 `commentService.create` / `POST /api/questions/:id/comments` 将评论持久化到数据库，并遵循审核流程与 AI 回调路径。
 
-### 2. 我的回答 / 我的点赞 / 我的收藏
+### 2. 我的回答 / 我的点赞 / 我的收藏 / 通知中心
 
 - 我的回答：
   - 文件：`src/pages/MyAnswersPage.tsx`
-  - 目前基于 `src/lib/mock-data.ts` 中的 `mockAnswers` / `mockQuestions` 拼接，本质为前端 Demo。
+  - 当前已通过 `profileService.getMyAnswers` 对接后端 `/api/profile/my-answers`，仅在 Vitest 中通过 `vi.mock('@/services/api')` 注入假数据；
+  - 页面内部对 `user.role !== 'teacher'` 做了守卫，学生/家长访问时直接提示并跳回个人中心，避免误解为“所有角色都有回答列表”。
 - 我的点赞：
   - 文件：`src/pages/MyLikesPage.tsx`
-  - 顶部注释注明“模拟点赞数据 - 实际应从 API 或 store 获取”，当前使用本文件内的 `mockLikedQuestions` 常量。
+  - 已接入 `profileService.getMyLikes` → `/api/users/me/likes`，不再使用本地 `mockLikedQuestions`；
+  - 在 `useEffect` 中要求用户已登录，否则重定向 `/login`，保证列表始终与真实数据库中“我的点赞”一致。
 - 我的收藏：
   - 文件：`src/pages/MyFavoritesPage.tsx`
-  - 当前使用本文件内的 `mockFavoriteQuestions` 常量。
-- 后端能力：
-  - 已实现 `GET /api/users/me/likes` 与 `GET /api/users/me/favorites` 等接口，且有对应集成测试覆盖；
-  - 上述三个页面尚未完全对接这些真实接口，后续应逐步将数据源切换为后端分页接口，仅在 `VITE_USE_MOCK=true` 时使用 mock 数据作为兜底。
+  - 已接入 `profileService.getMyFavorites` → `/api/users/me/favorites`，不再依赖本地 `mockFavoriteQuestions`；
+  - 与“我的点赞”一样，未登录访问会被重定向登录页。
+- 通知中心：
+  - 文件：`src/pages/NotificationsPage.tsx`
+  - 通过 `notificationService.getNotifications/markAsRead` 对接 `/api/notifications` 与 `/api/notifications/read`，并基于 `Notification.content` 中的 `answerId` JSON 解析跳转到带回答定位的详情页；
+  - 仅允许已登录用户访问，未登录访问时提示“请先登录”并重定向 `/login`，以免“通知中心”在无用户身份的情况下访问真实后端。
 
 ### 3. 公共 Mock 数据与诊断工具
 
@@ -125,4 +129,3 @@
    - 确保在联调 / 生产路径中不会意外走到该 Mock 逻辑。
 
 本规范将作为“去除 Mock 与接入真实数据库”工作的唯一规范性文档，与 `去除Mock改造清单.md` 形成“规范 + 清单”的双向维护关系。
-
