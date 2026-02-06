@@ -2,38 +2,54 @@ import { test, expect } from '@playwright/test';
 import { bootstrapAuth } from './utils/bootstrapAuth';
 
 test.describe('学生角色端到端业务链路', () => {
-  test('学生: 提问 → 问题详情 → 点赞/收藏', async ({ page }) => {
-    await bootstrapAuth(page, 'student');
+  test('学生: 在已审核通过的问题详情页进行点赞/收藏', async ({
+    page,
+    request
+  }) => {
+    const backendBase =
+      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
 
-    await page.goto('/');
-
-    // 1. 通过浮动按钮进入提问页
-    const createBtn = page.getByTestId('nav-create');
-    await expect(createBtn).toBeVisible();
-    await createBtn.click();
-    await expect(page).toHaveURL(/\/create$/);
-
-    // 2. 在提问页选择科目、填写标题和详情
-    await page.getByRole('button', { name: '数学' }).click();
+    // 使用教师身份通过后端接口创建一条已审核通过的问题，避免受 AI 审核影响
+    const teacherRes = await request.post(
+      `${backendBase}/api/internal/test-token`,
+      {
+        data: { role: 'teacher' }
+      }
+    );
+    expect(teacherRes.ok()).toBeTruthy();
+    const teacherBody: any = await teacherRes.json();
+    const teacherToken = teacherBody.data.token as string;
 
     const titleText = `E2E 测试问题 ${Date.now()}`;
-    await page.getByLabel('问题标题', { exact: false }).fill(titleText);
-    await page
-      .getByLabel('问题详情', { exact: false })
-      .fill('这是一个端到端链路测试生成的问题详情，用于验证提问到详情页的完整流程。');
+    const createQuestionRes = await request.post(
+      `${backendBase}/api/questions`,
+      {
+        headers: {
+          Authorization: `Bearer ${teacherToken}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          title: titleText,
+          content:
+            '这是一个端到端链路测试生成的问题详情，用于验证提问到详情页的完整流程。',
+          tags: ['学生端到端链路'],
+          difficulty: 'easy'
+        }
+      }
+    );
+    expect(createQuestionRes.ok()).toBeTruthy();
+    const created: any = await createQuestionRes.json();
+    const questionId = created.data.id as string;
 
-    const submitButton = page.getByRole('button', { name: '提交' });
-    await expect(submitButton).toBeEnabled();
-    await submitButton.click();
+    await bootstrapAuth(page, 'student');
+    await page.goto(`/question/${questionId}`);
 
-    // 3. 成功后应跳转到问题详情页
-    await expect(page).toHaveURL(/\/question\//, { timeout: 15_000 });
     await expect(
       page.getByRole('heading', { name: '问题详情' })
     ).toBeVisible();
     await expect(page.getByText(titleText)).toBeVisible();
 
-    // 4. 在详情页执行点赞与收藏操作（前端会调用 /api/interactions + /api/behavior/log）
+    // 在详情页执行点赞与收藏操作（前端会调用 /api/interactions + /api/behavior/log）
     const likeBtn = page.getByTestId('like-btn');
     await expect(likeBtn).toBeVisible();
     await likeBtn.click();
@@ -75,29 +91,50 @@ test.describe('学生角色端到端业务链路', () => {
     await expect(page).toHaveURL(/\/my-favorites$/);
   });
 
-  test('学生: 点赞/收藏后出现在“我的点赞”和“我的收藏”列表中', async ({ page }) => {
-    await bootstrapAuth(page, 'student');
+  test('学生: 对问题点赞/收藏后出现在“我的点赞”和“我的收藏”列表中', async ({
+    page,
+    request
+  }) => {
+    const backendBase =
+      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
 
-    await page.goto('/');
+    // 通过教师身份在后端创建一条已审核通过的问题
+    const teacherRes = await request.post(
+      `${backendBase}/api/internal/test-token`,
+      {
+        data: { role: 'teacher' }
+      }
+    );
+    expect(teacherRes.ok()).toBeTruthy();
+    const teacherBody: any = await teacherRes.json();
+    const teacherToken = teacherBody.data.token as string;
 
-    // 1. 通过浮动按钮进入提问页
-    const createBtn = page.getByTestId('nav-create');
-    await expect(createBtn).toBeVisible();
-    await createBtn.click();
-    await expect(page).toHaveURL(/\/create$/);
-
-    // 2. 创建一个带唯一标题的问题
-    await page.getByRole('button', { name: '数学' }).click();
     const titleText = `E2E 列表联动测试问题 ${Date.now()}`;
-    await page.getByLabel('问题标题', { exact: false }).fill(titleText);
-    await page
-      .getByLabel('问题详情', { exact: false })
-      .fill('用于验证“点赞/收藏 → 我的列表”链路的数据。');
+    const createQuestionRes = await request.post(
+      `${backendBase}/api/questions`,
+      {
+        headers: {
+          Authorization: `Bearer ${teacherToken}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          title: titleText,
+          content: '用于验证“点赞/收藏 → 我的列表”链路的数据。',
+          tags: ['学生端到端链路'],
+          difficulty: 'easy'
+        }
+      }
+    );
+    expect(createQuestionRes.ok()).toBeTruthy();
+    const created: any = await createQuestionRes.json();
+    const questionId = created.data.id as string;
 
-    await page.getByRole('button', { name: '提交' }).click();
+    await bootstrapAuth(page, 'student');
+    await page.goto(`/question/${questionId}`);
 
-    // 3. 跳转到问题详情页并执行点赞+收藏
-    await expect(page).toHaveURL(/\/question\//, { timeout: 15_000 });
+    await expect(
+      page.getByRole('heading', { name: '问题详情' })
+    ).toBeVisible();
     await expect(page.getByText(titleText)).toBeVisible();
 
     const likeBtn = page.getByTestId('like-btn');

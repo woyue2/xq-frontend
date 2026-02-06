@@ -18,6 +18,9 @@ interface QuestionListProps {
   favoritedQuestions?: Set<string>;
   showDetailButton?: boolean;
   onDetailClick?: (id: string) => void;
+  understandingStates?: Record<string, 'understood' | 'not_understood' | null>;
+  onToggleUnderstanding?: (question: Question, e: React.MouseEvent) => void;
+  onAuthorClick?: (question: Question, e: React.MouseEvent) => void;
 }
 
 export function QuestionList({
@@ -33,7 +36,10 @@ export function QuestionList({
   likedQuestions = new Set(),
   favoritedQuestions = new Set(),
   showDetailButton = false,
-  onDetailClick
+  onDetailClick,
+  understandingStates = {},
+  onToggleUnderstanding,
+  onAuthorClick
 }: QuestionListProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -111,6 +117,19 @@ export function QuestionList({
                 onLike={onLike ? (e: React.MouseEvent) => onLike(question.id, e) : undefined}
                 onFavorite={onFavorite ? (e: React.MouseEvent) => onFavorite(question.id, e) : undefined}
                 onPin={onPin ? (e: React.MouseEvent) => onPin(question, e) : undefined}
+                understandingStatus={
+                  understandingStates[question.id] ?? question.understandingStatus ?? null
+                }
+                onToggleUnderstanding={
+                  onToggleUnderstanding
+                    ? (e: React.MouseEvent) => onToggleUnderstanding(question, e)
+                    : undefined
+                }
+                onAuthorClick={
+                  onAuthorClick
+                    ? (e: React.MouseEvent) => onAuthorClick(question, e)
+                    : undefined
+                }
               />
               {showDetailButton && (
                 <div className="absolute top-4 right-4 z-10">

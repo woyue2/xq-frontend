@@ -119,6 +119,8 @@ model Question {
   favorites       Int      @default(0)
   comments        Int      @default(0)
   answers         Int      @default(0)
+  understoodCount    Int      @default(0)
+  notUnderstoodCount Int      @default(0)
   authorId        String
   authorName      String
   authorAvatar    String?
@@ -127,6 +129,7 @@ model Question {
 
   commentList     Comment[]
   answerList      Answer[]
+  understandingList QuestionUnderstanding[]
 
   @@index([status, createdAt])
   @@index([isGoodQuestion])
@@ -291,4 +294,19 @@ model ParentChild {
   @@unique([parentId, childId])
   @@index([parentId])
   @@index([childId])
+}
+
+/// 题目理解状态表（学生对整道题是否“弄懂了”的个人标记）
+model QuestionUnderstanding {
+  id         String   @id @default(cuid())
+  questionId String
+  userId     String
+  status     String   // 'understood' | 'not_understood'
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, userId])
+  @@index([userId])
 }

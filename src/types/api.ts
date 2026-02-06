@@ -139,6 +139,8 @@ export interface Notification {
 // 白名单相关
 export interface WhitelistUser {
     id: string;
+    // 关联的真实用户 ID（如果已注册）
+    userId?: string;
     phone: string;
     name: string;
     role: 'student' | 'teacher' | 'parent';

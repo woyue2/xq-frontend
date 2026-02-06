@@ -57,6 +57,8 @@ import type {
 
 interface WhitelistUserItem {
   id: string;
+  // 已注册用户在 user 表中的 ID（如有）
+  userId?: string;
   phone: string;
   name: string;
   role: UserRole;
@@ -208,6 +210,8 @@ export function AdminManagementPage() {
         const items = (res.items as WhitelistUserApi[]).map(
           (u): WhitelistUserItem => ({
             id: u.id,
+            // 后端若已将白名单绑定到真实用户，则返回 userId，可用于跳转到学生历史提问页
+            userId: (u as any).userId,
             phone: u.phone,
             name: u.name,
             role: u.role as UserRole,
@@ -318,6 +322,7 @@ export function AdminManagementPage() {
 
       const mapped: WhitelistUserItem = {
         id: created.id,
+        userId: (created as any).userId,
         phone: created.phone,
         name: created.name,
         role: created.role as UserRole,
@@ -659,6 +664,9 @@ export function AdminManagementPage() {
               const expired = isExpired(user.expiresAt);
               const needsExpiry = user.role === 'student' || user.role === 'parent';
               
+              const canViewHistory =
+                user.role === 'student' && user.isRegistered && user.userId;
+
               return (
                 <div
                   key={user.id}
@@ -667,7 +675,27 @@ export function AdminManagementPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span className="font-bold text-gray-800">{user.name}</span>
+                        {canViewHistory ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(`/student/${user.userId}/questions`)
+                            }
+                            className="flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 transition-colors"
+                            data-testid="whitelist-student-history"
+                          >
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-50 text-xs text-blue-600">
+                              {user.name?.[0] ?? '学'}
+                            </span>
+                            <span className="truncate max-w-[120px]">
+                              {user.name}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="font-bold text-gray-800">
+                            {user.name}
+                          </span>
+                        )}
                         <Badge className={`${roleBadge.className} border-none text-xs`}>
                           {roleBadge.label}
                         </Badge>

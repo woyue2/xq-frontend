@@ -321,10 +321,57 @@ paths:
       responses:
         '200':
           description: 签名生成成功
+  /api/questions/{questionId}/understanding:
+    post:
+      summary: 标记当前学生对题目的理解状态
+      tags: [Question]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: questionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [understood, not_understood]
+              required: [status]
+      responses:
+        '200':
+          description: 理解状态更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      questionId:
+                        type: string
+                      status:
+                        type: string
+                        enum: [understood, not_understood]
+                      understoodCount:
+                        type: integer
+                      notUnderstoodCount:
+                        type: integer
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-

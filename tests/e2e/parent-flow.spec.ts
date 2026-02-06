@@ -3,6 +3,41 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
 
 test.describe('家长角色端到端业务链路', () => {
   test('家长: 个人中心“我的孩子”空态与绑定入口', async ({ page }) => {
+    const backendBase =
+      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+
+    const apiContext = await test.request.newContext({
+      baseURL: backendBase
+    });
+
+    // 预清理：确保当前家长没有已绑定的孩子，保证空态用例稳定
+    const parentRes = await apiContext.post('/api/internal/test-token', {
+      data: { role: 'parent' }
+    });
+    expect(parentRes.ok()).toBeTruthy();
+    const parentBody: any = await parentRes.json();
+    const parentToken = parentBody.data.token as string;
+
+    const childrenRes = await apiContext.get('/api/parent/children', {
+      headers: {
+        Authorization: `Bearer ${parentToken}`
+      }
+    });
+
+    if (childrenRes.ok()) {
+      const childrenBody: any = await childrenRes.json();
+      const children = (childrenBody.data as any[]) ?? [];
+      for (const child of children) {
+        await apiContext.post('/api/parent/unbind', {
+          data: { childId: child.id },
+          headers: {
+            Authorization: `Bearer ${parentToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    }
+
     await bootstrapAuth(page, 'parent');
 
     await page.goto('/');
@@ -73,6 +108,97 @@ test.describe('家长角色端到端业务链路', () => {
     await page.mouse.wheel(0, 200);
   });
 
+  test('家长: 首页点击学生头像不会直接跳转历史提问页，而是提示从“孩子提问列表”查看', async ({
+    page,
+    request
+  }) => {
+    const backendBase =
+      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+
+    // 1. 准备一条已审核通过的问题，确保首页有稳定数据
+    const studentRes = await request.post(
+      `${backendBase}/api/internal/test-token`,
+      {
+        data: { role: 'student' }
+      }
+    );
+    expect(studentRes.ok()).toBeTruthy();
+    const studentBody: any = await studentRes.json();
+    const studentToken = studentBody.data.token as string;
+
+    const teacherRes = await request.post(
+      `${backendBase}/api/internal/test-token`,
+      {
+        data: { role: 'teacher' }
+      }
+    );
+    expect(teacherRes.ok()).toBeTruthy();
+    const teacherBody: any = await teacherRes.json();
+    const teacherToken = teacherBody.data.token as string;
+
+    const questionTitle = `家长头像点击提示 E2E 问题 ${Date.now()}`;
+
+    const createRes = await request.post(`${backendBase}/api/questions`, {
+      headers: {
+        Authorization: `Bearer ${studentToken}`,
+        'Content-Type': 'application/json'
+      },
+      data: {
+        title: questionTitle,
+        content:
+          '用于验证家长在首页点击学生头像时不会直接跳转历史提问页，而是提示从“孩子提问列表”入口查看。',
+        subject: 'math',
+        tags: ['家长头像点击', 'e2e']
+      }
+    });
+    expect(createRes.ok()).toBeTruthy();
+    const createdBody: any = await createRes.json();
+    const questionId = createdBody.data.id as string;
+
+    const approveRes = await request.post(
+      `${backendBase}/api/admin/audit/${questionId}/approve`,
+      {
+        headers: {
+          Authorization: `Bearer ${teacherToken}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          type: 'question',
+          isGoodQuestion: false,
+          score: 4,
+          tags: ['家长头像点击', 'e2e'],
+          difficulty: 'easy'
+        }
+      }
+    );
+    expect(approveRes.ok()).toBeTruthy();
+
+    // 2. 家长身份登录前端，进入首页
+    await bootstrapAuth(page, 'parent');
+    await page.goto('/');
+
+    // 等待首页渲染并找到该问题卡片
+    const card = page
+      .getByTestId('question-card')
+      .filter({ hasText: questionTitle })
+      .first();
+    await expect(card).toBeVisible({ timeout: 15_000 });
+
+    const currentUrl = page.url();
+
+    // 3. 点击问题卡片中的作者头像区域
+    const authorButton = card.getByTestId('question-author');
+    await authorButton.click();
+
+    // 4. 应弹出提示，而不是跳转到学生历史提问页
+    await expect(
+      page.getByText('请在“孩子提问列表”页查看孩子的历史提问')
+    ).toBeVisible();
+
+    // URL 仍然停留在原首页（未跳转 /student/:id/questions）
+    await expect(page).toHaveURL(currentUrl);
+  });
+
   test('家长: 越权访问审核和白名单页面会被重定向或拒绝', async ({ page }) => {
     await bootstrapAuth(page, 'parent');
 
@@ -113,5 +239,149 @@ test.describe('家长角色端到端业务链路', () => {
     await page.getByText('我的收藏').click();
     await expect(page).toHaveURL(/\/my-favorites$/);
     await expect(page.getByText('收藏的问题')).toBeVisible();
+  });
+
+  test('家长: 通过“我的孩子”入口查看孩子历史提问并进入问题详情', async ({
+    page
+  }) => {
+    const backendBase =
+      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+
+    const apiContext = await test.request.newContext({
+      baseURL: backendBase
+    });
+
+    // 1. 创建学生、家长、老师测试用户
+    const studentRes = await apiContext.post('/api/internal/test-token', {
+      data: { role: 'student' }
+    });
+    expect(studentRes.ok()).toBeTruthy();
+    const studentBody: any = await studentRes.json();
+    const studentToken = studentBody.data.token as string;
+    const studentUser = studentBody.data.user as {
+      id: string;
+      phone: string;
+      nickname: string;
+    };
+
+    const parentRes = await apiContext.post('/api/internal/test-token', {
+      data: { role: 'parent' }
+    });
+    expect(parentRes.ok()).toBeTruthy();
+    const parentBody: any = await parentRes.json();
+    const parentToken = parentBody.data.token as string;
+
+    const teacherRes = await apiContext.post('/api/internal/test-token', {
+      data: { role: 'teacher' }
+    });
+    expect(teacherRes.ok()).toBeTruthy();
+    const teacherBody: any = await teacherRes.json();
+    const teacherToken = teacherBody.data.token as string;
+
+    // 2. 学生创建一条问题并由老师审核通过
+    const questionTitle = `家长孩子历史提问 E2E 问题 ${Date.now()}`;
+    const createQuestionRes = await apiContext.post('/api/questions', {
+      data: {
+        title: questionTitle,
+        content:
+          '用于验证家长通过“我的孩子”入口查看历史提问列表的链路。',
+        subject: 'math',
+        tags: ['家长历史提问', 'e2e']
+      },
+      headers: {
+        Authorization: `Bearer ${studentToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    expect(createQuestionRes.ok()).toBeTruthy();
+    const createdQuestion: any = await createQuestionRes.json();
+    const questionId = createdQuestion.data.id as string;
+
+    const approveRes = await apiContext.post(
+      `/api/admin/audit/${questionId}/approve`,
+      {
+        data: {
+          type: 'question',
+          isGoodQuestion: false,
+          score: 4,
+          tags: ['家长历史提问', 'e2e'],
+          difficulty: 'easy'
+        },
+        headers: {
+          Authorization: `Bearer ${teacherToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    expect(approveRes.ok()).toBeTruthy();
+
+    // 3. 通过后端接口完成家长绑定该学生
+    const sendCodeRes = await apiContext.post('/api/auth/send-code', {
+      data: {
+        phone: studentUser.phone,
+        type: 'bind_child'
+      }
+    });
+    expect(sendCodeRes.ok()).toBeTruthy();
+
+    const bindRes = await apiContext.post('/api/parent/bind', {
+      data: {
+        phone: studentUser.phone,
+        code: '123456',
+        childName: 'E2E 孩子',
+        school: 'Playwright 小学'
+      },
+      headers: {
+        Authorization: `Bearer ${parentToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    expect(bindRes.ok()).toBeTruthy();
+
+    // 4. 家长前端登录，从“我的孩子”入口进入孩子提问列表
+    await bootstrapAuth(page, 'parent');
+
+    await page.goto('/');
+    const profileBtn = page.getByTestId('nav-profile');
+    await profileBtn.click();
+    await expect(page).toHaveURL(/\/profile$/);
+
+    // “我的孩子”卡片中应出现刚绑定的孩子（昵称来自 internal test-token）
+    const myChildrenCard = page
+      .locator('div', { hasText: '我的孩子' })
+      .first();
+    const childNameLocator = myChildrenCard.getByText(studentUser.nickname);
+    await expect(childNameLocator.first()).toBeVisible();
+
+    // 点击同一行的“查看提问”按钮
+    const childRow = childNameLocator
+      .first()
+      .locator('..')
+      .locator('..')
+      .locator('..');
+    const viewQuestionsBtn = childRow.getByRole('button', {
+      name: '查看提问'
+    });
+    await viewQuestionsBtn.click();
+
+    // 5. 跳转到孩子提问列表页且包含该问题
+    await expect(page).toHaveURL(
+      new RegExp(`/parent/questions/${studentUser.id}`)
+    );
+    await expect(page.getByText('孩子提问列表')).toBeVisible();
+
+    const historyCard = page
+      .getByTestId('question-card')
+      .filter({ hasText: questionTitle })
+      .first();
+    await expect(historyCard).toBeVisible({ timeout: 10_000 });
+
+    // 6. 从孩子提问列表进入问题详情
+    await historyCard.click();
+    await expect(page).toHaveURL(
+      new RegExp(`/question/${questionId}`),
+      { timeout: 15_000 }
+    );
+    await expect(page.getByText(questionTitle)).toBeVisible();
   });
 });

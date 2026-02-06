@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { questionService } from '@/services/api';
 import { TOAST_MESSAGES } from '@/config/app-constants';
 import type { Question } from '@/types';
 import { QuestionList } from '@/components/QuestionList';
@@ -10,6 +11,7 @@ import { QuestionFilter } from '@/components/QuestionFilter';
 
 export function HomePage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchKeyword = searchParams.get('search') || undefined;
 
@@ -34,6 +36,9 @@ export function HomePage() {
   const [likedQuestions, setLikedQuestions] = useState(new Set<string>());
   const [favoritedQuestions, setFavoritedQuestions] = useState(new Set<string>());
   const [pinnedStates, setPinnedStates] = useState<Record<string, boolean>>({});
+  const [understandingStates, setUnderstandingStates] = useState<
+    Record<string, 'understood' | 'not_understood' | null>
+  >({});
 
   const handleLike = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -87,8 +92,54 @@ export function HomePage() {
     }));
   };
 
+  const handleToggleUnderstanding = async (
+    question: Question,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+
+    // 仅提问学生本人可以标记理解状态
+    if (!user || user.id !== question.authorId) {
+      return;
+    }
+
+    const current =
+      understandingStates[question.id] ?? question.understandingStatus ?? null;
+    const next: 'understood' | 'not_understood' =
+      current === 'understood' ? 'not_understood' : 'understood';
+
+    try {
+      await questionService.setUnderstandingStatus(question.id, next);
+      setUnderstandingStates((prev) => ({
+        ...prev,
+        [question.id]: next
+      }));
+    } catch {
+      toast.error('更新理解状态失败，请稍后重试');
+    }
+  };
+
   // Flatten pages
   const allQuestions = data?.pages.flatMap(p => p.items) || [];
+
+  const handleAuthorClick = (question: Question, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!user) {
+      toast.error('请先登录');
+      return;
+    }
+
+    if (user.role === 'teacher') {
+      navigate(`/student/${question.authorId}/questions`);
+      return;
+    }
+
+    if (user.role === 'parent') {
+      // 家长首页暂不直接跳转，避免越权，提示从“孩子提问列表”入口查看
+      toast.error('请在“孩子提问列表”页查看孩子的历史提问');
+    }
+  };
   
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -113,6 +164,9 @@ export function HomePage() {
         pinnedStates={pinnedStates}
         likedQuestions={likedQuestions}
         favoritedQuestions={favoritedQuestions}
+        understandingStates={understandingStates}
+        onToggleUnderstanding={handleToggleUnderstanding}
+        onAuthorClick={handleAuthorClick}
       />
     </div>
   );

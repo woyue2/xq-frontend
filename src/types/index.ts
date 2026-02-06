@@ -53,6 +53,9 @@ export interface Question {
   score?: number; // 1-5
   aiResult?: string;
   rejectReason?: string;
+  understoodCount?: number;
+  notUnderstoodCount?: number;
+  understandingStatus?: 'understood' | 'not_understood' | null;
 
   // 计数 (统计信息)
   stats: {

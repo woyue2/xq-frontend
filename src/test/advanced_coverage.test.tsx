@@ -186,6 +186,57 @@ describe('Advanced Coverage Tests', () => {
                 expect(toast.error).toHaveBeenCalledWith('该手机号已在白名单中');
             });
         });
+
+        it('WL-010: Registered student whitelist row shows history entry and navigates to student history page', async () => {
+            const mockStudentWhitelist = {
+                id: 'wl-stu-1',
+                userId: 'stu-1',
+                phone: '13700000000',
+                name: '学生A',
+                role: 'student',
+                isRegistered: true,
+                createdAt: '2024-01-01 10:00:00',
+                registeredAt: '2024-01-01 10:10:00',
+                validUntil: '2099-12-31T00:00:00.000Z'
+            };
+
+            (adminService.getWhitelist as any).mockResolvedValue({
+                items: [mockStudentWhitelist],
+                pagination: {
+                    page: 1,
+                    pageSize: 20,
+                    total: 1,
+                    totalPages: 1
+                },
+                statistics: {
+                    total: 1,
+                    registered: 1,
+                    pending: 0,
+                    students: 1,
+                    parents: 0,
+                    teachers: 0
+                }
+            });
+
+            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+
+            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
+
+            // 等待白名单列表渲染出学生A
+            await waitFor(() => {
+                expect(screen.getByText('学生A')).toBeDefined();
+            });
+
+            const historyBtn = screen.getByTestId('whitelist-student-history');
+            expect(historyBtn).toBeDefined();
+
+            // 点击后应导航到学生历史提问页
+            fireEvent.click(historyBtn);
+
+            await waitFor(() => {
+                expect(mockNavigate).toHaveBeenCalledWith('/student/stu-1/questions');
+            });
+        });
     });
 
     // 2. STU-004/008/007: Create Question Flow

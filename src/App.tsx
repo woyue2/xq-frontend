@@ -19,6 +19,7 @@ import { MyLikesPage } from '@/pages/MyLikesPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { DiagnosticPage } from '@/pages/DiagnosticPage';
 import { ParentQuestionPage } from '@/pages/ParentQuestionPage';
+import { StudentHistoryPage } from '@/pages/StudentHistoryPage';
 import { TestApiPage } from '@/pages/TestApiPage';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Toaster } from "@/components/ui/sonner";
@@ -52,6 +53,7 @@ export function App() {
               <Route path="/answer/:id" element={<AnswerQuestionPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/parent/questions/:childId" element={<ParentQuestionPage />} />
+              <Route path="/student/:studentId/questions" element={<StudentHistoryPage />} />
               <Route path="/audit" element={<AuditPage />} />
               <Route path="/admin" element={<AdminManagementPage />} />
               <Route path="/my-questions" element={<MyQuestionsPage />} />

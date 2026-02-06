@@ -198,6 +198,16 @@
   - 在 `backend/prisma/schema.prisma` 中为 `User` 模型新增可选字段 `passwordHash`，并通过 `prisma migrate dev` 生成迁移 `20260202170756_add_user_password_hash`，以支持数据库层面的登录密码持久化；
   - 在 `backend/src/services/auth.service.ts` 中新增 `passwordLogin(phone, password)`，基于 `bcryptjs` 校验 `passwordHash`，并复用现有白名单/课时检查、RefreshToken 持久化与登录日志逻辑，返回与短信验证码登录完全一致的 `LoginResponse` 结构；
   - 在 `backend/src/routes/auth.routes.ts` 中新增 `POST /api/auth/password-login` 路由，作为纯密码登录入口，不影响现有 `send-code/login/register` 合同；
+
+### Added
+- **学生个人“弄懂了”理解状态标记（问题模块）**:
+  - 在后端 `Question` 模型中新增 `understoodCount` / `notUnderstoodCount` 聚合字段，并引入 `QuestionUnderstanding` 表按「题目 + 学生」维度持久化个人理解状态；
+  - 新增 `POST /api/questions/:questionId/understanding` 接口，仅允许提问学生更新自己的理解状态，并在事务内维护聚合计数；
+  - 扩展问题列表与详情返回结构，增加 `understandingStatus` 及聚合计数字段；前端在问答主页题目卡片日期旁以小字展示“未标记 / 没弄懂 / 弄懂了”，仅对提问学生展示并允许点击切换。
+ - **老师/家长从头像查看学生历史提问**:
+   - 复用 `GET /api/questions?authorId=...` 支持老师按学生维度查看历史提问，同时在 `backend-questions` 模块文档中补充该用法说明；
+   - 新增前端 `StudentHistoryPage` 页面与 `/student/:studentId/questions` 路由，使用 `useQuestions({ authorId })` 加载并展示该学生的历史提问列表，点击条目可跳转问题详情；
+   - 在问答主页与问题详情页中，为题目作者头像/昵称增加点击行为：老师点击跳转到对应学生的历史提问页，家长在首页与详情页点击时得到“请在孩子提问列表页查看历史提问”的提示，避免越权访问。
   - 前端 `src/services/api.ts` 增加 `authService.passwordLogin` 封装，并在 `src/pages/LoginPage.tsx` 中加入“验证码登录/密码登录”切换：在密码模式下使用手机号+密码调用新接口，在 Mock 模式下由 axios 拦截器对 `/auth/password-login` 返回与原登录接口一致的 Mock 数据。
   - 修复“登录验证码记录可空保存”的降级逻辑：在 `AuthService.sendCode` 中去掉对 `prisma.verificationCode.create` 的静默吞错，当验证码写入失败时改为抛出 `500/INTERNAL_SERVER_ERROR/验证码服务暂不可用，请稍后重试`，并在 `backend/src/tests/unit/auth.service.spec.ts` 中新增单元测试，确保不会再出现“前端收到发送成功但数据库无验证码记录”的不一致状态。
 

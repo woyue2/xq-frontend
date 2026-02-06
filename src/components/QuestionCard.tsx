@@ -23,6 +23,9 @@ interface QuestionCardProps {
     isPinned?: boolean;
     onPin?: (e: React.MouseEvent) => void;
     onTogglePin?: (e: React.MouseEvent) => void;
+    understandingStatus?: 'understood' | 'not_understood' | null;
+    onToggleUnderstanding?: (e: React.MouseEvent) => void;
+    onAuthorClick?: (e: React.MouseEvent) => void;
 }
 
 export function QuestionCard({ 
@@ -36,7 +39,10 @@ export function QuestionCard({
     showSubject = true,
     isAdmin = false,
     onPin,
-    onTogglePin
+    onTogglePin,
+    understandingStatus,
+    onToggleUnderstanding,
+    onAuthorClick
 }: QuestionCardProps) {
     const navigate = useNavigate();
     const isPinned = propIsPinned !== undefined ? propIsPinned : question.isPinned;
@@ -142,17 +148,64 @@ export function QuestionCard({
             </div>
 
             {/* Title & Meta */}
-            <div className="space-y-1.5 px-3">
+                <div className="space-y-1.5 px-3">
                 <h3 className="text-sm font-bold text-gray-800 line-clamp-2 leading-relaxed">
                     {question.title}
                 </h3>
                 <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                    <Avatar className="w-4 h-4 border border-gray-100">
-                        <AvatarFallback className="text-[8px] bg-gray-50">{question.authorName[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="truncate max-w-[80px] font-medium">{question.authorName}</span>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            if (!onAuthorClick) return;
+                            e.stopPropagation();
+                            onAuthorClick(e);
+                        }}
+                        className={cn(
+                            'flex items-center gap-1.5',
+                            onAuthorClick ? 'cursor-pointer' : 'cursor-default'
+                        )}
+                        data-testid="question-author"
+                    >
+                        <Avatar className="w-4 h-4 border border-gray-100">
+                            <AvatarFallback className="text-[8px] bg-gray-50">
+                                {question.authorName[0]}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate max-w-[80px] font-medium">
+                            {question.authorName}
+                        </span>
+                    </button>
                     <span>·</span>
                     <span className="whitespace-nowrap">{formatDate(question.createdAt)}</span>
+                    {onToggleUnderstanding && (
+                        <>
+                            <span>·</span>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleUnderstanding(e);
+                                }}
+                                className="text-[10px]"
+                            >
+                                <span
+                                    className={cn(
+                                        understandingStatus === 'understood'
+                                            ? 'text-green-500'
+                                            : understandingStatus === 'not_understood'
+                                              ? 'text-red-500'
+                                              : 'text-gray-400'
+                                    )}
+                                >
+                                    {understandingStatus === 'understood'
+                                        ? '弄懂了'
+                                        : understandingStatus === 'not_understood'
+                                          ? '没弄懂'
+                                          : '未标记'}
+                                </span>
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 

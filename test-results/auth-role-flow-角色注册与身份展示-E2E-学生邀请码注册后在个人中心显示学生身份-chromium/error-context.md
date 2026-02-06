@@ -1,0 +1,71 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e5]:
+    - heading "账号注册" [level=1] [ref=e7]
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]: 知
+        - heading "初中知识问答" [level=2] [ref=e12]
+        - paragraph [ref=e13]: 好好学习，天天向上
+        - paragraph [ref=e14]: 欢迎来到知识星球
+      - generic [ref=e15]:
+        - generic [ref=e16]: 手机号
+        - generic [ref=e17]:
+          - textbox "手机号" [ref=e18]:
+            - /placeholder: 请输入11位手机号
+            - text: "13156877796"
+          - button [ref=e19]:
+            - img [ref=e20]
+      - generic [ref=e23]:
+        - generic [ref=e25]: 验证码
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - textbox "验证码" [ref=e28]:
+              - /placeholder: 请输入验证码
+              - text: "123456"
+            - button [ref=e29]:
+              - img [ref=e30]
+          - button "获取验证码" [ref=e33]
+      - generic [ref=e34]:
+        - generic [ref=e35]: 姓名
+        - textbox "姓名" [ref=e36]:
+          - /placeholder: 请输入姓名（用于展示的昵称，可选）
+      - generic [ref=e37]:
+        - generic [ref=e38]: 密码 *
+        - generic [ref=e39]:
+          - textbox "密码 *" [ref=e40]:
+            - /placeholder: 请设置至少8位密码
+            - text: password123
+          - button [ref=e41]:
+            - img [ref=e42]
+        - paragraph [ref=e45]: 密码至少 8 位，建议包含数字和字母
+      - generic [ref=e46]:
+        - generic [ref=e47]: 邀请码 *
+        - textbox "邀请码 *" [ref=e48]:
+          - /placeholder: 需输入有效邀请码方可注册
+          - text: STUDENT2024
+        - paragraph [ref=e49]: 需输入有效邀请码方可注册
+        - paragraph [ref=e50]: 提示：学生邀请码 STUDENT2024 | 老师邀请码 TEACHER2024 | 家长邀请码 PARENT2024
+      - generic [ref=e51]:
+        - generic [ref=e52]: 年级 *
+        - combobox "年级 *" [ref=e53]:
+          - generic: 初一
+          - img
+      - generic [ref=e54]:
+        - generic [ref=e55]: 年龄 *
+        - spinbutton "年龄 *" [ref=e56]: "13"
+      - generic [ref=e57]:
+        - generic [ref=e58]: 学校 *
+        - textbox "学校 *" [ref=e59]:
+          - /placeholder: 请输入学校名称
+          - text: 测试中学
+      - generic [ref=e60]:
+        - button "注册" [active] [ref=e61]
+        - button "已有账号，去登录" [ref=e62]
+      - generic [ref=e63]:
+        - button "忘记密码？" [ref=e64]
+        - paragraph [ref=e65]: 登录即表示同意《用户协议》和《隐私政策》
+  - region "Notifications alt+T"
+```

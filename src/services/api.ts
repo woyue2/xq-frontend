@@ -277,6 +277,18 @@ if (USE_MOCK && import.meta.env.MODE === 'test') {
             };
             config.adapter = mockAdapter(question);
         }
+        else if (url.includes('/questions/') && url.endsWith('/understanding') && method === 'post') {
+            const match = url.match(/\/questions\/([^/]+)\/understanding/);
+            const questionId = match?.[1] ?? 'q1';
+            const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+            const status = payload?.status === 'understood' ? 'understood' : 'not_understood';
+            config.adapter = mockAdapter({
+                questionId,
+                status,
+                understoodCount: status === 'understood' ? 1 : 0,
+                notUnderstoodCount: status === 'not_understood' ? 1 : 0
+            });
+        }
 
         // --- Interaction Mocks ---
         else if (url.includes('/questions/') && url.endsWith('/like') && method === 'post') {
@@ -426,6 +438,9 @@ type BackendQuestionListItem = {
     status: string;
     createdAt: string;
     subject?: string | null;
+    understoodCount?: number | null;
+    notUnderstoodCount?: number | null;
+    understandingStatus?: 'understood' | 'not_understood' | null;
 };
 
 type UploadImageContext = {
@@ -520,6 +535,9 @@ export const questionService = {
                 score: undefined,
                 aiResult: undefined,
                 rejectReason: undefined,
+                understoodCount: typeof q.understoodCount === 'number' ? q.understoodCount : undefined,
+                notUnderstoodCount: typeof q.notUnderstoodCount === 'number' ? q.notUnderstoodCount : undefined,
+                understandingStatus: q.understandingStatus ?? null,
                 stats: {
                     likes,
                     favorites,
@@ -567,6 +585,18 @@ export const questionService = {
         const { data } = await api.post<ApiResponse<Question>>('/questions', payload);
         // eslint-disable-next-line no-console
         console.debug('[questionService.createQuestion] response.status', data.code);
+        return data.data;
+    },
+    setUnderstandingStatus: async (questionId: string, status: 'understood' | 'not_understood') => {
+        const { data } = await api.post<
+            ApiResponse<{
+                questionId: string;
+                status: 'understood' | 'not_understood';
+                understoodCount: number;
+                notUnderstoodCount: number;
+            }>
+        >(`/questions/${questionId}/understanding`, { status });
+
         return data.data;
     },
     delete: async (id: string) => {

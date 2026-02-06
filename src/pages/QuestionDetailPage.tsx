@@ -331,6 +331,23 @@ export function QuestionDetailPage() {
     }
   };
 
+  const handleAuthorClick = () => {
+    if (!currentUser) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+
+    if (currentUser.role === 'teacher') {
+      navigate(`/student/${question.authorId}/questions`);
+      return;
+    }
+
+    if (currentUser.role === 'parent') {
+      toast.error('请在“孩子提问列表”页查看孩子的历史提问');
+    }
+  };
+
   const handleAddImage = () => {
     // 在单元测试环境或纯前端 Mock 场景下，直接模拟添加一张图片，保证预览与测试稳定
     const isTestEnv =
@@ -607,11 +624,21 @@ export function QuestionDetailPage() {
 
           {/* 提问信息 */}
           <div className="flex items-center gap-2 text-xs text-gray-400">
-            <Avatar className="w-6 h-6">
-              <AvatarImage src={question.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`} />
-              <AvatarFallback className="text-[10px] bg-gray-100">{question.authorName[0]}</AvatarFallback>
-            </Avatar>
-            <span className="font-medium text-gray-600">{question.authorName}</span>
+            <button
+              type="button"
+              onClick={handleAuthorClick}
+              className="flex items-center gap-2 hover:text-gray-600"
+            >
+              <Avatar className="w-6 h-6">
+                <AvatarImage src={question.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`} />
+                <AvatarFallback className="text-[10px] bg-gray-100">
+                  {question.authorName[0]}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-medium text-gray-600">
+                {question.authorName}
+              </span>
+            </button>
             <span>•</span>
             <span>{formatDate(question.createdAt)}</span>
           </div>

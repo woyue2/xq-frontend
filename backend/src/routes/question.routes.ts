@@ -90,10 +90,35 @@ questionRouter.get(
         search: typeof search === 'string' ? search : undefined
       });
 
+      // 补充当前登录用户的理解状态（仅针对题目作者本人，有记录才返回）
+      let listWithUnderstanding = result.list;
+      if (req.user && result.list.length > 0) {
+        const questionIds = result.list.map((q: any) => q.id);
+
+        const understandingList = await prisma.questionUnderstanding.findMany({
+          where: {
+            questionId: { in: questionIds },
+            userId: req.user.id
+          }
+        });
+
+        const understandingMap = new Map(
+          understandingList.map((u) => [u.questionId, u.status])
+        );
+
+        listWithUnderstanding = result.list.map((q: any) => ({
+          ...q,
+          understandingStatus: understandingMap.get(q.id) ?? null
+        }));
+      }
+
       return res.json({
         code: 200,
         message: 'success',
-        data: result,
+        data: {
+          ...result,
+          list: listWithUnderstanding
+        },
         timestamp: Date.now()
       });
     } catch (err) {
@@ -255,6 +280,120 @@ questionRouter.post(
   }
 );
 
+// 学生个人理解状态标记（弄懂了 / 没弄懂）
+questionRouter.post(
+  '/:questionId/understanding',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { questionId } = req.params;
+      const { status } = req.body as { status?: string };
+
+      if (status !== 'understood' && status !== 'not_understood') {
+        throw new AppError(
+          400,
+          'INVALID_UNDERSTANDING_STATUS',
+          '理解状态非法，仅支持 understood / not_understood'
+        );
+      }
+
+      const question = await prisma.question.findUnique({
+        where: { id: questionId }
+      });
+
+      if (!question) {
+        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+      }
+
+      // 仅允许提问的学生本人标记理解状态
+      if (question.authorId !== req.user!.id) {
+        throw new AppError(
+          403,
+          'PERMISSION_DENIED',
+          '只有提问的学生可以标记是否弄懂'
+        );
+      }
+
+      const userId = req.user!.id;
+
+      const result = await prisma.$transaction(async (tx) => {
+        const existing = await tx.questionUnderstanding.findUnique({
+          where: {
+            questionId_userId: {
+              questionId,
+              userId
+            }
+          }
+        });
+
+        let understoodDelta = 0;
+        let notUnderstoodDelta = 0;
+
+        if (!existing) {
+          await tx.questionUnderstanding.create({
+            data: {
+              questionId,
+              userId,
+              status
+            }
+          });
+
+          if (status === 'understood') {
+            understoodDelta += 1;
+          } else {
+            notUnderstoodDelta += 1;
+          }
+        } else if (existing.status !== status) {
+          await tx.questionUnderstanding.update({
+            where: { id: existing.id },
+            data: { status }
+          });
+
+          if (existing.status === 'understood') {
+            understoodDelta -= 1;
+          } else if (existing.status === 'not_understood') {
+            notUnderstoodDelta -= 1;
+          }
+
+          if (status === 'understood') {
+            understoodDelta += 1;
+          } else if (status === 'not_understood') {
+            notUnderstoodDelta += 1;
+          }
+        }
+
+        const updatedQuestion = await tx.question.update({
+          where: { id: questionId },
+          data: {
+            understoodCount: {
+              increment: understoodDelta
+            },
+            notUnderstoodCount: {
+              increment: notUnderstoodDelta
+            }
+          }
+        });
+
+        return {
+          questionId,
+          status,
+          understoodCount: updatedQuestion.understoodCount,
+          notUnderstoodCount: updatedQuestion.notUnderstoodCount
+        };
+      });
+
+      return res.json({
+        code: 200,
+        message: '理解状态更新成功',
+        data: result,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // 创建回答：教师可以回答任意问题；学生可以回答教师提出的问题
 questionRouter.post(
   '/:questionId/answers',
@@ -369,9 +508,10 @@ questionRouter.get(
       // 计算当前用户对该问题的点赞 / 收藏状态
       let isLiked = false;
       let isFavorited = false;
+      let understandingStatus: string | null = null;
 
       if (req.user) {
-        const [like, favorite] = await Promise.all([
+        const [like, favorite, understanding] = await Promise.all([
           prisma.like.findUnique({
             where: {
               userId_targetType_targetId: {
@@ -388,11 +528,20 @@ questionRouter.get(
                 questionId: id
               }
             }
+          }),
+          prisma.questionUnderstanding.findUnique({
+            where: {
+              questionId_userId: {
+                questionId: id,
+                userId: req.user.id
+              }
+            }
           })
         ]);
 
         isLiked = !!like;
         isFavorited = !!favorite;
+        understandingStatus = understanding?.status ?? null;
       }
 
       return res.json({
@@ -401,7 +550,10 @@ questionRouter.get(
         data: {
           ...data,
           isLiked,
-          isFavorited
+          isFavorited,
+          understandingStatus,
+          understoodCount: (data as any).understoodCount ?? undefined,
+          notUnderstoodCount: (data as any).notUnderstoodCount ?? undefined
         },
         timestamp: Date.now()
       });
