@@ -28,7 +28,10 @@ import type {
     UpdateProfilePayload,
     RegisterPayload,
     QuestionDimensionDto,
-    QuestionDimensionOptionDto
+    QuestionDimensionOptionDto,
+    UserClassHours,
+    BatchUpdateClassHoursResult,
+    BatchUpdateClassHoursResponse
 } from '@/types/api';
 import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer, Comment } from '@/types';
 
@@ -1123,6 +1126,19 @@ export const profileService = {
         const { data } = await api.get<
             ApiResponse<PaginatedResponse<MyAnswerSummary>>
         >('/profile/my-answers', { params });
+        return data.data;
+    }
+};
+
+export const classHoursService = {
+    batchUpdate: async (
+        userIds: string[],
+        action: 'extend' | 'reduce',
+        months: number
+    ): Promise<BatchUpdateClassHoursResponse> => {
+        const { data } = await api.patch<
+            ApiResponse<BatchUpdateClassHoursResponse>
+        >('/admin/class-hours/batch-update', { userIds, action, months });
         return data.data;
     }
 };

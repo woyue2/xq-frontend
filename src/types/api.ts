@@ -202,3 +202,29 @@ export interface QuestionDimensionDto {
     multiSelect: boolean;
     options: QuestionDimensionOptionDto[];
 }
+
+// 课时管理相关
+export interface UserClassHours {
+    userId: string;
+    phone: string;
+    name: string;
+    role: 'student' | 'parent' | 'teacher';
+    validUntil: string | null;
+    isExpired: boolean;
+    remainingDays: number;
+    status: 'active' | 'expired';
+}
+
+export interface BatchUpdateClassHoursResult {
+    userId: string;
+    oldValidUntil: string | null;
+    newValidUntil: string | null;
+    status: 'success' | 'failed';
+    reason?: string;
+}
+
+export interface BatchUpdateClassHoursResponse {
+    successCount: number;
+    failedCount: number;
+    results: BatchUpdateClassHoursResult[];
+}

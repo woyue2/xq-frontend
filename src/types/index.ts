@@ -10,6 +10,21 @@ export type DifficultyLevel = 'easy' | 'medium' | 'hard';
 // 科目类型
 export type SubjectType = 'math' | 'physics' | 'chemistry' | 'english' | 'chinese' | 'history' | 'geography' | 'biology' | 'politics';
 
+// 课时状态类型
+export type ClassHoursStatus = 'active' | 'expired';
+
+// 用户课时信息（与后端 /users/me 返回的 classHours 结构对齐）
+export interface UserClassHours {
+  userId: string;
+  phone: string;
+  name: string;
+  role: UserRole;
+  validUntil: string | null;
+  isExpired: boolean;
+  remainingDays: number;
+  status: ClassHoursStatus;
+}
+
 // 用户实体
 export interface User {
   id: string; // UUID
@@ -29,12 +44,8 @@ export interface User {
   age?: number;
   school?: string;
 
-  // 课时信息
-  classHours?: {
-    total: number;
-    used: number;
-    remaining: number;
-  };
+  // 课时信息（与后端对齐）
+  classHours?: UserClassHours;
 }
 
 // 问题实体
