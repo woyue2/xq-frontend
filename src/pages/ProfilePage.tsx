@@ -359,8 +359,16 @@ export function ProfilePage() {
                 </h2>
                 <Pencil className="w-4 h-4 text-gray-400 group-hover:text-morandi-5 transition-colors" />
               </div>
+              
+              {/* 手机号显示 */}
+              {currentUser?.phone && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {currentUser.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                </p>
+              )}
+              
               {roleBadge && (
-                <Badge className={`${roleBadge.className} text-white border-0 px-4 py-1 rounded-full`}>
+                <Badge className={`${roleBadge.className} text-white border-0 px-4 py-1 rounded-full mt-2`}>
                   {roleBadge.label}
                 </Badge>
               )}
