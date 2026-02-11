@@ -11,6 +11,7 @@ import type {
     LoginResponse,
     PasswordLoginPayload,
     SendCodePayload,
+    SendCodeResponse,
     CreateQuestionPayload,
     QuestionListParams,
     LikePayload,
@@ -71,7 +72,7 @@ api.interceptors.request.use((config) => {
     }
 
     if (!config.headers) {
-        config.headers = {};
+        config.headers = {} as any;
     }
 
     if (authToken) {
@@ -193,19 +194,19 @@ if (USE_MOCK && import.meta.env.MODE === 'test') {
 
             let filtered = [...mockQuestions];
             if (params.subject) filtered = filtered.filter(q => q.subject === params.subject);
-            if (params.topic) filtered = filtered.filter(q => q.topics?.includes(params.topic));
+            if (params.tags) filtered = filtered.filter(q => q.tags?.some((tag: string) => params.tags?.includes(tag)));
 
             const page = Number(params.page) || 1;
-            const limit = Number(params.limit) || 10;
-            const start = (page - 1) * limit;
-            const end = start + limit;
+            const pageSize = Number(params.pageSize) || Number(params.limit) || 10;
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
             const items = filtered.slice(start, end);
 
             config.adapter = mockAdapter({
                 items,
                 total: filtered.length,
                 page,
-                totalPages: Math.ceil(filtered.length / limit)
+                totalPages: Math.ceil(filtered.length / pageSize)
             });
         }
         else if (url.match(/\/parent\/questions\/[^/]+$/) && method === 'get') {
@@ -214,19 +215,19 @@ if (USE_MOCK && import.meta.env.MODE === 'test') {
 
             let filtered = [...mockQuestions];
             if (params.subject) filtered = filtered.filter(q => q.subject === params.subject);
-            if (params.topic) filtered = filtered.filter(q => q.topics?.includes(params.topic));
+            if (params.tags) filtered = filtered.filter(q => q.tags?.some((tag: string) => params.tags?.includes(tag)));
 
             const page = Number(params.page) || 1;
-            const limit = Number(params.limit) || 10;
-            const start = (page - 1) * limit;
-            const end = start + limit;
+            const pageSize = Number(params.pageSize) || Number(params.limit) || 10;
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
             const items = filtered.slice(start, end);
 
             config.adapter = mockAdapter({
                 items,
                 total: filtered.length,
                 page,
-                totalPages: Math.ceil(filtered.length / limit)
+                totalPages: Math.ceil(filtered.length / pageSize)
             });
         }
 
@@ -246,23 +247,23 @@ if (USE_MOCK && import.meta.env.MODE === 'test') {
             // 此处在 Mock 模式下对齐同样的数据结构，便于前端 QuestionService 统一处理。
             const params = config.params || {};
             const page = Number(params.page) || 1;
-            const limit = Number(params.limit) || 10;
+            const pageSize = Number(params.pageSize) || Number(params.limit) || 10;
 
             let filtered = [...mockQuestions];
             if (params.subject) filtered = filtered.filter(q => q.subject === params.subject);
-            if (params.topic) filtered = filtered.filter(q => q.topics?.includes(params.topic));
+            if (params.tags) filtered = filtered.filter(q => q.tags?.some((tag: string) => params.tags?.includes(tag)));
 
-            const start = (page - 1) * limit;
-            const end = start + limit;
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
             const items = filtered.slice(start, end);
 
             config.adapter = mockAdapter({
                 list: items,
                 pagination: {
                     page,
-                    pageSize: limit,
+                    pageSize,
                     total: filtered.length,
-                    totalPages: Math.ceil(filtered.length / limit)
+                    totalPages: Math.ceil(filtered.length / pageSize)
                 }
             });
         }
@@ -397,7 +398,7 @@ api.interceptors.response.use(
 
 export const authService = {
     sendCode: async (payload: SendCodePayload) => {
-        return api.post<ApiResponse<null>>('/auth/send-code', payload);
+        return api.post<ApiResponse<SendCodeResponse>>('/auth/send-code', payload);
     },
     login: async (payload: LoginPayload) => {
         return api.post<ApiResponse<LoginResponse>>('/auth/login', payload);
@@ -429,6 +430,7 @@ type BackendQuestionListItem = {
     difficulty?: string | null;
     authorId: string;
     authorName: string;
+    authorAvatar?: string | null;
     isGoodQuestion: boolean;
     isPinned: boolean;
     likes?: number | null;
@@ -497,6 +499,16 @@ export const questionService = {
         // 诊断用日志：观察前端实际传入的问题列表查询参数
         // eslint-disable-next-line no-console
         console.debug('[questionService.getQuestions] params', params);
+        
+        // 参数转换：将前端参数名转换为后端期望的参数名
+        const backendParams: any = {};
+        if (params.page !== undefined) backendParams.page = params.page;
+        if (params.pageSize !== undefined) backendParams.pageSize = params.pageSize;
+        if (params.subject !== undefined) backendParams.subject = params.subject;
+        if (params.tags !== undefined) backendParams.tags = params.tags.join(',');
+        if (params.search !== undefined) backendParams.search = params.search;
+        if (params.authorId !== undefined) backendParams.authorId = params.authorId;
+        
         const { data } = await api.get<
             ApiResponse<{
                 list: BackendQuestionListItem[];
@@ -507,7 +519,7 @@ export const questionService = {
                     totalPages: number;
                 };
             }>
-        >('/questions', { params });
+        >('/questions', { params: backendParams });
 
         const { list, pagination } = data.data;
 
@@ -521,23 +533,24 @@ export const questionService = {
                 id: q.id,
                 title: q.title,
                 content: q.content ?? '',
-                // 后端当前列表未返回 subject，尝试兜底为 'math'
                 subject: (q.subject as SubjectType) ?? 'math',
-                topics: [],
-                methods: [],
-                images: [],
+                tags: q.tags ?? [],
+                topics: [], // 列表接口不返回 topics，可从 tags 推导
+                images: [], // 列表接口不返回 images
                 audioUrl: undefined,
                 status: q.status as AuditStatus,
                 isPinned: q.isPinned,
                 isGoodQuestion: q.isGoodQuestion,
                 difficulty: (q.difficulty as DifficultyLevel) ?? undefined,
-                tags: q.tags ?? [],
-                score: undefined,
-                aiResult: undefined,
-                rejectReason: undefined,
+                score: undefined, // 列表接口不返回 score
+                aiResult: undefined, // 列表接口不返回 aiResult
                 understoodCount: typeof q.understoodCount === 'number' ? q.understoodCount : undefined,
                 notUnderstoodCount: typeof q.notUnderstoodCount === 'number' ? q.notUnderstoodCount : undefined,
                 understandingStatus: q.understandingStatus ?? null,
+                likes,
+                favorites,
+                comments,
+                answers,
                 stats: {
                     likes,
                     favorites,
@@ -551,8 +564,11 @@ export const questionService = {
                 collectionCount: favorites,
                 authorId: q.authorId,
                 authorName: q.authorName,
-                authorAvatar: undefined,
-                createdAt: q.createdAt
+                authorAvatar: q.authorAvatar ?? undefined,
+                authorRole: undefined,
+                createdAt: q.createdAt,
+                isLiked: false,
+                isFavorited: false
             };
         });
 
@@ -850,8 +866,19 @@ export const configService = {
 
 export const adminService = {
     getWhitelist: async (params: WhitelistParams) => {
-        const { data } = await api.get<ApiResponse<PaginatedResponse<WhitelistUser>>>('/admin/whitelist', { params });
-        return data.data;
+        const { data } = await api.get<ApiResponse<any>>('/admin/whitelist', { params });
+        const { list, pagination } = data.data || {};
+        
+        if (!list || !pagination) {
+            throw new Error('白名单数据格式异常');
+        }
+        
+        return {
+            items: list,
+            total: pagination.total,
+            page: pagination.page,
+            totalPages: pagination.totalPages
+        };
     },
     addToWhitelist: async (payload: AddWhitelistPayload) => {
         const { data } = await api.post<ApiResponse<WhitelistUser>>('/admin/whitelist', payload);

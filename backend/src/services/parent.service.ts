@@ -74,11 +74,21 @@ export class ParentService {
 
     // 4. 创建绑定关系
     // 顺便更新学生信息（如果为空）
-    if ((!child.nickname || child.nickname.startsWith('用户')) && data.childName) {
+    // 孩子姓名应该更新到 name 字段（真实姓名），而非 nickname
+    if (data.childName) {
       try {
+        // 检查是否需要设置真实姓名（如果为空）
+        const needsNameUpdate = !child.name || child.name.trim() === '';
+        // 检查是否需要设置昵称（如果未设置或还是默认值）
+        const needsNicknameUpdate = !child.nickname || child.nickname.startsWith('用户');
+
         await prisma.user.update({
           where: { id: child.id },
-          data: { nickname: data.childName, school: data.school }
+          data: {
+            name: needsNameUpdate ? data.childName : undefined,  // 更新真实姓名
+            nickname: needsNicknameUpdate ? data.childName : undefined,  // 如果昵称未设置，用孩子姓名作为默认昵称
+            school: data.school
+          }
         });
       } catch (e) {
         // ignore update error
@@ -105,6 +115,7 @@ export class ParentService {
         child: {
           select: {
             id: true,
+            name: true,
             nickname: true,
             avatar: true,
             role: true,
@@ -115,9 +126,10 @@ export class ParentService {
       }
     });
 
-    return relations.map(r => ({
+    return relations.map((r: { child: { id: string; name?: string | null; nickname: string; avatar?: string | null; role: string; school?: string | null; grade?: string | null } }) => ({
       ...r.child,
-      name: r.child.nickname
+      name: r.child.nickname,      // 显示用的name（来自nickname）
+      realName: r.child.name       // 真实姓名（可选）
     }));
   }
 

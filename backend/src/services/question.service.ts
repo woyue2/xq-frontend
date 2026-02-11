@@ -160,7 +160,7 @@ export class QuestionService {
         comments: 0,
         answers: 0,
         authorId,
-        authorName: author.nickname || authorName,
+        authorName: author.name || author.nickname || authorName,
         authorAvatar: authorAvatar ?? author.avatar ?? null
       }
     });
@@ -293,6 +293,7 @@ export class QuestionService {
         difficulty: q.difficulty,
         authorId: q.authorId,
         authorName: q.authorName,
+        authorAvatar: q.authorAvatar ?? undefined,
         isGoodQuestion: q.isGoodQuestion,
         isPinned: q.isPinned,
         understoodCount: q.understoodCount,

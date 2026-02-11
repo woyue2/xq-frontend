@@ -418,7 +418,7 @@ export function QuestionDetailPage() {
         content: newComment,
         image: commentImage || undefined,
         authorId: currentUser.id,
-        authorName: currentUser.nickname,
+        authorName: currentUser.name || currentUser.nickname || '',
         authorAvatar: currentUser.avatar,
         status: 'pending',
         aiResult: '无违规',

@@ -18,7 +18,13 @@ export interface PaginatedResponse<T> {
 // 认证相关
 export interface SendCodePayload {
     phone: string;
-    type?: 'login' | 'register';
+    type?: 'login' | 'register' | 'bind_child' | 'reset_password';
+}
+
+export interface SendCodeResponse {
+    phone: string;
+    expireIn: number;
+    cooldown: number;
 }
 
 export interface LoginPayload {
@@ -32,7 +38,8 @@ export interface PasswordLoginPayload {
 }
 
 export interface RegisterPayload extends LoginPayload {
-    nickname?: string;
+    name: string;           // 真实姓名，必填
+    nickname?: string;      // 昵称，可选
     role?: 'student' | 'teacher' | 'parent';
     grade?: string;
     age?: number;
@@ -42,6 +49,7 @@ export interface RegisterPayload extends LoginPayload {
 
 export interface LoginResponse {
     token: string;
+    refreshToken: string;
     user: User;
 }
 
@@ -52,16 +60,14 @@ export interface CreateQuestionPayload {
     images?: string[];
     tags?: string[];
     difficulty?: 'easy' | 'medium' | 'hard';
-    subject?: string; // Add subject as it is required in Question type but optional in payload maybe?
-    topics?: string[];
+    subject?: string;
 }
 
 export interface QuestionListParams {
     page?: number;
-    limit?: number;
+    pageSize?: number;
     subject?: string;
-    topic?: string;
-    method?: string;
+    tags?: string[];
     search?: string;
     authorId?: string;
 }

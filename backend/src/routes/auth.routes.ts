@@ -69,9 +69,10 @@ authRouter.post(
   '/register',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { phone, code, nickname, grade, age, school, role, password } = req.body as {
+      const { phone, code, name, nickname, grade, age, school, role, password } = req.body as {
         phone: string;
         code: string;
+        name?: string;          // 真实姓名（与nickname分开）
         nickname?: string;
         grade?: string;
         age?: number;
@@ -82,6 +83,7 @@ authRouter.post(
       const result = await authService.register({
         phone,
         code,
+        name,
         nickname,
         grade,
         age,

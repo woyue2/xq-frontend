@@ -84,7 +84,7 @@ export class CommentService {
           content: content ?? '',
           image: image ?? null,
           authorId,
-          authorName: author.nickname,
+          authorName: author.name || author.nickname,
           authorAvatar: author.avatar ?? null,
           status: initialStatus,
           aiResult: aiResultText

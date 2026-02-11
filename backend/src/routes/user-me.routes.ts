@@ -41,23 +41,24 @@ userMeRouter.get(
         classHours = null;
       }
 
-      return res.json({
-        code: 200,
-        message: 'success',
-        data: {
-          id: user.id,
-          phone: user.phone,
-          nickname: user.nickname,
-          avatar: user.avatar ?? undefined,
-          role: user.role,
-          grade: user.grade ?? undefined,
-          age: user.age ?? undefined,
-          school: user.school ?? undefined,
-          expiresAt: user.expiresAt ?? undefined,
-          classHours
-        },
-        timestamp: Date.now()
-      });
+       return res.json({
+         code: 200,
+         message: 'success',
+         data: {
+           id: user.id,
+           phone: user.phone,
+           name: user.name ?? undefined,
+           nickname: user.nickname,
+           avatar: user.avatar ?? undefined,
+           role: user.role,
+           grade: user.grade ?? undefined,
+           age: user.age ?? undefined,
+           school: user.school ?? undefined,
+           expiresAt: user.expiresAt ?? undefined,
+           classHours
+         },
+         timestamp: Date.now()
+       });
     } catch (err) {
       next(err);
     }
@@ -73,7 +74,7 @@ userMeRouter.patch(
         throw new AppError(401, 'UNAUTHORIZED', '未登录');
       }
 
-      const allowedFields = ['nickname', 'avatar', 'grade', 'age', 'school'];
+      const allowedFields = ['name', 'nickname', 'avatar', 'grade', 'age', 'school'];
       const raw = req.body as Record<string, unknown>;
       const data = Object.keys(raw).reduce((acc, key) => {
         if (!allowedFields.includes(key)) {
@@ -104,7 +105,8 @@ userMeRouter.patch(
         }
 
         if (
-          (key === 'nickname' ||
+          (key === 'name' ||
+            key === 'nickname' ||
             key === 'avatar' ||
             key === 'grade' ||
             key === 'school') &&
@@ -141,6 +143,7 @@ userMeRouter.patch(
         data: {
           id: updatedUser.id,
           phone: updatedUser.phone,
+          name: updatedUser.name ?? undefined,
           nickname: updatedUser.nickname,
           avatar: updatedUser.avatar,
           role: updatedUser.role,

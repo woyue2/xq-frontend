@@ -112,7 +112,7 @@ export class AnswerService {
           images: images ?? [],
           audioUrl: normalizedAudioUrl,
           authorId,
-          authorName: author.nickname,
+          authorName: author.name || author.nickname,
           authorAvatar: author.avatar ?? null,
           likes: 0,
           status: initialStatus,

@@ -1,14 +1,15 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { questionService, QuestionParams } from '@/services/api';
+import { questionService } from '@/services/api';
+import type { QuestionListParams } from '@/types/api';
 
-export function useQuestions(params: Omit<QuestionParams, 'page' | 'limit'> = {}) {
+export function useQuestions(params: Omit<QuestionListParams, 'page' | 'pageSize'> = {}) {
     const query = useInfiniteQuery({
         queryKey: ['questions', params],
         queryFn: async ({ pageParam = 1 }) => {
             return questionService.getQuestions({
                 ...params,
                 page: pageParam,
-                limit: 10,
+                pageSize: 10,
             });
         },
         getNextPageParam: (lastPage) => {

@@ -7,6 +7,7 @@ export class UserService {
      * 更新用户信息（含头像审核）
      */
     async updateProfile(userId: string, data: {
+        name?: string;          // 真实姓名
         nickname?: string;
         avatar?: string;
         grade?: string;
@@ -28,6 +29,23 @@ export class UserService {
         }
 
         // 数据校验
+        if (data.name) {
+            if (data.name.length > 20) {
+                throw new AppError(400, 'INVALID_PARAMS', '姓名不能超过 20 个字符');
+            }
+            // 姓名 AI 审核（复用 nickname 审核类型）
+            const auditResult = await aiAuditService.auditContent(data.name, 'nickname');
+            if (!auditResult.safe) {
+                throw new AppError(
+                    400,
+                    'NAME_REJECTED',
+                    `姓名包含违规内容：${auditResult.reason || '未通过审核'}`,
+                    undefined,
+                    2002
+                );
+            }
+        }
+
         if (data.nickname) {
             if (data.nickname.length > 20) {
                 throw new AppError(400, 'INVALID_PARAMS', '昵称不能超过 20 个字符');
@@ -53,6 +71,7 @@ export class UserService {
         const updated = await prisma.user.update({
             where: { id: userId },
             data: {
+                name: data.name,
                 nickname: data.nickname,
                 avatar: data.avatar,
                 grade: data.grade,

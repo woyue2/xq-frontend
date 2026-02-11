@@ -32,7 +32,9 @@ export function LoginPage() {
   const [countdown, setCountdown] = useState(0);
   const [loginMode, setLoginMode] = useState<'code' | 'password'>('code');
 
-  // 注册场景下用于展示的姓名（昵称）
+  // 注册场景下的真实姓名（可选）
+  const [name, setName] = useState('');
+  // 注册场景下用于展示的昵称（如未填写则生成默认值）
   const [nickname, setNickname] = useState('');
 
   // 学生注册专用字段
@@ -142,6 +144,11 @@ export function LoginPage() {
       return;
     }
 
+    if (!isLogin && !name.trim()) {
+      toast.error('请输入真实姓名');
+      return;
+    }
+
     // 学生注册需要年级和年龄
     if (isStudentInvite) {
       if (!grade) {
@@ -213,6 +220,7 @@ export function LoginPage() {
         phone,
         code,
         password,
+        name: name.trim(),
         nickname: nickname.trim() || `用户${phone.slice(-4)}`,
         grade: isStudentInvite ? grade : undefined,
         age: isStudentInvite ? parseInt(age, 10) : undefined,
@@ -360,14 +368,28 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* 注册姓名输入（仅注册模式） */}
+          {/* 注册真实姓名输入（仅注册模式，可选） */}
           {!isLogin && (
             <div className="space-y-2">
-              <Label htmlFor="registerName">姓名</Label>
+              <Label htmlFor="registerName">真实姓名 *</Label>
               <Input
                 id="registerName"
                 type="text"
-                placeholder="请输入姓名（用于展示的昵称，可选）"
+                placeholder="请输入真实姓名"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* 注册昵称输入（仅注册模式） */}
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="nickname">昵称（用于展示，可选）</Label>
+              <Input
+                id="nickname"
+                type="text"
+                placeholder="请输入昵称（如未填写将自动生成）"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
               />

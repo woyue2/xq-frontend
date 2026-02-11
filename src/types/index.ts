@@ -14,7 +14,8 @@ export type SubjectType = 'math' | 'physics' | 'chemistry' | 'english' | 'chines
 export interface User {
   id: string; // UUID
   phone: string;
-  nickname: string;
+  name?: string;       // 真实姓名，可选
+  nickname?: string;
   avatar?: string;
   role: UserRole;
 
@@ -35,10 +36,10 @@ export interface Question {
   title: string;
   content?: string;
 
-  // 分类与标签 (结构化)
+  // 分类与标签
   subject: SubjectType; // 顶级科目
-  topics: string[]; // 考点 e.g. ["二次函数", "抛物线"]
-  methods?: string[]; // 方法 e.g. ["配方法"]
+  tags?: string[]; // 标签（后端返回）
+  difficulty?: DifficultyLevel; // 难度
 
   // 媒体
   images: string[];
@@ -48,16 +49,19 @@ export interface Question {
   status: AuditStatus;
   isPinned: boolean;
   isGoodQuestion: boolean; // 优质问题标记
-  difficulty?: DifficultyLevel; // 难度
-  tags?: string[]; // 标签
   score?: number; // 1-5
   aiResult?: string;
-  rejectReason?: string;
   understoodCount?: number;
   notUnderstoodCount?: number;
   understandingStatus?: 'understood' | 'not_understood' | null;
 
-  // 计数 (统计信息)
+  // 计数 (扁平化字段，与后端返回一致)
+  likes: number;
+  favorites: number;
+  comments: number;
+  answers: number;
+
+  // 计数 (对象形式，为向后兼容保留)
   stats: {
     likes: number;
     favorites: number;
@@ -66,19 +70,25 @@ export interface Question {
     views?: number;
   };
 
-  // 扁平化计数 (兼容性)
-  answerCount?: number;
-  viewCount?: number;
-  likeCount?: number;
-  collectionCount?: number;
-
   // 关联作者
   authorId: string;
   authorName: string;
   authorAvatar?: string;
   authorRole?: string;
 
+  // 时间
   createdAt: string;
+
+  // 用户交互状态（需要用户上下文）
+  isLiked?: boolean;
+  isFavorited?: boolean;
+
+  // 兼容性字段（用于旧代码）
+  topics?: string[]; // 考点 - 前端使用，后端不返回，可从 tags 推导
+  answerCount?: number; // 等同于 answers
+  viewCount?: number; // 浏览数，后端暂不返回
+  likeCount?: number; // 等同于 likes
+  collectionCount?: number; // 等同于 favorites
 }
 
 // 评论实体

@@ -60,14 +60,14 @@ const testCases: TestCase[] = [
       }
     }
   },
-  {
-    id: 'admin_whitelist',
-    name: 'Admin: 白名单列表',
-    description: '调用 GET /api/admin/whitelist?page=1&limit=5，验证老师后台白名单接口',
-    run: async () => {
-      const res = await api.get('/admin/whitelist', {
-        params: { page: 1, limit: 5 }
-      });
+    {
+        id: 'admin_whitelist',
+        name: 'Admin: 白名单列表',
+        description: '调用 GET /api/admin/whitelist?page=1&pageSize=5，验证老师后台白名单接口',
+        run: async () => {
+          const res = await api.get('/admin/whitelist', {
+            params: { page: 1, pageSize: 5 }
+          });
       const data: any = res.data?.data;
       if (!data || !Array.isArray(data.items)) {
         throw new Error('白名单列表结构不正确');

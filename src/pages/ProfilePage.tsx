@@ -355,7 +355,7 @@ export function ProfilePage() {
                 }}
               >
                 <h2 className="text-2xl font-bold text-gray-800 group-hover:text-morandi-5 transition-colors">
-                  {currentUser?.nickname || '未登录'}
+                  {currentUser?.name || currentUser?.nickname || '未登录'}
                 </h2>
                 <Pencil className="w-4 h-4 text-gray-400 group-hover:text-morandi-5 transition-colors" />
               </div>

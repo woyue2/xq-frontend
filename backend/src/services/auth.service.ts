@@ -312,6 +312,7 @@ export class AuthService {
       user: {
         id: user.id,
         phone: user.phone,
+        name: user.name ?? undefined,
         nickname: user.nickname,
         avatar: user.avatar ?? undefined,
         role: user.role,
@@ -465,6 +466,7 @@ export class AuthService {
       user: {
         id: user.id,
         phone: user.phone,
+        name: user.name ?? undefined,
         nickname: user.nickname,
         avatar: user.avatar ?? undefined,
         role: user.role,
@@ -482,6 +484,7 @@ export class AuthService {
   async register(params: {
     phone: string;
     code: string;
+    name?: string;          // 真实姓名，可选
     nickname?: string;
     grade?: string;
     age?: number;
@@ -492,6 +495,7 @@ export class AuthService {
     const {
       phone,
       code,
+      name,
       nickname,
       grade,
       age,
@@ -500,8 +504,20 @@ export class AuthService {
       password
     } = params;
 
+    // 真实姓名必填
+    if (!name || !name.trim()) {
+      throw new AppError(
+        400,
+        'INVALID_NAME',
+        '请填写真实姓名',
+        undefined,
+        1006
+      );
+    }
+    const effectiveName = name.trim();
+
     // 昵称非必填，若未填写则生成默认昵称
-    const effectiveNickname = nickname || `用户_${phone.slice(-4)}`;
+    const effectiveNickname = nickname?.trim() || `用户_${phone.slice(-4)}`;
 
     const normalizedPhone = phone.replace(/\D/g, '');
 
@@ -652,6 +668,7 @@ export class AuthService {
       user = await prisma.user.create({
         data: {
           phone: normalizedPhone,
+          name: effectiveName,
           nickname: effectiveNickname,
           avatar: null,
           role,
@@ -684,22 +701,23 @@ export class AuthService {
         },
         'Auth register degraded: fallback to in-memory user'
       );
-      user = {
-        id: `user_${Date.now()}`,
-        phone: normalizedPhone,
-        nickname: effectiveNickname,
-        avatar: null,
-        role,
-        grade: effectiveGrade ?? null,
-        age: age ?? null,
-        school: school ?? null,
-        expiresAt: expiresAt ?? null,
-        passwordHash,
-        isActive: true,
-        isBanned: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } as any;
+       user = {
+         id: `user_${Date.now()}`,
+         phone: normalizedPhone,
+         name: effectiveName,
+         nickname: effectiveNickname,
+         avatar: null,
+         role,
+         grade: effectiveGrade ?? null,
+         age: age ?? null,
+         school: school ?? null,
+         expiresAt: expiresAt ?? null,
+         passwordHash,
+         isActive: true,
+         isBanned: false,
+         createdAt: new Date(),
+         updatedAt: new Date()
+       } as any;
     }
 
     const payload: JwtPayloadBase = { sub: user.id, role: user.role };
@@ -902,6 +920,7 @@ export class AuthService {
     return {
       id: user.id,
       phone: user.phone,
+      name: user.name ?? undefined,
       nickname: user.nickname,
       avatar: user.avatar ?? undefined,
       role: user.role,
