@@ -28,6 +28,13 @@ export interface User {
   grade?: string;
   age?: number;
   school?: string;
+
+  // 课时信息
+  classHours?: {
+    total: number;
+    used: number;
+    remaining: number;
+  };
 }
 
 // 问题实体
@@ -51,6 +58,11 @@ export interface Question {
   isGoodQuestion: boolean; // 优质问题标记
   score?: number; // 1-5
   aiResult?: string;
+  aiAudit?: {
+    safe: boolean;
+    reason?: string;
+    qualitySuggestion?: string;
+  };
   understoodCount?: number;
   notUnderstoodCount?: number;
   understandingStatus?: 'understood' | 'not_understood' | null;
@@ -105,6 +117,10 @@ export interface Comment {
 
   status: AuditStatus;
   aiResult?: string;
+  aiAudit?: {
+    safe: boolean;
+    reason?: string;
+  };
   createdAt: string;
 }
 
@@ -123,6 +139,12 @@ export interface Answer {
 
   // 统计
   likes: number;
+  isLiked?: boolean;
   status: AuditStatus;
+  aiResult?: string;
+  aiAudit?: {
+    safe: boolean;
+    reason?: string;
+  };
   createdAt: string;
 }

@@ -155,6 +155,7 @@ export class CommentService {
         authorName: c.authorName,
         authorAvatar: c.authorAvatar ?? undefined,
         status: c.status,
+        aiResult: c.aiResult ?? undefined,
         createdAt: c.createdAt
       })),
       total: comments.length

@@ -1,0 +1,17 @@
+src/pages/HomePage.tsx(31,5): error TS2353: Object literal may only specify known properties, and 'topic' does not exist in type 'Omit<QuestionListParams, "page" | "pageSize">'.
+src/pages/QuestionDetailPage.tsx(605,34): error TS7006: Parameter 'tag' implicitly has an 'any' type.
+src/pages/QuestionDetailPage.tsx(605,39): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/QuestionDetailPage.tsx(649,37): error TS7006: Parameter 'image' implicitly has an 'any' type.
+src/pages/QuestionDetailPage.tsx(649,44): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/StudentHistoryPage.tsx(34,5): error TS2353: Object literal may only specify known properties, and 'topic' does not exist in type 'Omit<QuestionListParams, "page" | "pageSize">'.
+src/services/subjectConfig.service.ts(3,15): error TS2305: Module '"@/types/api"' has no exported member 'SubjectDto'.
+src/services/subjectConfig.service.ts(3,27): error TS2305: Module '"@/types/api"' has no exported member 'TopicDto'.
+src/services/subjectConfig.service.ts(27,38): error TS2339: Property 'data' does not exist on type '{ subjects: SubjectDto[]; }'.
+src/services/subjectConfig.service.ts(83,36): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/test/diagnostic/page.test.tsx(17,5): error TS2698: Spread types may only be created from object types.
+src/test/my_questions_delete_button.test.tsx(20,5): error TS2698: Spread types may only be created from object types.
+src/test/my_questions_delete_button.test.tsx(22,10): error TS18046: 'actual' is of type 'unknown'.
+src/test/my_questions_delete_button.test.tsx(29,52): error TS2503: Cannot find namespace 'vi'.
+src/test/my_questions_delete_button.test.tsx(30,57): error TS2503: Cannot find namespace 'vi'.
+src/test/my_questions_delete_button.test.tsx(31,61): error TS2503: Cannot find namespace 'vi'.
+src/test/notifications_page_boundaries.test.tsx(28,5): error TS2698: Spread types may only be created from object types.

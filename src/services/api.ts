@@ -25,6 +25,7 @@ import type {
     MyLikedQuestion,
     MyFavoritedQuestion,
     MyAnswerSummary,
+    UpdateProfilePayload,
     RegisterPayload,
     QuestionDimensionDto,
     QuestionDimensionOptionDto
@@ -416,7 +417,7 @@ export const authService = {
 };
 
 export const userService = {
-    updateProfile: async (data: Partial<User>) => {
+    updateProfile: async (data: UpdateProfilePayload) => {
         const { data: res } = await api.patch<ApiResponse<User>>('/users/me', data);
         return res.data;
     }
@@ -426,6 +427,7 @@ type BackendQuestionListItem = {
     id: string;
     title: string;
     content?: string | null;
+    images?: string[] | null;
     tags?: string[] | null;
     difficulty?: string | null;
     authorId: string;
@@ -536,7 +538,7 @@ export const questionService = {
                 subject: (q.subject as SubjectType) ?? 'math',
                 tags: q.tags ?? [],
                 topics: [], // 列表接口不返回 topics，可从 tags 推导
-                images: [], // 列表接口不返回 images
+                images: q.images ?? [],
                 audioUrl: undefined,
                 status: q.status as AuditStatus,
                 isPinned: q.isPinned,
@@ -828,13 +830,18 @@ export const behaviorService = {
 
 export const notificationService = {
     getNotifications: async (params: { page?: number; limit?: number; unread?: boolean }) => {
+        // 将 boolean 类型的 unread 转换为后端期望的字符串格式
+        const queryParams: any = { ...params };
+        if (typeof queryParams.unread === 'boolean') {
+            queryParams.unread = queryParams.unread ? 'true' : 'false';
+        }
         const { data } = await api.get<
             ApiResponse<{
                 notifications: Notification[];
                 unreadCount: number;
                 total: number;
             }>
-        >('/notifications', { params });
+        >('/notifications', { params: queryParams });
         return data.data;
     },
     markAsRead: async (ids: string[]) => {
@@ -1048,7 +1055,7 @@ export const adminService = {
 export const answerService = {
     create: async (
         questionId: string,
-        payload: { content?: string; images?: string[]; audioUrl?: string }
+        payload: { content?: string; images?: string[]; audioUrl?: string; audioUrls?: string[] }
     ) => {
         const { data } = await api.post<ApiResponse<Answer>>(
             `/questions/${questionId}/answers`,

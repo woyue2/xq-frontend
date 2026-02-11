@@ -1,4 +1,4 @@
-import type { User, Question, Comment, Answer } from './index';
+import type { User, Question, Comment, Answer, AuditStatus } from './index';
 
 // 统一响应格式
 export interface ApiResponse<T> {
@@ -74,7 +74,7 @@ export interface QuestionListParams {
 
 // 互动相关
 export interface LikePayload {
-    targetType: 'question' | 'answer';
+    targetType: 'question';
     targetId: string;
     action: 'like' | 'unlike';
 }
@@ -100,6 +100,7 @@ export interface MyLikedQuestion {
     title: string;
     content?: string | null;
     authorName: string;
+    authorAvatar?: string;
     likes: number;
     favorites: number;
     answers: number;
@@ -112,6 +113,7 @@ export interface MyFavoritedQuestion {
     title: string;
     content?: string | null;
     authorName: string;
+    authorAvatar?: string;
     likes: number;
     favorites: number;
     answers: number;
@@ -129,11 +131,20 @@ export interface MyAnswerSummary {
     createdAt: string;
 }
 
+// 更新用户信息参数
+export interface UpdateProfilePayload {
+    name?: string;
+    nickname?: string;
+    avatar?: string;
+    grade?: string;
+    age?: number;
+    school?: string;
+}
+
 // 通知相关
 export interface Notification {
     id: string;
-    userId: string;
-    type: 'answer' | 'comment' | 'audit_result' | 'system' | 'new_answer';
+    type: string;
     title: string;
     content?: string;
     targetType?: string;
