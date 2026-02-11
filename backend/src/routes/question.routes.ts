@@ -74,12 +74,13 @@ questionRouter.get(
   authMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { page, pageSize, status, isGoodQuestion, tags, authorId, search } =
+      const { page, pageSize, subject, status, isGoodQuestion, tags, authorId, search } =
         req.query as any;
 
       const result = await questionService.list({
         page: page ? Number(page) : undefined,
         pageSize: pageSize ? Number(pageSize) : undefined,
+        subject: typeof subject === 'string' ? subject : undefined,
         status,
         isGoodQuestion:
           typeof isGoodQuestion === 'string'

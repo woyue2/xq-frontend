@@ -189,6 +189,7 @@ export class QuestionService {
   async list(params: {
     page?: number;
     pageSize?: number;
+    subject?: string;
     status?: string;
     isGoodQuestion?: boolean;
     tags?: string[];
@@ -198,6 +199,7 @@ export class QuestionService {
     const {
       page = 1,
       pageSize = 20,
+      subject,
       status,
       isGoodQuestion,
       tags,
@@ -227,7 +229,7 @@ export class QuestionService {
     const where: any = {};
 
     // 默认仅首页等公共列表展示已通过的问题；
-    // 若明确指定 authorId（例如“我的提问”），则不过滤状态，由调用方自行按 status 分组。
+    // 若明确指定 authorId（例如"我的提问"），则不过滤状态，由调用方自行按 status 分组。
     const effectiveStatus =
       typeof status === 'string'
         ? status
@@ -237,6 +239,10 @@ export class QuestionService {
 
     if (effectiveStatus) {
       where.status = effectiveStatus;
+    }
+
+    if (subject) {
+      where.subject = subject;
     }
 
     if (authorId) {
@@ -288,6 +294,7 @@ export class QuestionService {
         id: q.id,
         title: q.title,
         content: q.content,
+        subject: q.subject, // 返回科目字段
         images: q.images ?? [],
         tags: q.tags,
         difficulty: q.difficulty,

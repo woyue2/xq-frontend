@@ -27,7 +27,7 @@ import type { Question, Comment, AuditStatus } from '@/types';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useNavigate } from 'react-router-dom';
 import { aiTextConfig } from '@/config/ai-text';
-import { adminService } from '@/services/api';
+import { auditService } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 export const AuditPage = () => {
@@ -73,7 +73,7 @@ export const AuditPage = () => {
     const loadQuestions = async () => {
       setLoadingQuestions(true);
       try {
-        const res = await adminService.getPendingQuestions({ page: 1, pageSize: 20 });
+        const res = await auditService.getPendingQuestions({ page: 1, pageSize: 20 });
         const items = res.list.map((item) => ({
           id: item.id,
           title: item.title,
@@ -117,7 +117,7 @@ export const AuditPage = () => {
     const loadComments = async () => {
       setLoadingComments(true);
       try {
-        const res = await adminService.getPendingComments({ page: 1, pageSize: 20 });
+        const res = await auditService.getPendingComments({ page: 1, pageSize: 20 });
         const items = res.list.map((item) => ({
           id: item.id,
           questionId: item.questionId,
@@ -190,7 +190,7 @@ export const AuditPage = () => {
     }
 
     if (currentAuditItem.type === 'question') {
-      adminService
+      auditService
         .rejectQuestion(currentAuditItem.id, rejectReason)
         .then(() => {
           handleAudit(currentAuditItem.id, 'question', 'rejected', { aiResult: rejectReason });
@@ -200,7 +200,7 @@ export const AuditPage = () => {
           toast.error('驳回失败，请稍后重试');
         });
     } else {
-      adminService
+      auditService
         .banComment(currentAuditItem.id, rejectReason)
         .then(() => {
           handleAudit(currentAuditItem.id, 'comment', 'banned', { aiResult: rejectReason });
@@ -221,7 +221,7 @@ export const AuditPage = () => {
 
   const confirmScore = () => {
     if (!currentAuditItem) return;
-    adminService
+    auditService
       .approveQuestion(currentAuditItem.id, { score: currentScore })
       .then(() => {
         setQuestions(prev => prev.map(q => {
@@ -239,7 +239,7 @@ export const AuditPage = () => {
   };
 
   const toggleGoodQuestion = (id: string, checked: boolean) => {
-    adminService
+    auditService
       .approveQuestion(id, { isGoodQuestion: checked })
       .then(() => {
         setQuestions(prev => prev.map(q => {
@@ -401,7 +401,7 @@ export const AuditPage = () => {
                   </div>
                   <button
                     onClick={() => {
-                      adminService
+                      auditService
                         .approveQuestion(q.id, {
                           isGoodQuestion: q.isGoodQuestion,
                           score: q.score,
@@ -487,7 +487,7 @@ export const AuditPage = () => {
                   </button>
                   <button
                     onClick={() => {
-                      adminService
+                      auditService
                         .approveComment(c.id)
                         .then(() => {
                           handleAudit(c.id, 'comment', 'approved');

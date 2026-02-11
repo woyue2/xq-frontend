@@ -157,7 +157,7 @@ adminAuditRouter.post(
         data: {
           id: updated.id,
           status: updated.status,
-          rejectReason: updated.aiResult,
+          reason: updated.aiResult,
           rejectedBy: req.user!.id,
           rejectedAt: updated.updatedAt
         },

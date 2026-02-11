@@ -67,6 +67,8 @@ export interface QuestionListParams {
     page?: number;
     pageSize?: number;
     subject?: string;
+    status?: string;
+    isGoodQuestion?: boolean;
     tags?: string[];
     search?: string;
     authorId?: string;
@@ -227,4 +229,88 @@ export interface BatchUpdateClassHoursResponse {
     successCount: number;
     failedCount: number;
     results: BatchUpdateClassHoursResult[];
+}
+
+// ============================================
+// 审核管理模块（Admin Audit）类型定义
+// ============================================
+
+// 待审核问题
+export interface PendingQuestion {
+    id: string;
+    type: 'question';
+    title: string;
+    content: string;
+    authorId: string;
+    authorName: string;
+    status: string;
+    aiResult: string | null;
+    createdAt: string;
+}
+
+// 待审核评论
+export interface PendingComment {
+    id: string;
+    type: 'comment';
+    questionId: string;
+    questionTitle: string;
+    content: string;
+    image: string | null;
+    authorId: string;
+    authorName: string;
+    status: string;
+    aiResult: string | null;
+    createdAt: string;
+}
+
+// 审核统计
+export interface AuditStatistics {
+    pending: number;
+    approved: number;
+    rejected: number;
+    banned: number;
+}
+
+// 审核问题通过响应
+export interface ApproveQuestionResponse {
+    id: string;
+    status: string;
+    isGoodQuestion?: boolean;
+    score?: number;
+    tags?: string[];
+    difficulty?: string;
+    approvedBy: string;
+    approvedAt: string;
+}
+
+// 审核问题驳回响应（使用 reason 字段）
+export interface RejectQuestionResponse {
+    id: string;
+    status: string;
+    reason: string | null; // AI审核结果/驳回原因
+    rejectedBy: string;
+    rejectedAt: string;
+}
+
+// 审核评论通过响应
+export interface ApproveCommentResponse {
+    id: string;
+    status: string;
+    approvedBy: string;
+    approvedAt: string;
+}
+
+// 封禁评论响应
+export interface BanCommentResponse {
+    id: string;
+    status: string;
+    reason: string;
+    bannedBy: string;
+    bannedAt: string;
+}
+
+// 置顶问题响应
+export interface TogglePinQuestionResponse {
+    id: string;
+    isPinned: boolean;
 }

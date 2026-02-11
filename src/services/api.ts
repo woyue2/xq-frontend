@@ -31,7 +31,16 @@ import type {
     QuestionDimensionOptionDto,
     UserClassHours,
     BatchUpdateClassHoursResult,
-    BatchUpdateClassHoursResponse
+    BatchUpdateClassHoursResponse,
+    // 审核管理相关类型
+    PendingQuestion,
+    PendingComment,
+    AuditStatistics,
+    ApproveQuestionResponse,
+    RejectQuestionResponse,
+    ApproveCommentResponse,
+    BanCommentResponse,
+    TogglePinQuestionResponse
 } from '@/types/api';
 import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer, Comment } from '@/types';
 
@@ -510,6 +519,8 @@ export const questionService = {
         if (params.page !== undefined) backendParams.page = params.page;
         if (params.pageSize !== undefined) backendParams.pageSize = params.pageSize;
         if (params.subject !== undefined) backendParams.subject = params.subject;
+        if (params.status !== undefined) backendParams.status = params.status;
+        if (params.isGoodQuestion !== undefined) backendParams.isGoodQuestion = params.isGoodQuestion;
         if (params.tags !== undefined) backendParams.tags = params.tags.join(',');
         if (params.search !== undefined) backendParams.search = params.search;
         if (params.authorId !== undefined) backendParams.authorId = params.authorId;
@@ -945,34 +956,22 @@ export const adminService = {
         return data.data;
     },
 
-    // 审核相关（Admin Audit）
+    // 审核相关函数已移动到 auditService
+};
+
+export const auditService = {
     getPendingQuestions: async (params?: { page?: number; pageSize?: number }) => {
         const { data } = await api.get<
             ApiResponse<{
                 type: 'question';
-                list: {
-                    id: string;
-                    type: 'question';
-                    title: string;
-                    content: string;
-                    authorId: string;
-                    authorName: string;
-                    status: string;
-                    aiResult: string | null;
-                    createdAt: string;
-                }[];
+                list: PendingQuestion[];
                 pagination: {
                     page: number;
                     pageSize: number;
                     total: number;
                     totalPages: number;
                 };
-                statistics: {
-                    pending: number;
-                    approved: number;
-                    rejected: number;
-                    banned: number;
-                };
+                statistics: AuditStatistics;
             }>
         >('/admin/audit/pending', {
             params: { ...(params || {}), type: 'question' }
@@ -984,19 +983,7 @@ export const adminService = {
         const { data } = await api.get<
             ApiResponse<{
                 type: 'comment';
-                list: {
-                    id: string;
-                    type: 'comment';
-                    questionId: string;
-                    questionTitle: string;
-                    content: string;
-                    image: string | null;
-                    authorId: string;
-                    authorName: string;
-                    status: string;
-                    aiResult: string | null;
-                    createdAt: string;
-                }[];
+                list: PendingComment[];
                 pagination?: {
                     page: number;
                     pageSize: number;
@@ -1010,47 +997,65 @@ export const adminService = {
         return data.data;
     },
 
-    approveQuestion: async (contentId: string, payload: {
-        isGoodQuestion?: boolean;
-        score?: number;
-        tags?: string[];
-        difficulty?: string;
-    }) => {
-        const { data } = await api.post<ApiResponse<any>>(
-            `/admin/audit/${encodeURIComponent(contentId)}/approve`,
-            { type: 'question', ...payload }
-        );
+    approveQuestion: async (
+        contentId: string,
+        payload: {
+            isGoodQuestion?: boolean;
+            score?: number;
+            tags?: string[];
+            difficulty?: string;
+        }
+    ): Promise<ApproveQuestionResponse> => {
+        const { data } = await api.post<
+            ApiResponse<ApproveQuestionResponse>
+        >(`/admin/audit/${encodeURIComponent(contentId)}/approve`, {
+            type: 'question',
+            ...payload
+        });
         return data.data;
     },
 
-    rejectQuestion: async (contentId: string, reason: string) => {
-        const { data } = await api.post<ApiResponse<any>>(
-            `/admin/audit/${encodeURIComponent(contentId)}/reject`,
-            { type: 'question', reason }
-        );
+    rejectQuestion: async (
+        contentId: string,
+        reason: string
+    ): Promise<RejectQuestionResponse> => {
+        const { data } = await api.post<
+            ApiResponse<RejectQuestionResponse>
+        >(`/admin/audit/${encodeURIComponent(contentId)}/reject`, {
+            type: 'question',
+            reason
+        });
         return data.data;
     },
 
-    approveComment: async (contentId: string) => {
-        const { data } = await api.post<ApiResponse<any>>(
-            `/admin/audit/${encodeURIComponent(contentId)}/approve`,
-            { type: 'comment' }
-        );
+    approveComment: async (contentId: string): Promise<ApproveCommentResponse> => {
+        const { data } = await api.post<
+            ApiResponse<ApproveCommentResponse>
+        >(`/admin/audit/${encodeURIComponent(contentId)}/approve`, {
+            type: 'comment'
+        });
         return data.data;
     },
 
-    banComment: async (contentId: string, reason: string) => {
-        const { data } = await api.post<ApiResponse<any>>(
-            `/admin/audit/${encodeURIComponent(contentId)}/ban`,
-            { type: 'comment', reason }
-        );
+    banComment: async (
+        contentId: string,
+        reason: string
+    ): Promise<BanCommentResponse> => {
+        const { data } = await api.post<
+            ApiResponse<BanCommentResponse>
+        >(`/admin/audit/${encodeURIComponent(contentId)}/ban`, {
+            type: 'comment',
+            reason
+        });
         return data.data;
     },
 
-    togglePinQuestion: async (questionId: string) => {
-        const { data } = await api.post<ApiResponse<{ id: string; isPinned: boolean }>>(
-            `/admin/audit/questions/${encodeURIComponent(questionId)}/pin`
-        );
+    togglePinQuestion: async (
+        questionId: string
+    ): Promise<TogglePinQuestionResponse> => {
+        const { data } = await api.post<
+            ApiResponse<TogglePinQuestionResponse>
+        >(`/admin/audit/questions/${encodeURIComponent(questionId)}/pin`);
         return data.data;
     }
 };
