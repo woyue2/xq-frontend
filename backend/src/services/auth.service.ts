@@ -605,7 +605,7 @@ export class AuthService {
       // 数据库不可用时视为未注册（仅限测试/开发环境）
     }
 
-    // 默认角色：优先使用前端请求的角色（student/teacher/parent），如白名单存在则以白名单为准
+    // 默认角色：优先使用前端请求的角色（student/teacher/parent），白名单仅用于补充 grade 和 expiresAt
     const normalizedRole: 'student' | 'teacher' | 'parent' =
       requestedRole && ['student', 'teacher', 'parent'].includes(requestedRole)
         ? requestedRole
@@ -620,16 +620,7 @@ export class AuthService {
         where: { phone: normalizedPhone }
       });
       if (wl) {
-        // 白名单中的角色字段为 string，这里限制为受支持的三种角色之一
-        if (
-          wl.role === 'student' ||
-          wl.role === 'teacher' ||
-          wl.role === 'parent'
-        ) {
-          role = wl.role;
-        } else {
-          role = 'student';
-        }
+        // 白名单只补充 grade 和 expiresAt，不再覆盖 role（前端传递的 role 优先）
         effectiveGrade = effectiveGrade ?? wl.grade ?? undefined;
         expiresAt = wl.validUntil ?? undefined;
 
