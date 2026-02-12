@@ -420,6 +420,7 @@ export function QuestionDetailPage() {
         authorId: currentUser.id,
         authorName: currentUser.name || currentUser.nickname || '',
         authorAvatar: currentUser.avatar,
+        authorRole: currentUser.role,  // 添加 authorRole 字段
         status: 'pending',
         aiResult: '无违规',
         createdAt: new Date().toISOString(),

@@ -156,7 +156,7 @@ describe('Advanced Coverage Tests', () => {
         vi.clearAllMocks();
         (useAuthStore as any).mockReturnValue({ user: null });
         (useQuestions as any).mockReturnValue({
-            data: { pages: [{ items: [] }] },
+            data: { pages: [{ list: [] }] },
             isLoading: false
         });
     });

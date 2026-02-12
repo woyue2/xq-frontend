@@ -21,8 +21,8 @@ export function MyQuestionsPage() {
         }
     }, [user, navigate]);
 
-    // 获取当前用户的问题
-    const myQuestions = data?.pages.flatMap(p => p.list) || [];
+     // 获取当前用户的问题
+     const myQuestions = (data?.pages.flatMap(p => p.list) || []).filter(q => q && q.id);
 
     const getDifficultyBadge = (difficulty?: string) => {
         const difficultyMap: Record<string, { label: string; className: string }> = {
@@ -125,7 +125,7 @@ export function MyQuestionsPage() {
                 <div className="space-y-3">
                     {myQuestions.map((question) => {
                         const difficultyBadge = getDifficultyBadge(question.difficulty);
-                        const statusBadge = getStatusBadge(question.status);
+                        const statusBadge = getStatusBadge(question.status || 'pending');
                         const answers =
                             question.answerCount ??
                             (question.stats && typeof question.stats.answers === 'number'

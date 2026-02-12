@@ -83,7 +83,7 @@ test.describe('学生收到老师回答通知并查看详情 E2E', () => {
 
     expect(notifRes.ok()).toBeTruthy();
     const notifBody = await notifRes.json();
-    const hasAuditNotification = notifBody.data.notifications.some(
+    const hasAuditNotification = notifBody.data.list.some(
       (n: any) =>
         n.type === 'audit_result' &&
         n.targetType === 'question' &&

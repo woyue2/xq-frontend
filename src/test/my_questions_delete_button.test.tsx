@@ -56,7 +56,7 @@ describe('MyQuestionsPage delete button visibility', () => {
       data: {
         pages: [
           {
-            items: [
+            list: [
               {
                 id: 'q-no-answer',
                 title: 'No Answer Question',
@@ -98,7 +98,7 @@ describe('MyQuestionsPage delete button visibility', () => {
       data: {
         pages: [
           {
-            items: [
+            list: [
               {
                 id: 'q-with-answer',
                 title: 'With Answer Question',

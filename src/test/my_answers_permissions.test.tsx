@@ -89,7 +89,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
   it('loads answers list for teacher user', async () => {
     const now = new Date().toISOString();
     getMyAnswersMock.mockResolvedValue({
-      items: [
+      list: [
         {
           id: 'a1',
           questionId: 'q1',
@@ -100,9 +100,12 @@ describe('MyAnswersPage permissions & boundaries', () => {
           createdAt: now,
         },
       ],
-      total: 1,
-      page: 1,
-      totalPages: 1,
+      pagination: {
+        total: 1,
+        page: 1,
+        pageSize: 10,
+        totalPages: 1,
+      }
     });
 
     renderWithUser({

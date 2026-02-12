@@ -1,0 +1,18 @@
+现在我确认了用户使用的是 Express 框架，并且看到了所有注册的路由：
+- /api/auth - 认证
+- /api/admin/whitelist - 白名单管理
+- /api/admin/class-hours - 课时管理
+- /api/admin/question-dimensions - 题目维度
+- /api/admin/audit - 审核管理
+- /api/questions - 问题
+- /api/comments - 评论
+- /api/answers - 回答
+- /api/users/me - 当前用户
+- /api/profile - 个人资料
+- /api/behavior - 行为日志
+- /api/interactions - 互动
+- /api/upload - 上传
+- /api/internal - 内部接口
+- /api/config - 配置
+- /api/parent - 亲子绑定
+- /api - 通知 (notificationRouter)

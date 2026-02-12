@@ -25,7 +25,7 @@ describe('User Scenarios (Based on 测试用例文档.md)', () => {
         });
         // Default Mock: Questions
         (useQuestions as any).mockReturnValue({
-            data: { pages: [{ items: [] }] },
+            data: { pages: [{ list: [] }] },
             isLoading: false,
             fetchNextPage: vi.fn(),
             hasNextPage: false,

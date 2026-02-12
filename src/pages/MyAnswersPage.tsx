@@ -12,6 +12,7 @@ export function MyAnswersPage() {
     const { user } = useAuthStore();
     const [myAnswers, setMyAnswers] = useState<MyAnswerSummary[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         // 未登录用户直接跳转登录页，避免在未授权状态下访问个人回答列表

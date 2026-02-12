@@ -99,12 +99,15 @@ describe('Parent Flow Integration', () => {
       data: {
         code: 200,
         data: {
-          items: [
+          list: [
             { id: 'q1', title: 'Why sky blue?', content: 'Tell me', isPinned: false, stats: {}, authorName: 'Test Author', authorId: 'child_1' }
           ],
-          total: 1,
-          page: 1,
-          totalPages: 1
+          pagination: {
+            total: 1,
+            page: 1,
+            pageSize: 10,
+            totalPages: 1
+          }
         }
       }
     });

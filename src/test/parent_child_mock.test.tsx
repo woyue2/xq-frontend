@@ -1,5 +1,13 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// 必须在导入 api 之前 mock mock-env
+vi.mock('@/lib/mock-env', () => ({
+  USE_MOCK: true,
+  getMockMode: () => true,
+  applyMockModeOverride: vi.fn()
+}));
+
 import { mockUsers, mockChildren } from '@/lib/mock-data';
 import { parentService } from '@/services/parentService';
 import { api } from '@/services/api';

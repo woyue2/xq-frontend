@@ -1,0 +1,192 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mc:/Users/Administrator/Downloads/zsxq-4[39m
+
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mAuthService[2m > [22m[2mshould send code successfully
+[22m[39mAPI baseURL: http://localhost:4000/api
+USE_MOCK: [33mfalse[39m
+MODE: test
+
+POST http://localhost:4000/api/auth/send-code 404 (Not Found)
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mAuthService[2m > [22m[2mshould login successfully
+[22m[39mAPI baseURL: http://localhost:4000/api
+USE_MOCK: [33mfalse[39m
+MODE: test
+
+POST http://localhost:4000/api/auth/login 400 (Bad Request)
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mQuestionService[2m > [22m[2mshould fetch questions with pagination
+[22m[39mAPI baseURL: http://localhost:4000/api
+USE_MOCK: [33mfalse[39m
+MODE: test
+
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mQuestionService[2m > [22m[2mshould fetch questions with pagination
+[22m[39m[questionService.getQuestions] params { page: [33m1[39m, pageSize: [33m5[39m }
+
+GET http://localhost:4000/api/questions?page=1&pageSize=5 401 (Unauthorized)
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mQuestionService[2m > [22m[2mshould fetch single question by id
+[22m[39mAPI baseURL: http://localhost:4000/api
+USE_MOCK: [33mfalse[39m
+MODE: test
+
+GET http://localhost:4000/api/questions/1 401 (Unauthorized)
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mQuestionService[2m > [22m[2mshould create question
+[22m[39mAPI baseURL: http://localhost:4000/api
+USE_MOCK: [33mfalse[39m
+MODE: test
+
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mQuestionService[2m > [22m[2mshould create question
+[22m[39m[questionService.createQuestion] payload { title: [32m'New Test Question'[39m, subject: [32m'math'[39m, tags: [90mundefined[39m }
+
+POST http://localhost:4000/api/questions 401 (Unauthorized)
+[90mstdout[2m | src/test/api.test.ts[2m > [22m[2mAPI Service Layer[2m > [22m[2mInteractionService[2m > [22m[2mshould like a target
+[22m[39mAPI baseURL: http://localhost:4000/api
+USE_MOCK: [33mfalse[39m
+MODE: test
+
+POST http://localhost:4000/api/interactions/like 401 (Unauthorized)
+ [31m❯[39m src/test/api.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m6 failed[39m[2m | [22m[33m1 skipped[39m[2m)[22m[32m 110[2mms[22m[39m
+       [2m[90m↓[39m[22m should inject token into headers
+[31m       [31m×[31m should send code successfully[39m[32m 43[2mms[22m[39m
+[31m       [31m×[31m should login successfully[39m[32m 11[2mms[22m[39m
+[31m       [31m×[31m should fetch questions with pagination[39m[32m 15[2mms[22m[39m
+[31m       [31m×[31m should fetch single question by id[39m[32m 14[2mms[22m[39m
+[31m       [31m×[31m should create question[39m[32m 15[2mms[22m[39m
+[31m       [31m×[31m should like a target[39m[32m 10[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 6 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/test/api.test.ts[2m > [22mAPI Service Layer[2m > [22mAuthService[2m > [22mshould send code successfully
+[31m[1mAxiosError[22m: Request failed with status code 404[39m
+[90m [2m❯[22m settle node_modules/axios/lib/core/settle.js:[2m19:12[22m[39m
+[90m [2m❯[22m onloadend node_modules/axios/lib/adapters/xhr.js:[2m59:7[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#callDispatchEventListeners node_modules/happy-dom/lib/event/EventTarget.js:[2m291:25[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m100:41[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#goThroughDispatchEventPhases node_modules/happy-dom/lib/event/EventTarget.js:[2m160:38[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m96:47[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#dispatchEvent node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m460:14[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#sendAsync node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m392:28[22m[39m
+[90m [2m❯[22m Axios.request node_modules/axios/lib/core/Axios.js:[2m45:41[22m[39m
+[36m [2m❯[22m src/test/api.test.ts:[2m32:25[22m[39m
+    [90m 30| [39m    [34mdescribe[39m([32m'AuthService'[39m[33m,[39m () [33m=>[39m {
+    [90m 31| [39m        [34mit[39m([32m'should send code successfully'[39m[33m,[39m [35masync[39m () [33m=>[39m {
+    [90m 32| [39m            const res = await authService.sendCode({ phone: '138001380…
+    [90m   | [39m                        [31m^[39m
+    [90m 33| [39m            [34mexpect[39m(res[33m.[39mdata[33m.[39mdata)[33m.[39m[34mtoBeNull[39m()[33m;[39m [90m// ApiResponse<null>[39m
+    [90m 34| [39m        })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/api.test.ts[2m > [22mAPI Service Layer[2m > [22mAuthService[2m > [22mshould login successfully
+[31m[1mAxiosError[22m: Request failed with status code 400[39m
+[90m [2m❯[22m settle node_modules/axios/lib/core/settle.js:[2m19:12[22m[39m
+[90m [2m❯[22m onloadend node_modules/axios/lib/adapters/xhr.js:[2m59:7[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#callDispatchEventListeners node_modules/happy-dom/lib/event/EventTarget.js:[2m291:25[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m100:41[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#goThroughDispatchEventPhases node_modules/happy-dom/lib/event/EventTarget.js:[2m160:38[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m96:47[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#dispatchEvent node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m460:14[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#sendAsync node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m392:28[22m[39m
+[90m [2m❯[22m Axios.request node_modules/axios/lib/core/Axios.js:[2m45:41[22m[39m
+[36m [2m❯[22m src/test/api.test.ts:[2m37:25[22m[39m
+    [90m 35| [39m
+    [90m 36| [39m        [34mit[39m([32m'should login successfully'[39m[33m,[39m [35masync[39m () [33m=>[39m {
+    [90m 37| [39m            const res = await authService.login({ phone: '13800138000'…
+    [90m   | [39m                        [31m^[39m
+    [90m 38| [39m            [34mexpect[39m(res[33m.[39mdata[33m.[39mdata[33m.[39mtoken)[33m.[39m[34mtoBeDefined[39m()[33m;[39m
+    [90m 39| [39m            [34mexpect[39m(res[33m.[39mdata[33m.[39mdata[33m.[39muser)[33m.[39m[34mtoBeDefined[39m()[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/api.test.ts[2m > [22mAPI Service Layer[2m > [22mQuestionService[2m > [22mshould fetch questions with pagination
+[31m[1mAxiosError[22m: Request failed with status code 401[39m
+[90m [2m❯[22m settle node_modules/axios/lib/core/settle.js:[2m19:12[22m[39m
+[90m [2m❯[22m onloadend node_modules/axios/lib/adapters/xhr.js:[2m59:7[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#callDispatchEventListeners node_modules/happy-dom/lib/event/EventTarget.js:[2m291:25[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m100:41[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#goThroughDispatchEventPhases node_modules/happy-dom/lib/event/EventTarget.js:[2m160:38[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m96:47[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#dispatchEvent node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m460:14[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#sendAsync node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m392:28[22m[39m
+[90m [2m❯[22m Axios.request node_modules/axios/lib/core/Axios.js:[2m45:41[22m[39m
+[36m [2m❯[22m Object.getQuestions src/services/api.ts:[2m595:26[22m[39m
+    [90m593| [39m        if (params.authorId !== undefined) backendParams.authorId = pa…
+    [90m594| [39m        
+    [90m595| [39m        [35mconst[39m { data } [33m=[39m [35mawait[39m api[33m.[39m[35mget[39m[33m<[39m
+    [90m   | [39m                         [31m^[39m
+    [90m596| [39m            [33mApiResponse[39m[33m<[39m{
+    [90m597| [39m                list[33m:[39m [33mBackendQuestionListItem[39m[][33m;[39m
+[90m [2m❯[22m src/test/api.test.ts:[2m45:25[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/api.test.ts[2m > [22mAPI Service Layer[2m > [22mQuestionService[2m > [22mshould fetch single question by id
+[31m[1mAxiosError[22m: Request failed with status code 401[39m
+[90m [2m❯[22m settle node_modules/axios/lib/core/settle.js:[2m19:12[22m[39m
+[90m [2m❯[22m onloadend node_modules/axios/lib/adapters/xhr.js:[2m59:7[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#callDispatchEventListeners node_modules/happy-dom/lib/event/EventTarget.js:[2m291:25[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m100:41[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#goThroughDispatchEventPhases node_modules/happy-dom/lib/event/EventTarget.js:[2m160:38[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m96:47[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#dispatchEvent node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m460:14[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#sendAsync node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m392:28[22m[39m
+[90m [2m❯[22m Axios.request node_modules/axios/lib/core/Axios.js:[2m45:41[22m[39m
+[36m [2m❯[22m Object.getQuestionById src/services/api.ts:[2m677:26[22m[39m
+    [90m675| [39m    }[33m,[39m
+    [90m676| [39m    getQuestionById[33m:[39m [35masync[39m (id[33m:[39m string) [33m=>[39m {
+    [90m677| [39m        const { data } = await api.get<ApiResponse<Question>>(`/questi…
+    [90m   | [39m                         [31m^[39m
+    [90m678| [39m        [35mreturn[39m data[33m.[39mdata[33m;[39m
+    [90m679| [39m    }[33m,[39m
+[90m [2m❯[22m src/test/api.test.ts:[2m53:25[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/api.test.ts[2m > [22mAPI Service Layer[2m > [22mQuestionService[2m > [22mshould create question
+[31m[1mAxiosError[22m: Request failed with status code 401[39m
+[90m [2m❯[22m settle node_modules/axios/lib/core/settle.js:[2m19:12[22m[39m
+[90m [2m❯[22m onloadend node_modules/axios/lib/adapters/xhr.js:[2m59:7[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#callDispatchEventListeners node_modules/happy-dom/lib/event/EventTarget.js:[2m291:25[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m100:41[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#goThroughDispatchEventPhases node_modules/happy-dom/lib/event/EventTarget.js:[2m160:38[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m96:47[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#dispatchEvent node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m460:14[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#sendAsync node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m392:28[22m[39m
+[90m [2m❯[22m Axios.request node_modules/axios/lib/core/Axios.js:[2m45:41[22m[39m
+[36m [2m❯[22m Object.createQuestion src/services/api.ts:[2m687:26[22m[39m
+    [90m685| [39m            tags[33m:[39m payload[33m.[39mtags
+    [90m686| [39m        })[33m;[39m
+    [90m687| [39m        const { data } = await api.post<ApiResponse<Question>>('/quest…
+    [90m   | [39m                         [31m^[39m
+    [90m688| [39m        [90m// eslint-disable-next-line no-console[39m
+    [90m689| [39m        console.debug('[questionService.createQuestion] response.statu…
+[90m [2m❯[22m src/test/api.test.ts:[2m66:25[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/test/api.test.ts[2m > [22mAPI Service Layer[2m > [22mInteractionService[2m > [22mshould like a target
+[31m[1mAxiosError[22m: Request failed with status code 401[39m
+[90m [2m❯[22m settle node_modules/axios/lib/core/settle.js:[2m19:12[22m[39m
+[90m [2m❯[22m onloadend node_modules/axios/lib/adapters/xhr.js:[2m59:7[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#callDispatchEventListeners node_modules/happy-dom/lib/event/EventTarget.js:[2m291:25[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m100:41[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#goThroughDispatchEventPhases node_modules/happy-dom/lib/event/EventTarget.js:[2m160:38[22m[39m
+[90m [2m❯[22m XMLHttpRequest.dispatchEvent node_modules/happy-dom/lib/event/EventTarget.js:[2m96:47[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#dispatchEvent node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m460:14[22m[39m
+[90m [2m❯[22m XMLHttpRequest.#sendAsync node_modules/happy-dom/lib/xml-http-request/XMLHttpRequest.js:[2m392:28[22m[39m
+[90m [2m❯[22m Axios.request node_modules/axios/lib/core/Axios.js:[2m45:41[22m[39m
+[36m [2m❯[22m Object.like src/services/api.ts:[2m864:26[22m[39m
+    [90m862| [39m
+    [90m863| [39m        [35mconst[39m { targetId[33m,[39m action } [33m=[39m payload[33m;[39m
+    [90m864| [39m        const { data } = await api.post<ApiResponse<LikeResponse>>('/i…
+    [90m   | [39m                         [31m^[39m
+    [90m865| [39m            targetType[33m:[39m [32m'question'[39m[33m,[39m
+    [90m866| [39m            targetId[33m,[39m
+[90m [2m❯[22m src/test/api.test.ts:[2m74:25[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[33m1 skipped[39m[90m (7)[39m
+[2m   Start at [22m 08:16:44
+[2m   Duration [22m 1.26s[2m (transform 169ms, setup 119ms, import 333ms, tests 110ms, environment 475ms)[22m
+

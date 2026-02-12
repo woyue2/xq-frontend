@@ -29,9 +29,9 @@ export function StatusListPage() {
         }
     }, [user, navigate]);
 
-    // Filter questions based on route param status
-    const allQuestions = data?.pages.flatMap(p => p.list) || [];
-    const questions = allQuestions.filter(q => q.status === status);
+     // Filter questions based on route param status
+     const allQuestions = (data?.pages.flatMap(p => p.list) || []).filter(q => q && q.id);
+     const questions = allQuestions.filter(q => q.status === status);
 
     const getPageTitle = () => {
         switch (status) {
@@ -89,7 +89,7 @@ export function StatusListPage() {
                 <div className="space-y-3">
                     {questions.map((question) => {
                         const difficultyBadge = getDifficultyBadge(question.difficulty);
-                        const statusBadge = getStatusBadge(question.status);
+                        const statusBadge = getStatusBadge(question.status || 'pending');
 
                         return (
                             <div

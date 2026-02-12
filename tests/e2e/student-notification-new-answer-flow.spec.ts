@@ -45,7 +45,7 @@ test.describe('学生新回答通知联动', () => {
     expect(listRes.ok()).toBeTruthy();
     const listBody: any = await listRes.json();
     const existingNotifs: any[] =
-      (listBody.data?.notifications as any[]) ?? [];
+      (listBody.data?.list as any[]) ?? [];
     const unreadIds = existingNotifs
       .filter((n) => n && n.id)
       .map((n) => String(n.id));

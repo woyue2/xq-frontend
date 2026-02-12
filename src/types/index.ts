@@ -125,7 +125,7 @@ export interface Comment {
   authorId: string;
   authorName: string;
   authorAvatar?: string;
-  authorRole?: string;  // 添加作者角色字段
+  authorRole: string;  // 作者角色（必填，与后端对齐）
 
   status: AuditStatus;
   aiResult?: string;

@@ -75,7 +75,10 @@ export function QuestionList({
     return pinnedStates[question.id] ?? question.isPinned;
   };
 
-  const sortedQuestions = [...questions].sort((a, b) => {
+  // 过滤掉无效数据，确保每个 question 都有 id
+  const validQuestions = questions.filter(q => q && q.id);
+
+  const sortedQuestions = [...validQuestions].sort((a, b) => {
     const aPinned = getEffectivePinned(a);
     const bPinned = getEffectivePinned(b);
     if (aPinned === bPinned) return 0;

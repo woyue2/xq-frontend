@@ -37,7 +37,7 @@ describe('Status Navigation Tests', () => {
         (useQuestions as any).mockReturnValue({
             data: {
                 pages: [{
-                    items: [
+                    list: [
                         {
                             id: 'q1',
                             title: 'Approved Question',

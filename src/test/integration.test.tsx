@@ -46,7 +46,7 @@ describe('Integration Tests (Super Brain)', () => {
         (useQuestions as any).mockReturnValue({
             data: {
                 pages: [{
-                    items: [{
+                    list: [{
                         id: 'q1',
                         title: 'Integration Test Question',
                         authorName: 'Student',

@@ -49,7 +49,7 @@ describe('Full P0 Test Coverage', () => {
         // Default: Guest
         (useAuthStore as any).mockReturnValue({ user: null, login: vi.fn(), logout: vi.fn() });
         (useQuestions as any).mockReturnValue({
-            data: { pages: [{ items: [] }] },
+            data: { pages: [{ list: [] }] },
             isLoading: false,
             fetchNextPage: vi.fn(),
             hasNextPage: false,

@@ -26,33 +26,36 @@ export function ParentQuestionPage() {
     }
   }, [user, navigate]);
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading
-  } = useInfiniteQuery({
-    queryKey: ['parent-questions', childId, selectedSubject, selectedTopic],
-    queryFn: async ({ pageParam = 1 }) => {
-      if (!childId) {
-        throw new Error('Child ID is required');
-      }
-      const res = await parentService.getChildQuestions(childId, {
-        page: pageParam,
-        limit: 10,
-        subject: selectedSubject,
-        topic: selectedTopic
-      });
-      return res.data.data;
-    },
-    getNextPageParam: (lastPage) =>
-      lastPage.pagination.page < lastPage.pagination.totalPages ? lastPage.pagination.page + 1 : undefined,
-    initialPageParam: 1,
-    enabled: !!childId && !!user && user.role === 'parent'
-  });
+   const {
+     data,
+     fetchNextPage,
+     hasNextPage,
+     isFetchingNextPage,
+     isLoading
+   } = useInfiniteQuery({
+     queryKey: ['parent-questions', childId, selectedSubject, selectedTopic],
+     queryFn: async ({ pageParam = 1 }) => {
+       if (!childId) {
+         throw new Error('Child ID is required');
+       }
+       const res = await parentService.getChildQuestions(childId, {
+         page: pageParam,
+         limit: 10,
+         subject: selectedSubject,
+         topic: selectedTopic
+       });
+       return res.data.data;
+     },
+     getNextPageParam: (lastPage) => {
+       const { page, totalPages } = lastPage?.pagination || {};
+       if (page === undefined || totalPages === undefined) return undefined;
+       return page < totalPages ? page + 1 : undefined;
+     },
+     initialPageParam: 1,
+     enabled: !!childId && !!user && user.role === 'parent'
+   });
 
-  const allQuestions = data?.pages.flatMap(p => p.list) || [];
+   const allQuestions = (data?.pages.flatMap(p => p.list) || []).filter(q => q && q.id);
 
   return (
     <div className="flex flex-col gap-4 pb-4 px-4 pt-4">

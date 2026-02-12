@@ -53,7 +53,7 @@ describe('Navigation Tests', () => {
         (useQuestions as any).mockReturnValue({
             data: {
                 pages: [{
-                    items: [
+                    list: [
                         {
                             id: 'q1',
                             title: 'Test Question 1',
