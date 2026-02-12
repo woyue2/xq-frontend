@@ -99,7 +99,9 @@ export class CommentService {
           content: content ?? '',
           image: image ?? null,
           authorId,
-          authorName: author.name || author.nickname,
+          // 修改原因：评论区属于公开场景，默认展示昵称优先。
+          // ⚠️ 不确定因素：若未来需要向特定角色展示真实姓名，请在响应层按角色脱敏处理。
+          authorName: author.nickname || author.name || '用户',
           authorAvatar: author.avatar ?? null,
           status: initialStatus,
           aiResult: aiResultText

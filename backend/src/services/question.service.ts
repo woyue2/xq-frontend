@@ -202,7 +202,9 @@ export class QuestionService {
         comments: 0,
         answers: 0,
         authorId,
-        authorName: author.name || author.nickname || authorName,
+        // 修改原因：公开问题列表/详情默认使用昵称，降低真实姓名暴露风险。
+        // ⚠️ 不确定因素：若后续确定“家长端回答页需展示部分真实姓名”，建议仅在展示层做脱敏，不改这里的落库口径。
+        authorName: author.nickname || author.name || authorName,
         authorAvatar: authorAvatar ?? author.avatar ?? null
       }
     });

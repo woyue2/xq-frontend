@@ -82,9 +82,11 @@ export class ParentService {
       throw new AppError(400, 'INVALID_CHILD_NAME', '请输入孩子姓名');
     }
 
-    // 5. 姓名验证：精确匹配 name 字段（真实姓名）
-    // 注意：如果 child.name 为 null/undefined，视为不匹配
-    if (child.name !== data.childName) {
+    // 5. 姓名验证：匹配真实姓名（忽略首尾空格，避免输入法带空格导致误判）
+    // 修改原因：用户修改真实姓名后，绑定时应按规范化值比较。
+    const normalizedChildRealName = child.name?.trim();
+    const normalizedInputChildName = data.childName.trim();
+    if (!normalizedChildRealName || normalizedChildRealName !== normalizedInputChildName) {
       throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
     }
 

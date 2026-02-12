@@ -595,13 +595,6 @@ export class AuthService {
       );
     }
 
-    if (record) {
-      await prisma.verificationCode.update({
-        where: { id: record.id },
-        data: { used: true, usedAt: new Date() }
-      });
-    }
-
     // 检查是否已注册
     try {
       const existing = await prisma.user.findUnique({
@@ -763,12 +756,37 @@ export class AuthService {
       );
     }
 
+    // 变更原因：仅在注册流程成功后才消耗验证码，避免“后续字段失败导致验证码被提前作废”。
+    if (record) {
+      // ⚠️ 不确定因素：极端情况下（如验证码表瞬时写入失败），这里可能无法更新 used 状态。
+      // 该场景下保持“注册成功优先返回”，避免用户已创建但前端收到失败。
+      try {
+        await prisma.verificationCode.update({
+          where: { id: record.id },
+          data: { used: true, usedAt: new Date() }
+        });
+      } catch (err) {
+        coreLogger.warn(
+          {
+            mode: 'degraded',
+            feature: 'auth.register',
+            env: process.env.NODE_ENV ?? 'unknown',
+            reason: 'verificationCode update failed after successful register',
+            codeId: record.id
+          },
+          'Auth register warning: failed to mark verification code as used'
+        );
+      }
+    }
+
     return {
       token,
       refreshToken,
       user: {
         id: user.id,
         phone: user.phone,
+        // 修改原因：注册接口需回传真实姓名，避免前端登录态丢失 name 导致显示不一致。
+        name: user.name ?? undefined,
         nickname: user.nickname,
         avatar: user.avatar ?? undefined,
         role: user.role,

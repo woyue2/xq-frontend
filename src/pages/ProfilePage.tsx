@@ -32,7 +32,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { UI_CONFIG } from '@/config/ui-config';
 import { aiTextConfig } from '@/config/ai-text';
 import { parentService } from '@/services/parentService';
-import { authService, userService, questionService } from '@/services/api';
+import { authService, userService, questionService, auditService } from '@/services/api';
 import type { ChildInfo } from '@/types/parent';
 import { Label } from '@/components/ui/label';
 
@@ -74,12 +74,48 @@ export function ProfilePage() {
   const [childToUnbind, setChildToUnbind] = useState<ChildInfo | null>(null);
   const [showUnbindDialog, setShowUnbindDialog] = useState(false);
   const [showUnbindFinalDialog, setShowUnbindFinalDialog] = useState(false);
+  const [pendingAuditCount, setPendingAuditCount] = useState(0);
 
   // 加载绑定孩子列表
   useEffect(() => {
     if (currentUser?.role === 'parent') {
       loadChildren();
     }
+  }, [currentUser]);
+
+  useEffect(() => {
+    // 修改原因：老师个人中心“审核管理”需要显示待审核数量小红点。
+    if (currentUser?.role !== 'teacher') {
+      setPendingAuditCount(0);
+      return;
+    }
+
+    const loadPendingAuditCount = async () => {
+      const [questionsRes, commentsRes] = await Promise.allSettled([
+        auditService.getPendingQuestions({ page: 1, pageSize: 20 }),
+        auditService.getPendingComments({ page: 1, pageSize: 20 })
+      ]);
+
+      const pendingQuestions =
+        questionsRes.status === 'fulfilled' ? questionsRes.value : undefined;
+      const pendingComments =
+        commentsRes.status === 'fulfilled' ? commentsRes.value : undefined;
+
+      // 修改原因：兼容不同返回结构，避免 total 字段缺失时红点始终不显示。
+      const questionCount =
+        pendingQuestions?.statistics?.pending ??
+        pendingQuestions?.pagination?.total ??
+        (Array.isArray(pendingQuestions?.list) ? pendingQuestions.list.length : 0);
+
+      // ⚠️ 不确定因素：当前评论接口可能不返回 pagination.total，缺失时退化为首屏 list 数量。
+      const commentCount =
+        pendingComments?.pagination?.total ??
+        (Array.isArray(pendingComments?.list) ? pendingComments.list.length : 0);
+
+      setPendingAuditCount(questionCount + commentCount);
+    };
+
+    loadPendingAuditCount();
   }, [currentUser]);
 
   const loadChildren = async () => {
@@ -392,6 +428,7 @@ const handleGetBindCode = async () => {
       label: '审核管理',
       color: 'text-teal-600',
       visible: currentUser.role === 'teacher',
+      badgeCount: pendingAuditCount,
       onClick: () => navigate('/audit'),
     },
     {
@@ -582,6 +619,11 @@ const handleGetBindCode = async () => {
                     <item.icon className={`w-5 h-5 ${item.color}`} />
                   </div>
                   <span className="flex-1 text-left font-medium text-gray-700">{item.label}</span>
+                  {'badgeCount' in item && typeof item.badgeCount === 'number' && item.badgeCount > 0 && (
+                    <span className="min-w-5 h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                    </span>
+                  )}
                   <ChevronRight className="w-5 h-5 text-gray-300" />
                 </button>
               ))}

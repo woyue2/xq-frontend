@@ -46,7 +46,8 @@ export class ClassHoursService {
     return {
       userId: user.id,
       phone: user.phone,
-      name: whitelist?.name ?? user.nickname,
+      // 修改原因：当用户在注册后修改真实姓名时，显示应优先使用 User.name，避免被白名单历史姓名覆盖。
+      name: user.name ?? whitelist?.name ?? user.nickname,
       role: user.role,
       validUntil,
       isExpired,

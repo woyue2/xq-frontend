@@ -205,6 +205,71 @@ describe('Auth API', () => {
     expect(res.body.data.token).toBeDefined();
     expect(res.body.data.user).toBeDefined();
     expect(res.body.data.user.phone).toBe(phone);
+    // 验证 register 返回包含真实姓名（来自白名单兜底）
+    expect(res.body.data.user.name).toBe('验证码测试用户');
+  });
+
+  it('should NOT consume register code when registration fails after code validation (AUTH-API-005B)', async () => {
+    const phone = '13600136001';
+
+    await prisma.verificationCode.deleteMany({
+      where: { phone }
+    });
+    await prisma.refreshToken.deleteMany();
+    await prisma.loginLog.deleteMany();
+    await prisma.user.deleteMany({
+      where: { phone }
+    });
+    await prisma.userWhitelist.deleteMany({
+      where: { phone }
+    });
+
+    await prisma.userWhitelist.create({
+      data: {
+        phone,
+        name: '家长用户',
+        role: 'parent',
+        isRegistered: true
+      }
+    });
+
+    await prisma.user.create({
+      data: {
+        phone,
+        nickname: '已存在账号',
+        role: 'parent',
+        isActive: true,
+        isBanned: false
+      }
+    });
+
+    const codeRow = await prisma.verificationCode.create({
+      data: {
+        phone,
+        code: '123456',
+        type: 'register',
+        used: false,
+        expireAt: new Date(Date.now() + 5 * 60 * 1000)
+      }
+    });
+
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        phone,
+        code: '123456',
+        password: '12345678',
+        role: 'parent'
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('USER_EXISTS');
+
+    const refreshed = await prisma.verificationCode.findUnique({
+      where: { id: codeRow.id }
+    });
+    expect(refreshed?.used).toBe(false);
+    expect(refreshed?.usedAt).toBeNull();
   });
 
    // 注：AUTH-API-006 已删除 - 该测试期望密码错误优先，但新逻辑中name可从白名单自动获取，

@@ -60,6 +60,27 @@ describe('ClassHoursService - 单元测试', () => {
       expect(result.remainingDays).toBeGreaterThanOrEqual(4);
       expect(result.status).toBe('active');
     });
+
+    it('应当优先使用用户真实姓名（避免被白名单历史姓名覆盖）', async () => {
+      const future = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'u2',
+        phone: '13900139000',
+        name: '新真实名',
+        nickname: '昵称A',
+        role: 'student',
+        expiresAt: null
+      });
+      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue({
+        phone: '13900139000',
+        name: '旧白名单名',
+        validUntil: future
+      });
+
+      const result = await service.getUserClassHours('u2');
+      expect(result.name).toBe('新真实名');
+    });
   });
 
   describe('batchUpdate', () => {

@@ -140,7 +140,9 @@ export class AnswerService {
           images: images ?? [],
           audioUrl: normalizedAudioUrl,
           authorId,
-          authorName: author.name || author.nickname,
+          // 修改原因：回答页默认显示昵称，避免直接暴露真实姓名。
+          // ⚠️ 不确定因素：若后续确认“家长看自己孩子时显示部分真实姓名”，建议在前端按角色做脱敏展示。
+          authorName: author.nickname || author.name || '用户',
           authorAvatar: author.avatar ?? null,
           likes: 0,
           status: initialStatus,
