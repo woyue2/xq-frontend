@@ -47,12 +47,12 @@ export function ParentQuestionPage() {
       return res.data.data;
     },
     getNextPageParam: (lastPage) =>
-      lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
+      lastPage.pagination.page < lastPage.pagination.totalPages ? lastPage.pagination.page + 1 : undefined,
     initialPageParam: 1,
     enabled: !!childId && !!user && user.role === 'parent'
   });
 
-  const allQuestions = data?.pages.flatMap(p => p.items) || [];
+  const allQuestions = data?.pages.flatMap(p => p.list) || [];
 
   return (
     <div className="flex flex-col gap-4 pb-4 px-4 pt-4">

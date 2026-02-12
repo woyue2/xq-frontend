@@ -42,12 +42,14 @@ notificationRouter.get(
         data: {
           notifications: notifications.map((n) => ({
             id: n.id,
+            userId: n.userId,  // 添加 userId 字段
             type: n.type,
             title: n.title,
             content: n.content,
             targetType: n.targetType,
             targetId: n.targetId,
             isRead: n.isRead,
+            readAt: n.readAt, // 新增：返回已读时间
             createdAt: n.createdAt
           })),
           unreadCount,
@@ -61,7 +63,7 @@ notificationRouter.get(
   }
 );
 
-// 获取未读通知数量
+// 获取未读通知数量（必须在 /notifications/:id 之前，避免路由冲突）
 notificationRouter.get(
   '/notifications/unread-count',
   authMiddleware,
@@ -89,6 +91,46 @@ notificationRouter.get(
   }
 );
 
+// 获取通知详情（问题76）
+notificationRouter.get(
+  '/notifications/:id',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const { id } = req.params;
+      const notification = await notificationService.findById(id);
+
+      if (!notification || notification.userId !== req.user.id) {
+        throw new AppError(404, 'NOT_FOUND', '通知不存在');
+      }
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          id: notification.id,
+          userId: notification.userId,  // 添加 userId 字段
+          type: notification.type,
+          title: notification.title,
+          content: notification.content,
+          targetType: notification.targetType,
+          targetId: notification.targetId,
+          isRead: notification.isRead,
+          readAt: notification.readAt, // 新增：返回已读时间
+          createdAt: notification.createdAt
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // 标记通知已读
 notificationRouter.post(
   '/notifications/read',
@@ -102,12 +144,12 @@ notificationRouter.post(
       const body = req.body as any;
       const idsRaw = body?.ids;
 
-      if (!Array.isArray(idsRaw) || idsRaw.length === 0) {
+      if (!Array.isArray(idsRaw)) {
         throw new AppError(400, 'VALIDATION_ERROR', '参数验证失败', {
           errors: [
             {
               field: 'ids',
-              message: 'ids 必须为非空字符串数组'
+              message: 'ids 必须为字符串数组'
             }
           ]
         });
@@ -126,6 +168,68 @@ notificationRouter.post(
         data: {
           success: true,
           updatedCount
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// 标记所有通知为已读（问题77）
+notificationRouter.post(
+  '/notifications/read-all',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const { updatedCount } = await notificationService.markAllAsRead(
+        req.user.id
+      );
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          success: true,
+          updatedCount
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// 删除通知（问题78）
+notificationRouter.delete(
+  '/notifications/:id',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const { id } = req.params;
+      const notification = await notificationService.findById(id);
+
+      if (!notification || notification.userId !== req.user.id) {
+        throw new AppError(404, 'NOT_FOUND', '通知不存在');
+      }
+
+      await notificationService.deleteById(id);
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          success: true
         },
         timestamp: Date.now()
       });

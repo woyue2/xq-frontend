@@ -33,7 +33,7 @@ export function MyAnswersPage() {
         profileService
             .getMyAnswers({ page: 1, pageSize: 50 })
             .then((data) => {
-                setMyAnswers(data.items);
+                setMyAnswers(data.list);
             })
             .catch((err) => {
                 // eslint-disable-next-line no-console

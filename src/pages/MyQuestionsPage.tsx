@@ -22,7 +22,7 @@ export function MyQuestionsPage() {
     }, [user, navigate]);
 
     // 获取当前用户的问题
-    const myQuestions = data?.pages.flatMap(p => p.items) || [];
+    const myQuestions = data?.pages.flatMap(p => p.list) || [];
 
     const getDifficultyBadge = (difficulty?: string) => {
         const difficultyMap: Record<string, { label: string; className: string }> = {

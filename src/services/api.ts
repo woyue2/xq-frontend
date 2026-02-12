@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { toast } from 'sonner';
-import { mockQuestions, mockUsers, mockChildren } from '@/lib/mock-data';
+import { mockQuestions, mockUsers, mockChildren, mockNotifications } from '@/lib/mock-data';
 import { compressImage } from '@/lib/image-compress';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { USE_MOCK } from '@/lib/mock-env';
@@ -13,14 +13,19 @@ import type {
     SendCodePayload,
     SendCodeResponse,
     CreateQuestionPayload,
+    CreateCommentPayload,
+    CommentListResponse,
     QuestionListParams,
     LikePayload,
     LikeResponse,
     FavoritePayload,
     FavoriteResponse,
     Notification,
+    MarkAsReadPayload,
+    MarkAsReadResponse,
     WhitelistUser,
     WhitelistParams,
+    WhitelistResponse,
     AddWhitelistPayload,
     MyLikedQuestion,
     MyFavoritedQuestion,
@@ -40,7 +45,11 @@ import type {
     RejectQuestionResponse,
     ApproveCommentResponse,
     BanCommentResponse,
-    TogglePinQuestionResponse
+    TogglePinQuestionResponse,
+    // 用户行为日志相关类型
+    BehaviorLogParams,
+    BehaviorLogResult,
+    BehaviorBatchResult
 } from '@/types/api';
 import type { Question, User, SubjectType, DifficultyLevel, AuditStatus, Answer, Comment } from '@/types';
 
@@ -216,10 +225,13 @@ if (USE_MOCK && import.meta.env.MODE === 'test') {
             const items = filtered.slice(start, end);
 
             config.adapter = mockAdapter({
-                items,
-                total: filtered.length,
-                page,
-                totalPages: Math.ceil(filtered.length / pageSize)
+                list: items,
+                pagination: {
+                    page,
+                    pageSize,
+                    total: filtered.length,
+                    totalPages: Math.ceil(filtered.length / pageSize)
+                }
             });
         }
         else if (url.match(/\/parent\/questions\/[^/]+$/) && method === 'get') {
@@ -237,11 +249,71 @@ if (USE_MOCK && import.meta.env.MODE === 'test') {
             const items = filtered.slice(start, end);
 
             config.adapter = mockAdapter({
-                items,
-                total: filtered.length,
-                page,
-                totalPages: Math.ceil(filtered.length / pageSize)
+                list: items,
+                pagination: {
+                    page,
+                    pageSize,
+                    total: filtered.length,
+                    totalPages: Math.ceil(filtered.length / pageSize)
+                }
             });
+        }
+
+        // --- Notification Mocks ---
+        else if (url.includes('/notifications') && method === 'get' && !url.includes('unread-count')) {
+            // GET /notifications 列表接口
+            const params = config.params || {};
+            const page = Number(params.page) || 1;
+            const pageSize = Number(params.pageSize) || Number(params.limit) || 20;
+
+            let filtered = [...mockNotifications];
+            if (params.unread === 'true' || params.unread === true) {
+                filtered = filtered.filter(n => !n.isRead);
+            }
+
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            const items = filtered.slice(start, end);
+
+            config.adapter = mockAdapter({
+                list: items,
+                pagination: {
+                    page,
+                    pageSize,
+                    total: filtered.length,
+                    totalPages: Math.ceil(filtered.length / pageSize)
+                },
+                unreadCount: filtered.filter(n => !n.isRead).length
+            });
+        }
+        else if (url.match(/\/notifications\/[^/]+$/) && method === 'get') {
+            // GET /notifications/:id 详情接口
+            const id = url.split('/').pop();
+            const notification = mockNotifications.find(n => n.id === id);
+            if (notification) {
+                config.adapter = mockAdapter(notification);
+            }
+        }
+        else if (url.includes('/notifications/read-all') && method === 'post') {
+            // POST /notifications/read-all 标记所有已读
+            const unreadCount = mockNotifications.filter(n => !n.isRead).length;
+            mockNotifications.forEach(n => {
+                n.isRead = true;
+                n.readAt = new Date().toISOString();
+            });
+            config.adapter = mockAdapter({
+                success: true,
+                updatedCount: unreadCount
+            });
+        }
+        else if (url.includes('/notifications/') && url.match(/\/notifications\/[^/]+$/) && method === 'delete') {
+            // DELETE /notifications/:id 删除通知
+            const id = url.split('/').pop();
+            const index = mockNotifications.findIndex(n => n.id === id);
+            if (index !== -1) {
+                mockNotifications.splice(index, 1);
+            }
+            config.adapter = mockAdapter({ success: true });
         }
 
         // --- Question Mocks ---
@@ -429,6 +501,10 @@ export const authService = {
 };
 
 export const userService = {
+    getUserInfo: async () => {
+        const { data: res } = await api.get<ApiResponse<User>>('/users/me');
+        return res.data;
+    },
     updateProfile: async (data: UpdateProfilePayload) => {
         const { data: res } = await api.patch<ApiResponse<User>>('/users/me', data);
         return res.data;
@@ -589,16 +665,19 @@ export const questionService = {
         });
 
         const paginated: PaginatedResponse<Question> = {
-            items,
-            total: pagination.total,
-            page: pagination.page,
-            totalPages: pagination.totalPages
+            list: items,
+            pagination: {
+                page: pagination.page,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                totalPages: pagination.totalPages
+            }
         };
 
         // eslint-disable-next-line no-console
         console.debug(
             '[questionService.getQuestions] result',
-            { page: paginated.page, total: paginated.total, items: paginated.items.length }
+            { page: paginated.pagination.page, total: paginated.pagination.total, items: paginated.list.length }
         );
 
         return paginated;
@@ -809,36 +888,21 @@ export const interactionService = {
 };
 
 export const behaviorService = {
-    log: async (type: string, metadata?: Record<string, any>) => {
-        const { data } = await api.post<ApiResponse<{ logId: string }>>('/behavior/log', {
+    log: async (params: BehaviorLogParams) => {
+        const { type, timestamp = Date.now(), metadata, sessionId } = params;
+        const { data } = await api.post<ApiResponse<BehaviorLogResult>>('/behavior/log', {
             type,
-            timestamp: Date.now(),
-            metadata
+            timestamp,
+            metadata,
+            sessionId
         });
         return data.data;
     },
-    batchLog: async (events: Array<{ type: string; timestamp: number; metadata?: any }>) => {
-        let processed = 0;
-        let failed = 0;
-
-        for (const event of events) {
-            try {
-                await api.post<ApiResponse<unknown>>('/behavior/log', {
-                    type: event.type,
-                    timestamp: event.timestamp,
-                    metadata: event.metadata
-                });
-                processed += 1;
-            } catch {
-                failed += 1;
-            }
-        }
-
-        return {
-            received: events.length,
-            processed,
-            failed
-        };
+    batchLog: async (events: BehaviorLogParams[]): Promise<BehaviorBatchResult> => {
+        const { data } = await api.post<ApiResponse<BehaviorBatchResult>>('/behavior/log/batch', {
+            events
+        });
+        return data.data;
     }
 };
 
@@ -858,10 +922,31 @@ export const notificationService = {
         >('/notifications', { params: queryParams });
         return data.data;
     },
-    markAsRead: async (ids: string[]) => {
-        const { data } = await api.post<ApiResponse<{ success: boolean; updatedCount: number }>>(
+    getNotificationById: async (id: string) => {
+        // 新增：获取通知详情（问题76）
+        const { data } = await api.get<ApiResponse<Notification>>(
+            `/notifications/${id}`
+        );
+        return data.data;
+    },
+    markAsRead: async (payload: MarkAsReadPayload) => {
+        const { data } = await api.post<ApiResponse<MarkAsReadResponse>>(
             '/notifications/read',
-            { ids }
+            payload
+        );
+        return data.data;
+    },
+    markAllAsRead: async () => {
+        // 新增：标记所有通知为已读（问题77）
+        const { data } = await api.post<ApiResponse<{ success: boolean; updatedCount: number }>>(
+            '/notifications/read-all'
+        );
+        return data.data;
+    },
+    deleteNotification: async (id: string) => {
+        // 新增：删除通知（问题78）
+        const { data } = await api.delete<ApiResponse<{ success: boolean }>>(
+            `/notifications/${id}`
         );
         return data.data;
     },
@@ -887,8 +972,8 @@ export const configService = {
 
 export const adminService = {
     getWhitelist: async (params: WhitelistParams) => {
-        const { data } = await api.get<ApiResponse<any>>('/admin/whitelist', { params });
-        const { list, pagination } = data.data || {};
+        const { data } = await api.get<ApiResponse<WhitelistResponse>>('/admin/whitelist', { params });
+        const { list, pagination, statistics } = data.data || {};
         
         if (!list || !pagination) {
             throw new Error('白名单数据格式异常');
@@ -898,7 +983,15 @@ export const adminService = {
             items: list,
             total: pagination.total,
             page: pagination.page,
-            totalPages: pagination.totalPages
+            totalPages: pagination.totalPages,
+            statistics: statistics || {
+                total: 0,
+                registered: 0,
+                pending: 0,
+                students: 0,
+                parents: 0,
+                teachers: 0
+            }
         };
     },
     addToWhitelist: async (payload: AddWhitelistPayload) => {
@@ -906,7 +999,7 @@ export const adminService = {
         return data.data;
     },
     removeFromWhitelist: async (id: string) => {
-        const { data } = await api.delete<ApiResponse<null>>(`/admin/whitelist/${id}`);
+        const { data } = await api.delete<ApiResponse<{ warning?: string }>>(`/admin/whitelist/${id}`);
         return data.data;
     },
     updateValidity: async (id: string, validUntil: string) => {
@@ -1082,7 +1175,7 @@ export const answerService = {
 export const commentService = {
     create: async (
         questionId: string,
-        payload: { content?: string; image?: string }
+        payload: CreateCommentPayload
     ) => {
         const { data } = await api.post<ApiResponse<Comment>>(
             `/questions/${questionId}/comments`,
@@ -1092,7 +1185,7 @@ export const commentService = {
     },
     listByQuestion: async (questionId: string) => {
         const { data } = await api.get<
-            ApiResponse<{ list: Comment[]; total: number }>
+            ApiResponse<CommentListResponse>
         >(`/questions/${questionId}/comments`);
         return data.data;
     }
@@ -1101,29 +1194,13 @@ export const commentService = {
 export const profileService = {
     getMyLikes: async (params?: { page?: number; pageSize?: number }) => {
         const { data } = await api.get<
-            ApiResponse<{
-                list: MyLikedQuestion[];
-                pagination: {
-                    page: number;
-                    pageSize: number;
-                    total: number;
-                    totalPages: number;
-                };
-            }>
+            ApiResponse<PaginatedResponse<MyLikedQuestion>>
         >('/users/me/likes', { params });
         return data.data;
     },
     getMyFavorites: async (params?: { page?: number; pageSize?: number }) => {
         const { data } = await api.get<
-            ApiResponse<{
-                list: MyFavoritedQuestion[];
-                pagination: {
-                    page: number;
-                    pageSize: number;
-                    total: number;
-                    totalPages: number;
-                };
-            }>
+            ApiResponse<PaginatedResponse<MyFavoritedQuestion>>
         >('/users/me/favorites', { params });
         return data.data;
     },

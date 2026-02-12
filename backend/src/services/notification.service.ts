@@ -14,6 +14,12 @@ export class NotificationService {
     });
   }
 
+  async findById(id: string) {
+    return prisma.notification.findUnique({
+      where: { id }
+    });
+  }
+
   async listForUser(params: {
     userId: string;
     page?: number;
@@ -85,13 +91,39 @@ export class NotificationService {
     const result = await prisma.notification.updateMany({
       where,
       data: {
-        isRead: true
+        isRead: true,
+        readAt: new Date() // 标记已读时间
       }
     });
 
     return {
       updatedCount: result.count
     };
+  }
+
+  // 新增：标记所有通知为已读（问题77）
+  async markAllAsRead(userId: string) {
+    const result = await prisma.notification.updateMany({
+      where: {
+        userId,
+        isRead: false
+      },
+      data: {
+        isRead: true,
+        readAt: new Date()
+      }
+    });
+
+    return {
+      updatedCount: result.count
+    };
+  }
+
+  // 新增：删除通知（问题78）
+  async deleteById(id: string) {
+    return prisma.notification.delete({
+      where: { id }
+    });
   }
 }
 

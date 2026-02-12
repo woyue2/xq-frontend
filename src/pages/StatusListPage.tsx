@@ -30,7 +30,7 @@ export function StatusListPage() {
     }, [user, navigate]);
 
     // Filter questions based on route param status
-    const allQuestions = data?.pages.flatMap(p => p.items) || [];
+    const allQuestions = data?.pages.flatMap(p => p.list) || [];
     const questions = allQuestions.filter(q => q.status === status);
 
     const getPageTitle = () => {

@@ -123,13 +123,19 @@ export class ParentService {
             grade: true
           }
         }
-      }
+      },
+      // 注意：boundAt 来自 parentChild 表的 createdAt 字段
+      // 由于 select 中不能直接包含 createdAt，我们需要在 map 时使用 r.createdAt
     });
 
-    return relations.map((r: { child: { id: string; name?: string | null; nickname: string; avatar?: string | null; role: string; school?: string | null; grade?: string | null } }) => ({
+    return relations.map((r: { child: { id: string; name?: string | null; nickname: string; avatar?: string | null; role: string; school?: string | null; grade?: string | null }; createdAt: Date }) => ({
       ...r.child,
       name: r.child.nickname,      // 显示用的name（来自nickname）
-      realName: r.child.name       // 真实姓名（可选）
+      realName: r.child.name,      // 真实姓名（来自User.name）
+      boundAt: r.createdAt,        // 绑定时间（来自parentChild.createdAt）
+      // 注意：age 字段不在 User 表的查询结果中，需要从 User.age 获取，但当前查询未包含
+      // 这里暂时不提供 age，让前端将其设为可选
+      parentId: parentId
     }));
   }
 

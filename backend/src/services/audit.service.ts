@@ -76,7 +76,6 @@ export class AuditService {
           type: 'question' as const,
           title: q.title,
           content: q.content ?? '',
-          images: [],
           authorId: q.authorId,
           authorName: q.authorName,
           status: q.status,

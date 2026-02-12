@@ -1,5 +1,27 @@
 import type { User, Question, Comment, Answer, AuditStatus } from './index';
 
+// 用户行为日志相关类型
+export interface BehaviorLogParams {
+    type: string;
+    timestamp?: number;
+    metadata?: Record<string, unknown>;
+    sessionId?: string;
+}
+
+export interface BehaviorLogResult {
+    logId: string;
+}
+
+export interface BehaviorBatchResult {
+    successCount: number;
+    failedCount: number;
+    results: Array<{
+        index: number;
+        logId?: string;
+        error?: string;
+    }>;
+}
+
 // 统一响应格式
 export interface ApiResponse<T> {
     code: number;
@@ -7,12 +29,15 @@ export interface ApiResponse<T> {
     data: T;
 }
 
-// 分页响应格式
+// 分页响应格式（与后端 { list, pagination } 结构对齐）
 export interface PaginatedResponse<T> {
-    items: T[];
-    total: number;
-    page: number;
-    totalPages: number;
+    list: T[];
+    pagination: {
+        page: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+    };
 }
 
 // 认证相关
@@ -72,6 +97,17 @@ export interface QuestionListParams {
     tags?: string[];
     search?: string;
     authorId?: string;
+}
+
+// 评论相关
+export interface CreateCommentPayload {
+    content?: string;
+    image?: string;
+}
+
+export interface CommentListResponse {
+    list: Comment[];
+    total: number;
 }
 
 // 互动相关
@@ -146,13 +182,35 @@ export interface UpdateProfilePayload {
 // 通知相关
 export interface Notification {
     id: string;
+    userId: string;  // 添加 userId 字段（问题116）
     type: string;
     title: string;
     content?: string;
     targetType?: string;
     targetId?: string;
     isRead: boolean;
+    readAt?: string; // 新增：标记已读时间（ISO 8601 格式）
     createdAt: string;
+}
+
+// 通知类型枚举（问题118）
+export type NotificationType =
+    | 'system'
+    | 'question_answered'
+    | 'answer_liked'
+    | 'comment_received'
+    | 'answer_accepted'
+    | string;  // 保留兼容性
+
+// 标记已读请求参数（问题117）
+export interface MarkAsReadPayload {
+    ids: string[];
+}
+
+// 标记已读响应（问题117）
+export interface MarkAsReadResponse {
+    success: boolean;
+    updatedCount: number;
 }
 
 // 白名单相关
@@ -163,18 +221,21 @@ export interface WhitelistUser {
     phone: string;
     name: string;
     role: 'student' | 'teacher' | 'parent';
-    grade?: string;
     validUntil?: string;
     notes?: string;
     isRegistered: boolean;
     registeredAt?: string;
     createdAt: string;
+    createdBy?: string;
+    deletedAt?: string | null;
+    deletedBy?: string | null;
 }
 
 export interface WhitelistParams {
     page?: number;
-    limit?: number;
+    pageSize?: number;
     search?: string;
+    searchField?: 'name' | 'phone';
     role?: string;
     status?: string;
 }
@@ -183,9 +244,28 @@ export interface AddWhitelistPayload {
     phone: string;
     name: string;
     role: 'student' | 'teacher' | 'parent';
-    grade?: string;
     validUntil?: string; // ISO String
     notes?: string;
+}
+
+export interface WhitelistStatistics {
+    total: number;
+    registered: number;
+    pending: number;
+    students: number;
+    parents: number;
+    teachers: number;
+}
+
+export interface WhitelistResponse {
+    list: WhitelistUser[];
+    pagination: {
+        page: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+    };
+    statistics: WhitelistStatistics;
 }
 
 // 题目维度配置（例如解题方法/办法）
@@ -241,6 +321,7 @@ export interface PendingQuestion {
     type: 'question';
     title: string;
     content: string;
+    images?: string[];  // 问题图片列表（可选，当前不存储图片）
     authorId: string;
     authorName: string;
     status: string;

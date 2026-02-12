@@ -211,6 +211,7 @@ model Notification {
   targetType String?
   targetId   String?
   isRead     Boolean  @default(false)
+  readAt     DateTime? // 新增：标记已读时间
   createdAt  DateTime @default(now())
 
   @@index([userId])

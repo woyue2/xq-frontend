@@ -115,11 +115,13 @@ export class CommentService {
     return {
       id: created.id,
       questionId: created.questionId,
+      questionTitle: question.title,  // 补充 questionTitle
       content: created.content,
       image: created.image ?? undefined,
       authorId: created.authorId,
       authorName: created.authorName,
       authorAvatar: created.authorAvatar ?? undefined,
+      authorRole: author.role,  // 补充 authorRole
       status: created.status,
       aiResult: created.aiResult ?? undefined,
       createdAt: created.createdAt,
@@ -134,6 +136,7 @@ export class CommentService {
   async list(params: { questionId: string }) {
     const { questionId } = params;
 
+    // 先查询评论
     const comments = await prisma.comment.findMany({
       where: {
         questionId,
@@ -145,18 +148,45 @@ export class CommentService {
       }
     });
 
+    // 批量查询关联的问题标题
+    const questionIds = [...new Set(comments.map(c => c.questionId))];
+    const questions = await prisma.question.findMany({
+      where: {
+        id: { in: questionIds }
+      },
+      select: {
+        id: true,
+        title: true
+      }
+    });
+    const questionMap = new Map(questions.map(q => [q.id, q.title]));
+
     return {
       list: comments.map((c) => ({
         id: c.id,
         questionId: c.questionId,
+        questionTitle: questionMap.get(c.questionId),  // 补充 questionTitle
         content: c.content,
         image: c.image ?? undefined,
         authorId: c.authorId,
         authorName: c.authorName,
         authorAvatar: c.authorAvatar ?? undefined,
+        // authorRole 暂不返回，需要 schema 支持
         status: c.status,
         aiResult: c.aiResult ?? undefined,
-        createdAt: c.createdAt
+        createdAt: c.createdAt,
+        // 补充 aiAudit 字段，从 aiResult 解析
+        aiAudit: (() => {
+          if (c.aiResult && c.aiResult !== '无违规') {
+            try {
+              const result = JSON.parse(c.aiResult);
+              return { safe: result.safe ?? true, reason: result.reason };
+            } catch {
+              return undefined;
+            }
+          }
+          return undefined;
+        })()
       })),
       total: comments.length
     };

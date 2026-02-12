@@ -120,7 +120,7 @@ export function HomePage() {
   };
 
   // Flatten pages
-  const allQuestions = data?.pages.flatMap(p => p.items) || [];
+  const allQuestions = data?.pages.flatMap(p => p.list) || [];
 
   const handleAuthorClick = (question: Question, e: React.MouseEvent) => {
     e.stopPropagation();

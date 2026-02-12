@@ -34,7 +34,7 @@ export function StudentHistoryPage() {
     topic: selectedTopic
   });
 
-  const allQuestions = data?.pages.flatMap((p) => p.items) || [];
+  const allQuestions = data?.pages.flatMap((p) => p.list) || [];
 
   return (
     <div className="flex flex-col gap-4 pb-4 px-4 pt-4">

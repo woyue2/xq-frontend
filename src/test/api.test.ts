@@ -38,9 +38,9 @@ describe('API Service Layer', () => {
     describe('QuestionService', () => {
         it('should fetch questions with pagination', async () => {
             const res = await questionService.getQuestions({ page: 1, pageSize: 5 });
-            expect(res.items).toHaveLength(5);
-            expect(res.total).toBeGreaterThan(0);
-            expect(res.page).toBe(1);
+            expect(res.list).toHaveLength(5);
+            expect(res.pagination.total).toBeGreaterThan(0);
+            expect(res.pagination.page).toBe(1);
         });
 
         it('should fetch single question by id', async () => {

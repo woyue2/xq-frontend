@@ -56,16 +56,19 @@ import type {
 } from '@/types/api';
 
 interface WhitelistUserItem {
-  id: string;
-  // 已注册用户在 user 表中的 ID（如有）
-  userId?: string;
-  phone: string;
-  name: string;
-  role: UserRole;
-  isRegistered: boolean;
-  createdAt: string;
-  registeredAt?: string;
-  expiresAt?: string; // 课时过期时间（学生和家长共享）
+    id: string;
+    // 已注册用户在 user 表中的 ID（如有）
+    userId?: string;
+    phone: string;
+    name: string;
+    role: UserRole;
+    isRegistered: boolean;
+    createdAt: string;
+    registeredAt?: string;
+    validUntil?: string; // 有效期
+    createdBy?: string;
+    deletedAt?: string | null;
+    deletedBy?: string | null;
 }
 
 const EXPIRING_SOON_DAYS = 30;
@@ -73,19 +76,19 @@ const EXPIRING_SOON_DAYS = 30;
 const needsExpiryForRole = (role: UserRole) =>
   role === 'student' || role === 'parent';
 
-const isExpiredDate = (expiresAt?: string) => {
-  if (!expiresAt) return false;
+const isExpiredDate = (validUntil?: string) => {
+  if (!validUntil) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const date = new Date(expiresAt);
+  const date = new Date(validUntil);
   return date < today;
 };
 
-const isExpiringSoonDate = (expiresAt?: string) => {
-  if (!expiresAt) return false;
+const isExpiringSoonDate = (validUntil?: string) => {
+  if (!validUntil) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const date = new Date(expiresAt);
+  const date = new Date(validUntil);
   const diffMs = date.getTime() - today.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   return diffDays >= 0 && diffDays <= EXPIRING_SOON_DAYS;
@@ -107,7 +110,7 @@ export function AdminManagementPage() {
             isRegistered: true,
             createdAt: '2024-01-15 10:00:00',
             registeredAt: '2024-01-15 10:30:00',
-            expiresAt: '2026-06-30'
+            validUntil: '2026-06-30'
           },
           {
             id: '2',
@@ -125,7 +128,7 @@ export function AdminManagementPage() {
             role: 'student',
             isRegistered: false,
             createdAt: '2024-01-20 14:00:00',
-            expiresAt: '2026-03-31'
+            validUntil: '2026-03-31'
           },
           {
             id: '4',
@@ -134,7 +137,7 @@ export function AdminManagementPage() {
             role: 'parent',
             isRegistered: false,
             createdAt: '2024-01-21 11:00:00',
-            expiresAt: '2026-03-31'
+            validUntil: '2026-03-31'
           }
         ]
       : [];
@@ -202,7 +205,7 @@ export function AdminManagementPage() {
         setLoadingWhitelist(true);
         const res = await adminService.getWhitelist({
           page: 1,
-          limit: 50
+          pageSize: 50
         });
 
         if (cancelled || !res || !Array.isArray(res.items)) return;
@@ -218,7 +221,7 @@ export function AdminManagementPage() {
             isRegistered: u.isRegistered,
             createdAt: u.createdAt,
             registeredAt: u.registeredAt,
-            expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined
+            validUntil: u.validUntil ? u.validUntil.slice(0, 10) : undefined
           })
         );
 
@@ -250,8 +253,8 @@ export function AdminManagementPage() {
       (filterStatus === 'pending' && !user.isRegistered);
 
     const needsExpiry = needsExpiryForRole(user.role);
-    const expired = needsExpiry && isExpiredDate(user.expiresAt);
-    const expiringSoon = needsExpiry && isExpiringSoonDate(user.expiresAt) && !expired;
+    const expired = needsExpiry && isExpiredDate(user.validUntil);
+    const expiringSoon = needsExpiry && isExpiringSoonDate(user.validUntil) && !expired;
 
     const matchExpiry =
       filterExpiry === 'all'
@@ -275,8 +278,8 @@ export function AdminManagementPage() {
   };
 
   // 检查是否过期
-  const isExpired = (expiresAt?: string) => {
-    return isExpiredDate(expiresAt);
+  const isExpired = (validUntil?: string) => {
+    return isExpiredDate(validUntil);
   };
 
   // 计算新的过期时间
@@ -329,7 +332,7 @@ export function AdminManagementPage() {
         isRegistered: created.isRegistered,
         createdAt: created.createdAt,
         registeredAt: created.registeredAt,
-        expiresAt: created.validUntil
+        validUntil: created.validUntil
           ? created.validUntil.slice(0, 10)
           : undefined
       };
@@ -372,7 +375,7 @@ export function AdminManagementPage() {
     setExpiryTarget(user);
     setExpiryMonths(1);
     // 默认显示当前有效期，如果没有则显示当前计算的有效期
-    setCustomExpiryDate(user.expiresAt || calculateNewExpiry(1));
+    setCustomExpiryDate(user.validUntil || calculateNewExpiry(1));
     setExpiryDialogOpen(true);
   };
 
@@ -401,7 +404,7 @@ export function AdminManagementPage() {
             u.id === updated.id
               ? {
                   ...u,
-                  expiresAt: updated.validUntil
+                  validUntil: updated.validUntil
                     ? updated.validUntil.slice(0, 10)
                     : pendingExpiry.date
                 }
@@ -432,11 +435,11 @@ export function AdminManagementPage() {
     expiringSoon: whitelist.filter(
       (u) =>
         needsExpiryForRole(u.role) &&
-        isExpiringSoonDate(u.expiresAt) &&
-        !isExpiredDate(u.expiresAt)
+        isExpiringSoonDate(u.validUntil) &&
+        !isExpiredDate(u.validUntil)
     ).length,
     expired: whitelist.filter(
-      (u) => needsExpiryForRole(u.role) && isExpiredDate(u.expiresAt)
+      (u) => needsExpiryForRole(u.role) && isExpiredDate(u.validUntil)
     ).length,
   };
 
@@ -661,7 +664,7 @@ export function AdminManagementPage() {
           ) : (
             filteredList.map(user => {
               const roleBadge = getRoleBadge(user.role);
-              const expired = isExpired(user.expiresAt);
+              const expired = isExpired(user.validUntil);
               const needsExpiry = user.role === 'student' || user.role === 'parent';
               
               const canViewHistory =
@@ -733,12 +736,12 @@ export function AdminManagementPage() {
                         </div>
                       )}
 
-                      {needsExpiry && user.expiresAt && (
-                        <div className={`text-xs mt-1 flex items-center gap-1 ${expired ? 'text-red-600' : 'text-blue-600'}`}>
-                          <Calendar className="w-3 h-3" />
-                          课时有效期至：{user.expiresAt} {expired && '(已过期，权限降级为只读)'}
-                        </div>
-                      )}
+                       {needsExpiry && user.validUntil && (
+                         <div className={`text-xs mt-1 flex items-center gap-1 ${expired ? 'text-red-600' : 'text-blue-600'}`}>
+                           <Calendar className="w-3 h-3" />
+                           课时有效期至：{user.validUntil} {expired && '(已过期，权限降级为只读)'}
+                         </div>
+                       )}
                     </div>
 
                     <div className="flex gap-1">
@@ -1055,9 +1058,9 @@ export function AdminManagementPage() {
                   onChange={(e) => setCustomExpiryDate(e.target.value)}
                   className="w-full h-11 px-4 text-base border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all bg-white rounded-xl shadow-sm"
                 />
-                {expiryTarget?.expiresAt && isExpired(expiryTarget.expiresAt) && (
+                {expiryTarget?.validUntil && isExpired(expiryTarget.validUntil) && (
                   <div className="text-xs text-red-600 mt-1 ml-1">
-                    原有效期: {expiryTarget.expiresAt} (已过期)
+                    原有效期: {expiryTarget.validUntil} (已过期)
                   </div>
                 )}
               </div>
@@ -1132,10 +1135,10 @@ export function AdminManagementPage() {
             <AlertDialogDescription>
               {pendingExpiry && (
                 <div className="space-y-2 mt-2">
-                  <div>用户：<strong>{pendingExpiry.user.name}</strong> ({pendingExpiry.user.phone})</div>
-                  <div>角色：<strong>{getRoleBadge(pendingExpiry.user.role).label}</strong></div>
-                  <div>原有效期：{pendingExpiry.user.expiresAt || '未设置'}</div>
-                  <div className="text-blue-600 font-bold">新有效期：{pendingExpiry.date}</div>
+                   <div>用户：<strong>{pendingExpiry.user.name}</strong> ({pendingExpiry.user.phone})</div>
+                   <div>角色：<strong>{getRoleBadge(pendingExpiry.user.role).label}</strong></div>
+                   <div>原有效期：{pendingExpiry.user.validUntil || '未设置'}</div>
+                   <div className="text-blue-600 font-bold">新有效期：{pendingExpiry.date}</div>
                   <div className="text-red-600 text-sm mt-3">
                     ⚠️ 此操作将立即生效，请确认无误后再提交！
                   </div>

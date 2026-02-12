@@ -10,7 +10,7 @@ export function GoodQuestionsPage() {
     // For now, we fetch all and filter on client side as per current architecture
     const { data, isLoading } = useQuestions({}); 
 
-    const goodQuestions = data?.pages.flatMap(p => p.items).filter(q => q.isGoodQuestion) || [];
+    const goodQuestions = data?.pages.flatMap(p => p.list).filter(q => q.isGoodQuestion) || [];
 
     const getDifficultyBadge = (difficulty?: string) => {
         const difficultyMap: Record<string, { label: string; className: string }> = {

@@ -1,4 +1,5 @@
 import type { User, Question, Comment } from '@/types';
+import type { Notification } from '@/types/api';
 
 // 模拟当前用户
 export let currentUser: User | null = null;
@@ -43,6 +44,43 @@ export const mockUsers: User[] = [
     nickname: '王妈妈',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=parent',
     role: 'parent',
+  },
+];
+
+// 模拟通知数据（用于测试环境）
+export const mockNotifications: Notification[] = [
+  {
+    id: 'n1',
+    type: 'answer',
+    title: '你的问题收到了新回答',
+    content: '李老师回答了你的问题"二次函数如何求解"',
+    targetType: 'question',
+    targetId: '2',
+    isRead: false,
+    readAt: undefined,
+    createdAt: new Date(Date.now() - 3600000).toISOString(), // 1小时前
+  },
+  {
+    id: 'n2',
+    type: 'comment',
+    title: '你的回答收到了评论',
+    content: '小明同学评论了你的回答',
+    targetType: 'answer',
+    targetId: 'a1',
+    isRead: true,
+    readAt: new Date(Date.now() - 1800000).toISOString(), // 30分钟前已读
+    createdAt: new Date(Date.now() - 7200000).toISOString(), // 2小时前
+  },
+  {
+    id: 'n3',
+    type: 'audit_result',
+    title: '你的问题已通过审核',
+    content: '你提交的问题"勾股定理如何证明"已经通过审核',
+    targetType: 'question',
+    targetId: 'q_pending_1',
+    isRead: false,
+    readAt: undefined,
+    createdAt: new Date(Date.now() - 86400000).toISOString(), // 1天前
   },
 ];
 

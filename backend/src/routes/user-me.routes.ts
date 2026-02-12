@@ -92,10 +92,10 @@ userMeRouter.patch(
             throw new AppError(
               400,
               'INVALID_PARAMS',
-              '年龄格式不正确',
+              'age 必须在 0~120 之间',
               {
                 errors: [
-                  { field: 'age', message: 'age 必须为 0~120 的整数' }
+                  { field: 'age', message: 'age 必须在 0~120 之间' }
                 ]
               }
             );
@@ -104,9 +104,37 @@ userMeRouter.patch(
           return acc;
         }
 
+        if (key === 'nickname') {
+          if (typeof value !== 'string') {
+            throw new AppError(
+              400,
+              'INVALID_PARAMS',
+              '参数类型错误',
+              {
+                errors: [
+                  { field: 'nickname', message: 'nickname 必须为字符串' }
+                ]
+              }
+            );
+          }
+          if (value.length < 2 || value.length > 20) {
+            throw new AppError(
+              400,
+              'INVALID_PARAMS',
+              '昵称长度必须在 2~20 个字符之间',
+              {
+                errors: [
+                  { field: 'nickname', message: 'nickname 长度必须在 2~20 之间' }
+                ]
+              }
+            );
+          }
+          acc.nickname = value;
+          return acc;
+        }
+
         if (
           (key === 'name' ||
-            key === 'nickname' ||
             key === 'avatar' ||
             key === 'grade' ||
             key === 'school') &&
@@ -137,6 +165,14 @@ userMeRouter.patch(
 
       const updatedUser = await userService.updateProfile(req.user.id, data);
 
+      // 获取更新后的课时状态（与 GET /users/me 保持一致）
+      let classHours: Awaited<ReturnType<typeof classHoursService.getUserClassHours>> | null = null;
+      try {
+        classHours = await classHoursService.getUserClassHours(updatedUser.id);
+      } catch {
+        classHours = null;
+      }
+
       return res.json({
         code: 200,
         message: 'success',
@@ -145,11 +181,13 @@ userMeRouter.patch(
           phone: updatedUser.phone,
           name: updatedUser.name ?? undefined,
           nickname: updatedUser.nickname,
-          avatar: updatedUser.avatar,
+          avatar: updatedUser.avatar ?? undefined,
           role: updatedUser.role,
-          grade: updatedUser.grade,
-          age: updatedUser.age,
-          school: updatedUser.school
+          grade: updatedUser.grade ?? undefined,
+          age: updatedUser.age ?? undefined,
+          school: updatedUser.school ?? undefined,
+          expiresAt: updatedUser.expiresAt ?? undefined,
+          classHours
         },
         timestamp: Date.now()
       });

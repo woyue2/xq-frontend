@@ -192,30 +192,32 @@ export class InteractionService {
     });
     const map = new Map(questions.map((q) => [q.id, q]));
 
+    const filteredList = likes
+      .map((l) => {
+        const q = map.get(l.targetId);
+        if (!q) return null;
+        return {
+          id: q.id,
+          title: q.title,
+          content: q.content,
+          authorName: q.authorName,
+          authorAvatar: q.authorAvatar ?? undefined,
+          likes: q.likes,
+          favorites: q.favorites,
+          answers: q.answers,
+          createdAt: q.createdAt,
+          likedAt: l.createdAt
+        };
+      })
+      .filter(Boolean);
+
     return {
-      list: likes
-        .map((l) => {
-          const q = map.get(l.targetId);
-          if (!q) return null;
-          return {
-            id: q.id,
-            title: q.title,
-            content: q.content,
-            authorName: q.authorName,
-            authorAvatar: q.authorAvatar ?? undefined,
-            likes: q.likes,
-            favorites: q.favorites,
-            answers: q.answers,
-            createdAt: q.createdAt,
-            likedAt: l.createdAt
-          };
-        })
-        .filter(Boolean),
+      list: filteredList,
       pagination: {
         page,
         pageSize: safePageSize,
-        total,
-        totalPages: Math.ceil(total / safePageSize)
+        total: filteredList.length,
+        totalPages: Math.ceil(filteredList.length / safePageSize)
       }
     };
   }
@@ -259,30 +261,32 @@ export class InteractionService {
     });
     const map = new Map(questions.map((q) => [q.id, q]));
 
+    const filteredList = favorites
+      .map((f) => {
+        const q = map.get(f.questionId);
+        if (!q) return null;
+        return {
+          id: q.id,
+          title: q.title,
+          content: q.content,
+          authorName: q.authorName,
+          authorAvatar: q.authorAvatar ?? undefined,
+          likes: q.likes,
+          favorites: q.favorites,
+          answers: q.answers,
+          createdAt: q.createdAt,
+          favoritedAt: f.createdAt
+        };
+      })
+      .filter(Boolean);
+
     return {
-      list: favorites
-        .map((f) => {
-          const q = map.get(f.questionId);
-          if (!q) return null;
-          return {
-            id: q.id,
-            title: q.title,
-            content: q.content,
-            authorName: q.authorName,
-            authorAvatar: q.authorAvatar ?? undefined,
-            likes: q.likes,
-            favorites: q.favorites,
-            answers: q.answers,
-            createdAt: q.createdAt,
-            favoritedAt: f.createdAt
-          };
-        })
-        .filter(Boolean),
+      list: filteredList,
       pagination: {
         page,
         pageSize: safePageSize,
-        total,
-        totalPages: Math.ceil(total / safePageSize)
+        total: filteredList.length,
+        totalPages: Math.ceil(filteredList.length / safePageSize)
       }
     };
   }

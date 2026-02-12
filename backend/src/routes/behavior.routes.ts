@@ -114,3 +114,135 @@ behaviorRouter.post(
     }
   }
 );
+
+// 批量行为日志上报
+behaviorRouter.post(
+  '/log/batch',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { events } = req.body as {
+        events?: Array<{
+          type: string;
+          timestamp?: number;
+          metadata?: any;
+          sessionId?: string;
+        }>
+      };
+
+      if (!events || !Array.isArray(events) || events.length === 0) {
+        throw new AppError(
+          400,
+          'VALIDATION_ERROR',
+          'events 必须为非空数组'
+        );
+      }
+
+      // 验证每个事件的基本结构
+      const results: Array<{
+        index: number;
+        logId?: string;
+        error?: string;
+      }> = [];
+
+      let successCount = 0;
+      let failedCount = 0;
+
+      // 并行处理所有事件（部分成功原则）
+      const processedPromises = events.map(async (event, index) => {
+        try {
+          const { type, timestamp, metadata, sessionId } = event;
+
+          if (!type || typeof type !== 'string' || type.length > 50) {
+            throw new AppError(
+              400,
+              'VALIDATION_ERROR',
+              `事件[${index}]类型无效：必须为1-50个字符的字符串`
+            );
+          }
+
+          // metadata 大小限制
+          if (metadata != null) {
+            try {
+              const serialized = JSON.stringify(metadata);
+              const length = Buffer.byteLength(serialized, 'utf8');
+              if (length > METADATA_MAX_BYTES) {
+                throw new AppError(
+                  400,
+                  'VALIDATION_ERROR',
+                  `事件[${index}]metadata 过大，请控制在 2KB 以内`
+                );
+              }
+            } catch {
+              throw new AppError(
+                400,
+                'VALIDATION_ERROR',
+                `事件[${index}]metadata 必须是可序列化的 JSON 对象`
+              );
+            }
+          }
+
+          // 获取用户ID（从token，与单条接口一致）
+          let userId: string | undefined;
+          const authHeader = req.headers.authorization ?? '';
+          const token = authHeader.startsWith('Bearer ')
+            ? authHeader.slice('Bearer '.length)
+            : '';
+
+          if (token) {
+            try {
+              const payload: any = verifyToken(token);
+              if (payload?.sub) {
+                userId = String(payload.sub);
+              }
+            } catch {
+              // token 无效时忽略用户信息
+            }
+          }
+
+          // 调用服务层记录日志
+          const created = await behaviorLogService.logSingle({
+            userId,
+            type,
+            timestamp,
+            metadata,
+            sessionId,
+            path: metadata?.path ?? req.path,
+            referrer: metadata?.referrer,
+            userAgent: req.headers['user-agent'],
+            ipAddress: req.ip
+          });
+
+          results[index] = { index, logId: created.id };
+          successCount++;
+        } catch (err: any) {
+          let errorMessage = '未知错误';
+          if (err instanceof AppError) {
+            errorMessage = err.message;
+          } else if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          results[index] = { index, error: errorMessage };
+          failedCount++;
+        }
+      });
+
+      await Promise.all(processedPromises);
+
+      // 确保 results 数组连续（可能有未处理的索引）
+      const finalResults = results.filter(r => r !== undefined);
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          successCount,
+          failedCount,
+          results: finalResults
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);

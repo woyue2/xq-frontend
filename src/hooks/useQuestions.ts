@@ -15,14 +15,14 @@ export function useQuestions(params: Omit<QuestionListParams, 'page' | 'pageSize
         getNextPageParam: (lastPage) => {
             if (!lastPage) return undefined;
             const nextPage =
-                lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
+                lastPage.pagination.page < lastPage.pagination.totalPages ? lastPage.pagination.page + 1 : undefined;
             return nextPage;
         },
         initialPageParam: 1,
     });
 
     const getQuestionById = (id: string) => {
-        return query.data?.pages.flatMap(page => page.items).find(q => q.id === id);
+        return query.data?.pages.flatMap(page => page.pagination ? page.list : []).find(q => q.id === id);
     };
 
     return { ...query, getQuestionById };
