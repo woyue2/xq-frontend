@@ -71,6 +71,9 @@ export function ProfilePage() {
   const [bindCode, setBindCode] = useState('');
   const [bindSchool, setBindSchool] = useState('');
   const [bindCountdown, setBindCountdown] = useState(0);
+  const [childToUnbind, setChildToUnbind] = useState<ChildInfo | null>(null);
+  const [showUnbindDialog, setShowUnbindDialog] = useState(false);
+  const [showUnbindFinalDialog, setShowUnbindFinalDialog] = useState(false);
 
   // 加载绑定孩子列表
   useEffect(() => {
@@ -89,26 +92,47 @@ export function ProfilePage() {
       console.error('Failed to load children', error);
     }
   };
+const handleGetBindCode = async () => {
+  // 先检查孩子的姓名是否已填写
+  if (!bindName || !bindName.trim()) {
+    toast.error('请先输入孩子的姓名');
+    return;
+  }
 
-  const handleGetBindCode = () => {
-    if (!bindPhone || bindPhone.length !== 11) {
-      toast.error('请输入正确的手机号');
-      return;
-    }
+  if (!bindPhone || bindPhone.length !== 11) {
+    toast.error('请输入正确的手机号');
+    return;
+  }
+
+  // 如果已在倒计时，直接返回
+  if (bindCountdown > 0) return;
+
+  let timer: number | null = null;
+  
+  try {
     setBindCountdown(60);
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       setBindCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          clearInterval(timer!);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    parentService.sendBindSms(bindPhone);
-    toast.success('验证码已发送');
-  };
 
+    // 调用发送验证码接口
+    await parentService.sendBindSms(bindPhone);
+    toast.success('验证码已发送');
+  } catch (error) {
+    // 失败时清除定时器并重置倒计时，允许用户立即重试
+    if (timer) {
+      clearInterval(timer);
+    }
+    setBindCountdown(0);
+    toast.error('发送失败：请检查手机号或网络');
+  }
+};
   const handleBindChild = async () => {
     if (!bindName || !bindPhone || !bindCode) {
       toast.error('请填写完整信息');
@@ -214,13 +238,110 @@ export function ProfilePage() {
     }
   };
 
+  const compressImage = (file: File, maxSizeMB = 2): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('无法创建 canvas 上下文'));
+            return;
+          }
+
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          // 逐步降低质量，直到文件大小符合要求
+          const maxSize = maxSizeMB * 1024 * 1024;
+          let quality = 0.9;
+          const minQuality = 0.1;
+          const qualityStep = 0.1;
+
+          const tryCompress = (currentQuality: number): Promise<File> => {
+            return new Promise((res, rej) => {
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) {
+                    rej(new Error('压缩失败'));
+                    return;
+                  }
+                  if (blob.size <= maxSize || currentQuality <= minQuality) {
+                    // 达到目标大小或最低质量，返回结果
+                    blob.arrayBuffer().then(() => res(new File([blob], file.name, { type: 'image/jpeg' })));
+                  } else {
+                    // 继续降低质量
+                    tryCompress(currentQuality - qualityStep);
+                  }
+                },
+                'image/jpeg',
+                currentQuality
+              );
+            });
+          };
+
+          tryCompress(quality).then(resolve).catch(reject);
+        };
+        img.onerror = reject;
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 校验图片大小 (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('图片大小不能超过 2MB');
+    let processedFile: File = file;
+    const maxSize = 2 * 1024 * 1024; // 2MB
+
+    // 如果文件超过2MB，自动压缩
+    if (file.size > maxSize) {
+      toast.loading('图片较大，正在压缩...', { id: 'compress-avatar' });
+      try {
+        processedFile = await compressImage(file, 2);
+        toast.dismiss('compress-avatar');
+        toast.success('压缩完成，准备上传');
+      } catch (error) {
+        toast.dismiss('compress-avatar');
+        toast.error('压缩失败，请选择更小的图片');
+        return;
+      }
+    }
+
+    // 校验图片宽高比 (只允许 1:1, 4:3, 3:4)
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(processedFile);
+      });
+
+      const ratio = img.width / img.height;
+      const allowedRatios = [1, 4/3, 3/4];
+      const tolerance = 0.01; // 允许一定的误差
+
+      const isValidRatio = allowedRatios.some(allowedRatio =>
+        Math.abs(ratio - allowedRatio) < tolerance
+      );
+
+      if (!isValidRatio) {
+        toast.error('头像仅支持 1:1、4:3 或 3:4 比例的图片');
+        return;
+      }
+    } catch (error) {
+      toast.error('无法读取图片，请重试');
       return;
     }
 
@@ -228,7 +349,7 @@ export function ProfilePage() {
     try {
       toast.loading('正在上传...', { id: 'upload-avatar' });
       // 1. 上传图片到 OSS/本地
-      const { imageUrl } = await questionService.uploadImage(file, {
+      const { imageUrl } = await questionService.uploadImage(processedFile, {
         purpose: 'avatar',
         senderName: currentUser?.nickname
       });
@@ -355,7 +476,7 @@ export function ProfilePage() {
                 }}
               >
                 <h2 className="text-2xl font-bold text-gray-800 group-hover:text-morandi-5 transition-colors">
-                  {currentUser?.name || currentUser?.nickname || '未登录'}
+                  {currentUser?.nickname || '未登录'}
                 </h2>
                 <Pencil className="w-4 h-4 text-gray-400 group-hover:text-morandi-5 transition-colors" />
               </div>
@@ -405,10 +526,14 @@ export function ProfilePage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10 border border-white shadow-sm">
                           <AvatarImage src={child.avatar} />
-                          <AvatarFallback>{child.name[0]}</AvatarFallback>
+                          <AvatarFallback>{(child.realName || child.name)[0]}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium text-sm text-gray-800">{child.name}</div>
+                          <div className="font-medium text-sm text-gray-800">
+                            {child.realName && child.realName !== child.name
+                              ? `${child.realName} (${child.name})`
+                              : child.name}
+                          </div>
                           <div className="text-xs text-gray-500">
                             {child.school && <span className="mr-2">{child.school}</span>}
                             {child.grade}
@@ -428,7 +553,10 @@ export function ProfilePage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 px-2 text-gray-400 hover:text-red-500 hover:bg-red-50"
-                          onClick={() => toast.info('如需解绑请联系班主任')}
+                          onClick={() => {
+                            setChildToUnbind(child);
+                            setShowUnbindDialog(true);
+                          }}
                         >
                           解绑
                         </Button>
@@ -461,16 +589,6 @@ export function ProfilePage() {
 
           {/* 账号操作区域 */}
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden p-2">
-            <button
-              onClick={handleSwitchAccount}
-              className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
-            >
-              <div className="p-2 rounded-2xl bg-gray-100">
-                <ShieldCheck className="w-5 h-5 text-gray-500" />
-              </div>
-              <span className="flex-1 text-left font-medium text-gray-700">切换账号</span>
-              <ChevronRight className="w-5 h-5 text-gray-300" />
-            </button>
 
             <button
               onClick={() => setShowPasswordDialog(true)}
@@ -479,7 +597,7 @@ export function ProfilePage() {
               <div className="p-2 rounded-2xl bg-blue-50">
                 <KeyRound className="w-5 h-5 text-blue-500" />
               </div>
-              <span className="flex-1 text-left font-medium text-gray-700">设置登录密码</span>
+              <span className="flex-1 text-left font-medium text-gray-700">修改密码</span>
               <ChevronRight className="w-5 h-5 text-gray-300" />
             </button>
 
@@ -490,7 +608,7 @@ export function ProfilePage() {
               <div className="p-2 rounded-2xl bg-red-50">
                 <LogOut className="w-5 h-5 text-red-500" />
               </div>
-              <span className="flex-1 text-left font-medium text-red-500">退出账号</span>
+              <span className="flex-1 text-left font-medium text-red-500">退出登录</span>
               <ChevronRight className="w-5 h-5 text-gray-300" />
             </button>
           </div>
@@ -614,11 +732,75 @@ export function ProfilePage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* 解绑孩子确认对话框 */}
+      <AlertDialog open={showUnbindDialog} onOpenChange={setShowUnbindDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认解绑该孩子？</AlertDialogTitle>
+            <AlertDialogDescription>
+              解绑后将无法查看该孩子的问题记录，是否确认解绑？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowUnbindDialog(false);
+                setShowUnbindFinalDialog(true);
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              继续解绑
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 第二次解绑确认对话框 */}
+      <AlertDialog open={showUnbindFinalDialog} onOpenChange={setShowUnbindFinalDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>再次确认解绑？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作不可撤销，确定要解绑该孩子吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowUnbindFinalDialog(false);
+                setShowUnbindDialog(true);
+              }}
+            >
+              返回
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (childToUnbind) {
+                  try {
+                    await parentService.unbindChild(childToUnbind.id);
+                    toast.success('已成功解绑');
+                    setShowUnbindFinalDialog(false);
+                    setChildToUnbind(null);
+                    loadChildren();
+                  } catch (error) {
+                    toast.error('解绑失败，请稍后重试');
+                  }
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              确认解绑
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* 设置密码对话框 */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-center">设置登录密码</DialogTitle>
+            <DialogTitle className="text-center">修改密码</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
@@ -628,7 +810,7 @@ export function ProfilePage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="请输入至少 6 位密码"
+                placeholder="请输入至少 8 位密码"
                 disabled={isSubmittingPassword}
               />
               <p className="text-xs text-gray-400">
@@ -661,7 +843,7 @@ export function ProfilePage() {
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="bind-child-name">孩子姓名</Label>
+              <Label htmlFor="bind-child-name">孩子的姓名</Label>
               <Input
                 id="bind-child-name"
                 value={bindName}
@@ -670,22 +852,13 @@ export function ProfilePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bind-child-school">学校（选填）</Label>
-              <Input
-                id="bind-child-school"
-                value={bindSchool}
-                onChange={(e) => setBindSchool(e.target.value)}
-                placeholder="请输入学校名称"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bind-child-phone">手机号</Label>
+              <Label htmlFor="bind-child-phone">孩子的手机号</Label>
               <div className="flex gap-2">
                 <Input
                   id="bind-child-phone"
                   value={bindPhone}
                   onChange={(e) => setBindPhone(e.target.value)}
-                  placeholder="请输入手机号"
+                  placeholder="请输入孩子的手机号"
                   maxLength={11}
                 />
                 <Button
@@ -704,7 +877,7 @@ export function ProfilePage() {
                 id="bind-child-code"
                 value={bindCode}
                 onChange={(e) => setBindCode(e.target.value)}
-                placeholder="请输入验证码"
+                placeholder="请输入孩子收到的验证码"
                 maxLength={6}
               />
             </div>

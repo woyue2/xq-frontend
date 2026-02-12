@@ -231,54 +231,52 @@ export class AuthService {
       );
     }
 
-    // 可选：在登录阶段强制校验白名单与课时有效期（由环境变量控制）
-    if (process.env.AUTH_STRICT_WHITELIST_FOR_LOGIN === 'true') {
-      try {
-        const wl = await prisma.userWhitelist.findUnique({
-          where: { phone: normalizedPhone }
-        });
+    // 强制校验白名单与课时有效期（登录必须要有有效的白名单）
+    try {
+      const wl = await prisma.userWhitelist.findUnique({
+        where: { phone: normalizedPhone }
+      });
 
-        if (!wl || wl.deletedAt) {
-          throw new AppError(
-            403,
-            'NOT_IN_WHITELIST',
-            '该手机号暂未开通登录权限，请联系管理员',
-            undefined,
-            4001
-          );
-        }
-
-        if (wl.validUntil && wl.validUntil.getTime() < Date.now()) {
-          throw new AppError(
-            403,
-            'CLASS_HOUR_EXPIRED',
-            '课时已过期，请联系老师续费',
-            undefined,
-            4004
-          );
-        }
-      } catch (err) {
-        if (err instanceof AppError) {
-          throw err;
-        }
-        // 在生产环境中，白名单表不可用视为服务异常；开发/测试环境下可降级以保证联调体验
-        if (process.env.NODE_ENV === 'production') {
-          throw new AppError(
-            500,
-            'INTERNAL_SERVER_ERROR',
-            '登录服务暂不可用，请稍后重试'
-          );
-        }
-        coreLogger.warn(
-          {
-            mode: 'degraded',
-            feature: 'auth.login',
-            env: process.env.NODE_ENV ?? 'unknown',
-            reason: 'userWhitelist lookup failed during login, skip in non-production'
-          },
-          'Auth login degraded: whitelist check skipped'
+      if (!wl || wl.deletedAt) {
+        throw new AppError(
+          403,
+          'NOT_IN_WHITELIST',
+          '该手机号暂未开通登录权限，请联系管理员',
+          undefined,
+          4001
         );
       }
+
+      if (wl.validUntil && wl.validUntil.getTime() < Date.now()) {
+        throw new AppError(
+          403,
+          'CLASS_HOUR_EXPIRED',
+          '课时已过期，请联系老师续费',
+          undefined,
+          4004
+        );
+      }
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw err;
+      }
+      // 在生产环境中，白名单表不可用视为服务异常；开发/测试环境下可降级以保证联调体验
+      if (process.env.NODE_ENV === 'production') {
+        throw new AppError(
+          500,
+          'INTERNAL_SERVER_ERROR',
+          '登录服务暂不可用，请稍后重试'
+        );
+      }
+      coreLogger.warn(
+        {
+          mode: 'degraded',
+          feature: 'auth.login',
+          env: process.env.NODE_ENV ?? 'unknown',
+          reason: 'userWhitelist lookup failed during login, skip in non-production'
+        },
+        'Auth login degraded: whitelist check skipped'
+      );
     }
 
     const payload: JwtPayloadBase = { sub: user.id, role: user.role };
@@ -320,7 +318,7 @@ export class AuthService {
         age: user.age ?? undefined,
         school: user.school ?? undefined,
         // 课时有效期与权限等高级字段后续接入
-        expiresAt: undefined,
+        expiresAt: user.expiresAt ?? undefined,
         isValidMember: undefined,
         permissions: undefined
       }
@@ -388,53 +386,51 @@ export class AuthService {
       );
     }
 
-    // 密码登录同样可以选择启用白名单 + 课时校验
-    if (process.env.AUTH_STRICT_WHITELIST_FOR_LOGIN === 'true') {
-      try {
-        const wl = await prisma.userWhitelist.findUnique({
-          where: { phone: normalizedPhone }
-        });
+    // 强制校验白名单与课时有效期（登录必须要有有效的白名单）
+    try {
+      const wl = await prisma.userWhitelist.findUnique({
+        where: { phone: normalizedPhone }
+      });
 
-        if (!wl || wl.deletedAt) {
-          throw new AppError(
-            403,
-            'NOT_IN_WHITELIST',
-            '该手机号暂未开通登录权限，请联系管理员',
-            undefined,
-            4001
-          );
-        }
-
-        if (wl.validUntil && wl.validUntil.getTime() < Date.now()) {
-          throw new AppError(
-            403,
-            'CLASS_HOUR_EXPIRED',
-            '课时已过期，请联系老师续费',
-            undefined,
-            4004
-          );
-        }
-      } catch (err) {
-        if (err instanceof AppError) {
-          throw err;
-        }
-        if (process.env.NODE_ENV === 'production') {
-          throw new AppError(
-            500,
-            'INTERNAL_SERVER_ERROR',
-            '登录服务暂不可用，请稍后重试'
-          );
-        }
-        coreLogger.warn(
-          {
-            mode: 'degraded',
-            feature: 'auth.passwordLogin',
-            env: process.env.NODE_ENV ?? 'unknown',
-            reason: 'userWhitelist lookup failed during password login, skip in non-production'
-          },
-          'Auth passwordLogin degraded: whitelist check skipped'
+      if (!wl || wl.deletedAt) {
+        throw new AppError(
+          403,
+          'NOT_IN_WHITELIST',
+          '该手机号暂未开通登录权限，请联系管理员',
+          undefined,
+          4001
         );
       }
+
+      if (wl.validUntil && wl.validUntil.getTime() < Date.now()) {
+        throw new AppError(
+          403,
+          'CLASS_HOUR_EXPIRED',
+          '课时已过期，请联系老师续费',
+          undefined,
+          4004
+        );
+      }
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw err;
+      }
+      if (process.env.NODE_ENV === 'production') {
+        throw new AppError(
+          500,
+          'INTERNAL_SERVER_ERROR',
+          '登录服务暂不可用，请稍后重试'
+        );
+      }
+      coreLogger.warn(
+        {
+          mode: 'degraded',
+          feature: 'auth.passwordLogin',
+          env: process.env.NODE_ENV ?? 'unknown',
+          reason: 'userWhitelist lookup failed during password login, skip in non-production'
+        },
+        'Auth passwordLogin degraded: whitelist check skipped'
+      );
     }
 
     const payload: JwtPayloadBase = { sub: user.id, role: user.role };
@@ -504,21 +500,6 @@ export class AuthService {
       password
     } = params;
 
-    // 真实姓名必填
-    if (!name || !name.trim()) {
-      throw new AppError(
-        400,
-        'INVALID_NAME',
-        '请填写真实姓名',
-        undefined,
-        1006
-      );
-    }
-    const effectiveName = name.trim();
-
-    // 昵称非必填，若未填写则生成默认昵称
-    const effectiveNickname = nickname?.trim() || `用户_${phone.slice(-4)}`;
-
     const normalizedPhone = phone.replace(/\D/g, '');
 
     if (!/^\d{11}$/.test(normalizedPhone)) {
@@ -540,6 +521,44 @@ export class AuthService {
         1005
       );
     }
+
+    // 尝试从白名单获取name（用于注册时自动填充）
+    let nameFromWhitelist: string | null = null;
+    try {
+      const wlForName = await prisma.userWhitelist.findUnique({
+        where: { phone: normalizedPhone }
+      });
+      if (wlForName && wlForName.name && wlForName.name.trim()) {
+        nameFromWhitelist = wlForName.name.trim();
+      }
+    } catch (err) {
+      // 白名单查询失败不影响后续流程（测试/开发环境）
+      if (process.env.NODE_ENV === 'production') {
+        coreLogger.error(
+          { err, phone: normalizedPhone, feature: 'auth.register' },
+          'Failed to query userWhitelist for name'
+        );
+      }
+    }
+
+    // 真实姓名：家长可选，其他角色必填
+    // 优先使用请求中的name，其次使用白名单的name
+    const finalName = name?.trim() || nameFromWhitelist || undefined;
+    if (requestedRole !== 'parent' && !finalName) {
+      throw new AppError(
+        400,
+        'INVALID_NAME',
+        '请填写真实姓名',
+        undefined,
+        1006
+      );
+    }
+    const effectiveName = requestedRole === 'parent'
+      ? finalName
+      : finalName!;
+
+    // 昵称非必填，若未填写则生成默认昵称
+    const effectiveNickname = nickname?.trim() || `用户_${phone.slice(-4)}`;
 
     // 校验验证码（注册场景优先使用 type=register）
     let record = null;

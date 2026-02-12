@@ -915,9 +915,14 @@ export const notificationService = {
         }
         const { data } = await api.get<
             ApiResponse<{
-                notifications: Notification[];
+                list: Notification[];
+                pagination: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
                 unreadCount: number;
-                total: number;
             }>
         >('/notifications', { params: queryParams });
         return data.data;

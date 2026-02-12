@@ -44,7 +44,7 @@ export class QuestionService {
 
     if (!author) {
       // 在非生产环境中，为了避免开发阶段前端拿到"用户不存在"而无法提问，
-      // 当检测到作者不存在时自动创建一个占位用户，便于联调。
+      // 当检测到作者不存在时自动创建一个占位用户，但必须确保有对应的白名单。
       if (process.env.NODE_ENV !== 'production') {
         const fallbackPhone = `199${Date.now().toString().slice(-8)}`;
         const fallbackRole =
@@ -52,17 +52,31 @@ export class QuestionService {
             ? 'teacher'
             : 'student';
 
+        // 检查是否已有白名单记录（白名单必须由管理员预先创建）
+        const existingWl = await prisma.userWhitelist.findUnique({
+          where: { phone: fallbackPhone }
+        });
+
+        if (!existingWl || existingWl.deletedAt) {
+          // 没有白名单，拒绝创建占位用户，避免产生孤立的User记录
+          throw new AppError(
+            404,
+            'USER_NOT_FOUND',
+            '用户不存在且没有对应的白名单，请先注册或联系管理员添加白名单'
+          );
+        }
+
         coreLogger.warn(
           {
             mode: 'degraded',
             feature: 'question.create',
             env: process.env.NODE_ENV ?? 'unknown',
-            reason: 'author user not found, auto-creating placeholder user',
+            reason: 'author user not found but whitelist exists, auto-creating placeholder user',
             authorId,
             phone: fallbackPhone,
             role: fallbackRole
           },
-          'QuestionService.create degraded: auto-create missing author user in non-production'
+          'QuestionService.create degraded: auto-create missing author user with existing whitelist'
         );
 
         author = await prisma.user.create({
@@ -81,7 +95,13 @@ export class QuestionService {
     }
 
     // AI 内容审核（仅对非老师用户）
-    let auditResult: { safe: boolean; reason?: string; category?: string; quality?: { clear: boolean; suggestion?: string } } = {
+    let auditResult: {
+      safe: boolean;
+      reason?: string;
+      category?: string;
+      requiresManualReview?: boolean;
+      quality?: { clear: boolean; suggestion?: string }
+    } = {
       safe: true,
       quality: { clear: true, suggestion: undefined }
     };
@@ -105,21 +125,43 @@ export class QuestionService {
         safe: result.safe,
         reason: result.reason,
         category: result.category,
-        quality: result.quality
+        requiresManualReview: result.requiresManualReview
       };
 
-      // 2. 图片审核（如果有图片且文本审核通过）
-      if (auditResult.safe && images && images.length > 0) {
+      // 2. 图片审核（如果有图片）
+      if (images && images.length > 0) {
         const imageResults = await aiAuditService.auditImages(images);
         const unsafeImage = imageResults.find(r => !r.safe);
+        const requiresManualReviewImage = imageResults.find(r => r.requiresManualReview);
+        
         if (unsafeImage) {
           auditResult.safe = false;
           auditResult.reason = `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}`;
           auditResult.category = unsafeImage.category || 'image_violation';
         }
+        
+        // 如果任何图片需要人工审核，标记整个问题需要人工审核
+        if (requiresManualReviewImage) {
+          auditResult.requiresManualReview = true;
+          if (!auditResult.safe) {
+            // 如果同时有违规内容，优先显示违规原因
+            auditResult.reason = auditResult.reason || '图片审核服务异常，需人工复核';
+          } else {
+            auditResult.reason = '图片审核服务异常，需人工复核';
+          }
+        }
       }
 
-      if (!auditResult.safe) {
+      if (auditResult.requiresManualReview) {
+        // AI 审核服务异常，转人工审核
+        initialStatus = 'pending';
+        aiResultText = JSON.stringify({
+          safe: auditResult.safe,
+          reason: auditResult.reason,
+          category: auditResult.category,
+          requiresManualReview: true
+        });
+      } else if (!auditResult.safe) {
         // 内容违规，直接拒绝
         initialStatus = 'rejected';
         aiResultText = JSON.stringify({

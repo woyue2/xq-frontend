@@ -69,40 +69,67 @@ export class ParentService {
     });
 
     if (existing) {
-      return child;
+      // 返回已绑定状态，由前端决定是否确认再次绑定
+      return {
+        ...child,
+        alreadyBound: true,
+        message: '该孩子已被绑定，是否确认再次绑定？'
+      };
     }
 
-    // 4. 创建绑定关系
+    // 4. 参数校验：孩子姓名不能为空
+    if (!data.childName || data.childName.trim() === '') {
+      throw new AppError(400, 'INVALID_CHILD_NAME', '请输入孩子姓名');
+    }
+
+    // 5. 姓名验证：精确匹配 name 字段（真实姓名）
+    // 注意：如果 child.name 为 null/undefined，视为不匹配
+    if (child.name !== data.childName) {
+      throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
+    }
+
+    // 6. 创建绑定关系（使用事务确保原子性）
     // 顺便更新学生信息（如果为空）
     // 孩子姓名应该更新到 name 字段（真实姓名），而非 nickname
-    if (data.childName) {
-      try {
-        // 检查是否需要设置真实姓名（如果为空）
-        const needsNameUpdate = !child.name || child.name.trim() === '';
-        // 检查是否需要设置昵称（如果未设置或还是默认值）
-        const needsNicknameUpdate = !child.nickname || child.nickname.startsWith('用户');
+    const needsNameUpdate = !child.name || child.name.trim() === '';
+    const needsNicknameUpdate = !child.nickname || child.nickname.startsWith('用户');
 
-        await prisma.user.update({
+    // 使用 Prisma 事务确保 User.update 和 ParentChild.create 要么都成功，要么都失败
+    await prisma.$transaction(async (tx) => {
+      if (needsNameUpdate || needsNicknameUpdate || data.school) {
+        await tx.user.update({
           where: { id: child.id },
           data: {
-            name: needsNameUpdate ? data.childName : undefined,  // 更新真实姓名
-            nickname: needsNicknameUpdate ? data.childName : undefined,  // 如果昵称未设置，用孩子姓名作为默认昵称
+            name: needsNameUpdate ? data.childName : undefined,
+            nickname: needsNicknameUpdate ? data.childName : undefined,
             school: data.school
           }
         });
-      } catch (e) {
-        // ignore update error
       }
-    }
 
-    await prisma.parentChild.create({
-      data: {
-        parentId,
-        childId: child.id
+      await tx.parentChild.create({
+        data: {
+          parentId,
+          childId: child.id
+        }
+      });
+    });
+
+    // 重新查询以返回最新数据
+    const updatedChild = await prisma.user.findUnique({
+      where: { id: child.id },
+      select: {
+        id: true,
+        name: true,
+        nickname: true,
+        avatar: true,
+        role: true,
+        school: true,
+        grade: true
       }
     });
 
-    return child;
+    return updatedChild;
   }
 
   /**

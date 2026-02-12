@@ -10,13 +10,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Eye, EyeOff, X } from 'lucide-react';
+import { Eye, EyeOff, X, Users, Baby } from 'lucide-react';
 import { validInviteCodes } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-import { parentService } from '@/services/parentService';
 import { authService } from '@/services/api';
 
 export function LoginPage() {
@@ -42,12 +47,9 @@ export function LoginPage() {
   const [age, setAge] = useState('');
   const [school, setSchool] = useState('');
 
-  // 家长注册专用字段
-  const [childName, setChildName] = useState('');
-  const [childPhone, setChildPhone] = useState('');
-  const [childCode, setChildCode] = useState('');
-  const [childSchool, setChildSchool] = useState('');
-  const [childCountdown, setChildCountdown] = useState(0);
+  // 注册时选择的身份
+  const [showRoleSelect, setShowRoleSelect] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'student' | 'parent' | null>(null);
 
   // 判断是否为学生邀请码
   const isStudentInvite = !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
@@ -83,28 +85,6 @@ export function LoginPage() {
       // 统一错误已经在拦截器中处理，这里只停止倒计时
       setCountdown(0);
     }
-  };
-
-  const handleGetChildCode = () => {
-    if (!childPhone || childPhone.length !== 11) {
-      toast.error('请输入正确的孩子手机号');
-      return;
-    }
-
-    setChildCountdown(60);
-    const timer = setInterval(() => {
-      setChildCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    // 调用发送验证码接口
-    parentService.sendBindSms(childPhone);
-    toast.success('验证码已发送');
   };
 
   const handleSubmit = async () => {
@@ -144,7 +124,8 @@ export function LoginPage() {
       return;
     }
 
-    if (!isLogin && !name.trim()) {
+    // 姓名验证：家长（包括通过邀请码识别的家长）可选，其他角色必填
+    if (!isLogin && !(selectedRole === 'parent' || isParentInvite) && !name.trim()) {
       toast.error('请输入真实姓名');
       return;
     }
@@ -166,22 +147,6 @@ export function LoginPage() {
       }
       if (!school) {
         toast.error('请输入学校名称');
-        return;
-      }
-    }
-
-    // 家长注册需要绑定孩子信息
-    if (isParentInvite) {
-      if (!childName) {
-        toast.error('请输入孩子姓名');
-        return;
-      }
-      if (!childPhone || childPhone.length !== 11) {
-        toast.error('请输入正确的孩子手机号');
-        return;
-      }
-      if (!childCode) {
-        toast.error('请输入孩子验证码');
         return;
       }
     }
@@ -213,8 +178,10 @@ export function LoginPage() {
       }
 
       // 注册走后端 /auth/register
-      const desiredRole: UserRole =
-        isStudentInvite ? 'student' : isParentInvite ? 'parent' : 'teacher';
+      // 优先使用用户选择的身份，否则根据邀请码判断
+      const desiredRole: UserRole = selectedRole === 'parent' ? 'parent' :
+                                    selectedRole === 'student' ? 'student' :
+                                    isStudentInvite ? 'student' : isParentInvite ? 'parent' : 'teacher';
 
       const registerResult = await authService.register({
         phone,
@@ -230,22 +197,6 @@ export function LoginPage() {
 
       // authService.register 已经返回 LoginResponse
       login(registerResult.user, registerResult.token);
-
-      // 如果是家长注册，执行绑定逻辑（已登录状态下）
-      if (isParentInvite) {
-        try {
-          await parentService.bindChild({
-            childName,
-            phone: childPhone,
-            code: childCode,
-            school: childSchool
-          });
-          toast.success('自动绑定孩子成功');
-        } catch (error) {
-          console.error('自动绑定失败:', error);
-          toast.error('自动绑定孩子失败，请稍后重试');
-        }
-      }
 
       toast.success('注册并登录成功');
       navigate('/');
@@ -264,11 +215,56 @@ export function LoginPage() {
     !!inviteCode &&
     !!code &&
     password.length >= 8 &&
-    (!isStudentInvite || (grade && age && school));
+    (selectedRole === 'student'
+      ? grade && age && school
+      : selectedRole === 'parent'
+      ? true  // 家长注册不需要额外字段验证
+      : (!isStudentInvite || (grade && age && school)));
   const canSubmit = basePhoneValid && (loginValid || registerValid);
 
   return (
     <div className="flex flex-col min-h-screen">
+      {/* 角色选择弹窗 */}
+      <Dialog open={showRoleSelect} onOpenChange={setShowRoleSelect}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">选择注册身份</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-6">
+            <Button
+              variant="outline"
+              className="h-32 flex flex-col gap-3"
+              onClick={() => {
+                setSelectedRole('student');
+                setShowRoleSelect(false);
+                setIsLogin(false);
+              }}
+            >
+              <Users className="w-10 h-10 text-blue-500" />
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">学生</span>
+                <span className="text-xs text-gray-500">需要填写学校信息</span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-32 flex flex-col gap-3"
+              onClick={() => {
+                setSelectedRole('parent');
+                setShowRoleSelect(false);
+                setIsLogin(false);
+              }}
+            >
+              <Baby className="w-10 h-10 text-orange-500" />
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">家长</span>
+                <span className="text-xs text-gray-500">需要绑定孩子</span>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 顶部标题栏 */}
       <div className="bg-white shadow-sm py-4">
         <h1 className="text-center text-xl">
@@ -368,8 +364,9 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* 注册真实姓名输入（仅注册模式，可选） */}
-          {!isLogin && (
+          {/* 注册真实姓名输入（仅注册模式） */}
+          {/* 注册真实姓名输入（仅注册模式，家长不显示） */}
+          {!isLogin && !(selectedRole === 'parent' || isParentInvite) && (
             <div className="space-y-2">
               <Label htmlFor="registerName">真实姓名 *</Label>
               <Input
@@ -488,75 +485,6 @@ export function LoginPage() {
             </>
           )}
 
-          {/* 家长专属字段（仅注册且使用家长邀请码时显示） */}
-          {isParentInvite && (
-            <div className="space-y-4 border-t pt-4 mt-2">
-              <p className="text-sm font-medium text-gray-700">绑定孩子信息</p>
-              
-              <div className="space-y-2">
-                <Label htmlFor="childName">孩子姓名 *</Label>
-                <Input
-                  id="childName"
-                  placeholder="请输入孩子姓名"
-                  value={childName}
-                  onChange={(e) => setChildName(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="childSchool">孩子学校</Label>
-                <Input
-                  id="childSchool"
-                  data-testid="childSchool"
-                  placeholder="请输入孩子学校（选填）"
-                  value={childSchool}
-                  onChange={(e) => setChildSchool(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="childPhone">孩子手机号 *</Label>
-                <div className="relative">
-                  <Input
-                    id="childPhone"
-                    type="tel"
-                    placeholder="请输入孩子手机号"
-                    value={childPhone}
-                    onChange={(e) => setChildPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    className="pr-8"
-                  />
-                  {childPhone && (
-                    <button
-                      onClick={() => setChildPhone('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="childCode">验证码 *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="childCode"
-                    placeholder="请输入验证码"
-                    value={childCode}
-                    onChange={(e) => setChildCode(e.target.value)}
-                  />
-                  <Button
-                    onClick={handleGetChildCode}
-                    disabled={childCountdown > 0 || !childPhone || childPhone.length !== 11}
-                    variant="outline"
-                    className="whitespace-nowrap"
-                  >
-                    {childCountdown > 0 ? `${childCountdown}秒` : '获取验证码'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* 提交按钮 */}
           <div className="space-y-3 pt-4">
@@ -570,13 +498,17 @@ export function LoginPage() {
 
             <Button
               onClick={() => {
-                setIsLogin(!isLogin);
-                setInviteCode('');
-                setGrade('');
-                setAge('');
-                setChildName('');
-                setChildPhone('');
-                setChildCode('');
+                if (isLogin) {
+                  // 从登录切换到注册时，显示角色选择弹窗
+                  setShowRoleSelect(true);
+                } else {
+                  // 从注册切换到登录
+                  setIsLogin(true);
+                  setInviteCode('');
+                  setGrade('');
+                  setAge('');
+                  setSelectedRole(null);
+                }
               }}
               variant="outline"
               className="w-full h-12"

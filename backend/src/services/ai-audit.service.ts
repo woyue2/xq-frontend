@@ -14,6 +14,7 @@ export interface AuditResult {
     safe: boolean;
     reason?: string;
     category?: string;
+    requiresManualReview?: boolean;  // 是否需要人工审核（当AI服务不可用时）
     quality?: {
         clear: boolean;
         suggestion?: string;
@@ -26,6 +27,7 @@ export interface ImageAuditResult {
     category?: string;
     contentType?: string;
     description?: string;
+    requiresManualReview?: boolean;  // 是否需要人工审核（当AI服务不可用时）
 }
 
 const SYSTEM_PROMPT = `你是一个中学数学答疑平台的内容审核助手，平台面向初一到初三的学生。
@@ -208,8 +210,13 @@ export class AiAuditService {
                     },
                     'AI audit API request failed'
                 );
-                // API 失败时默认通过，避免阻塞用户
-                return { safe: true, quality: { clear: true } };
+                // API 失败时转为人工审核
+                return {
+                    safe: false,
+                    requiresManualReview: true,
+                    reason: 'AI审核服务暂时不可用，已转人工审核',
+                    quality: { clear: true }
+                };
             }
 
             const data = await response.json();
@@ -220,7 +227,13 @@ export class AiAuditService {
                     { feature: 'ai-audit', data },
                     'AI audit returned empty response'
                 );
-                return { safe: true, quality: { clear: true } };
+                // 空响应转为人工审核
+                return {
+                    safe: false,
+                    requiresManualReview: true,
+                    reason: 'AI审核服务返回异常，已转人工审核',
+                    quality: { clear: true }
+                };
             }
 
             // 解析 JSON 响应
@@ -243,8 +256,13 @@ export class AiAuditService {
                 { feature: 'ai-audit', error },
                 'AI audit service error'
             );
-            // 出错时默认通过，避免阻塞用户
-            return { safe: true, quality: { clear: true } };
+            // 出错时转为人工审核
+            return {
+                safe: false,
+                requiresManualReview: true,
+                reason: 'AI审核服务网络异常，已转人工审核',
+                quality: { clear: true }
+            };
         }
     }
 
@@ -312,8 +330,12 @@ export class AiAuditService {
                     },
                     'Image audit API request failed'
                 );
-                // API 失败时默认通过，避免阻塞用户
-                return { safe: true };
+                // API 失败时转为人工审核
+                return {
+                    safe: false,
+                    requiresManualReview: true,
+                    reason: '图片审核服务暂时不可用，已转人工审核'
+                };
             }
 
             const data = await response.json();
@@ -324,7 +346,12 @@ export class AiAuditService {
                     { feature: 'ai-audit-image', data },
                     'Image audit returned empty response'
                 );
-                return { safe: true };
+                // 空响应转为人工审核
+                return {
+                    safe: false,
+                    requiresManualReview: true,
+                    reason: '图片审核服务返回异常，已转人工审核'
+                };
             }
 
             // 解析 JSON 响应
@@ -346,8 +373,12 @@ export class AiAuditService {
                 { feature: 'ai-audit-image', error },
                 'Image audit service error'
             );
-            // 出错时默认通过，避免阻塞用户
-            return { safe: true };
+            // 出错时转为人工审核
+            return {
+                safe: false,
+                requiresManualReview: true,
+                reason: '图片审核服务网络异常，已转人工审核'
+            };
         }
     }
 

@@ -26,12 +26,12 @@ export function NotificationsPage() {
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const { notifications, unreadCount: unread, total } =
+      const { list, unreadCount: unread } =
         await notificationService.getNotifications({
           page: 1,
           limit: 20
         });
-      setItems(notifications);
+      setItems(list);
       setUnreadCount(unread);
     } catch {
       // 失败时交由全局拦截器处理，这里只恢复 loading 状态
@@ -69,7 +69,7 @@ export function NotificationsPage() {
   const handleItemClick = async (n: Notification) => {
     if (!n.isRead) {
       try {
-        await notificationService.markAsRead([n.id]);
+        await notificationService.markAsRead({ ids: [n.id] });
         setItems((prev) =>
           prev.map((it) => (it.id === n.id ? { ...it, isRead: true } : it))
         );
@@ -93,7 +93,7 @@ export function NotificationsPage() {
     const ids = items.filter((n) => !n.isRead).map((n) => n.id);
     if (ids.length === 0) return;
     try {
-      await notificationService.markAsRead(ids);
+      await notificationService.markAsRead({ ids });
       setItems((prev) => prev.map((it) => ({ ...it, isRead: true })));
       setUnreadCount(0);
     } catch {

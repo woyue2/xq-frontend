@@ -207,6 +207,16 @@ describe('AuthService - 单元测试', () => {
         isActive: true,
         isBanned: false
       });
+      // 必须要有白名单才能登录
+      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue({
+        id: 'wl1',
+        phone: '13800138000',
+        name: '测试用户',
+        role: 'student',
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30天后
+        isRegistered: true,
+        deletedAt: null
+      });
       (prismaAny.refreshToken.create as jest.Mock).mockResolvedValue({});
       (prismaAny.loginLog.create as jest.Mock).mockResolvedValue({});
 

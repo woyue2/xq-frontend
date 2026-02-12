@@ -17,6 +17,16 @@ export class UserService {
         //如果更新头像，进行 AI 审核
         if (data.avatar) {
             const auditResult = await aiAuditService.auditImage(data.avatar);
+            if (auditResult.requiresManualReview) {
+                // AI 审核服务异常，转人工审核
+                throw new AppError(
+                    503,
+                    'AVATAR_AUDIT_UNAVAILABLE',
+                    `头像审核服务暂时不可用，已转人工审核，请稍后重试`,
+                    undefined,
+                    2002
+                );
+            }
             if (!auditResult.safe) {
                 throw new AppError(
                     400,
@@ -35,6 +45,16 @@ export class UserService {
             }
             // 姓名 AI 审核（复用 nickname 审核类型）
             const auditResult = await aiAuditService.auditContent(data.name, 'nickname');
+            if (auditResult.requiresManualReview) {
+                // AI 审核服务异常，转人工审核
+                throw new AppError(
+                    503,
+                    'NAME_AUDIT_UNAVAILABLE',
+                    `姓名审核服务暂时不可用，已转人工审核，请稍后重试`,
+                    undefined,
+                    2002
+                );
+            }
             if (!auditResult.safe) {
                 throw new AppError(
                     400,
@@ -52,6 +72,16 @@ export class UserService {
             }
             // 昵称 AI 审核
             const auditResult = await aiAuditService.auditContent(data.nickname, 'nickname');
+            if (auditResult.requiresManualReview) {
+                // AI 审核服务异常，转人工审核
+                throw new AppError(
+                    503,
+                    'NICKNAME_AUDIT_UNAVAILABLE',
+                    `昵称审核服务暂时不可用，已转人工审核，请稍后重试`,
+                    undefined,
+                    2002
+                );
+            }
             if (!auditResult.safe) {
                 throw new AppError(
                     400,

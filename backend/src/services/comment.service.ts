@@ -47,7 +47,13 @@ export class CommentService {
     }
 
     // AI 内容审核（仅对非老师用户）
-    let auditResult: { safe: boolean; reason?: string; category?: string; quality?: { clear: boolean; suggestion?: string } } = {
+    let auditResult: {
+      safe: boolean;
+      reason?: string;
+      category?: string;
+      requiresManualReview?: boolean;
+      quality?: { clear: boolean; suggestion?: string }
+    } = {
       safe: true,
       quality: { clear: true }
     };
@@ -60,10 +66,19 @@ export class CommentService {
         safe: result.safe,
         reason: result.reason,
         category: result.category,
-        quality: result.quality
+        requiresManualReview: result.requiresManualReview
       };
 
-      if (!result.safe) {
+      if (result.requiresManualReview) {
+        // AI 审核服务异常，转人工审核
+        initialStatus = 'pending';
+        aiResultText = JSON.stringify({
+          safe: result.safe,
+          reason: result.reason,
+          category: result.category,
+          requiresManualReview: true
+        });
+      } else if (!result.safe) {
         initialStatus = 'rejected';
         aiResultText = JSON.stringify({
           safe: false,

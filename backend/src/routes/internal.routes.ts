@@ -286,7 +286,22 @@ internalRouter.post(
         );
       }
 
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // 首先检查白名单是否存在（UserWhitelist必须由管理员预先创建）
+      const wl = await prisma.userWhitelist.findUnique({
+        where: { phone: normalizedPhone }
+      });
+
+      if (!wl || wl.deletedAt) {
+        throw new AppError(
+          403,
+          'NOT_IN_WHITELIST',
+          '该手机号不在白名单中，请先联系管理员添加白名单',
+          undefined,
+          4001
+        );
+      }
+
+      const expiresAt = wl.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       const user = await prisma.user.upsert({
         where: { phone: normalizedPhone },
@@ -300,7 +315,7 @@ internalRouter.post(
           phone: normalizedPhone,
           nickname: `Playwright_${role}`,
           role,
-          grade: '初一',
+          grade: wl.grade || '初一',
           age: 15,
           school: '测试学校',
           expiresAt,
@@ -308,6 +323,18 @@ internalRouter.post(
           isBanned: false
         }
       });
+
+      // 如果白名单尚未标记为已注册，更新isRegistered
+      if (wl && !wl.isRegistered) {
+        await prisma.userWhitelist.update({
+          where: { id: wl.id },
+          data: {
+            isRegistered: true,
+            registeredAt: new Date(),
+            userId: user.id
+          }
+        });
+      }
 
       const token = signAccessToken({ sub: user.id, role: user.role });
 
