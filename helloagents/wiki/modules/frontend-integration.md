@@ -52,8 +52,9 @@
   - 功能链路：
     1. 选择科目与结构化标签；
     2. 通过隐藏的 `<input type="file" multiple>` + `questionService.uploadImage` 上传图片（最多三张）；
-    3. 使用 `questionService.createQuestion` 向后端创建问题；
-    4. 提交成功后统一跳转回首页，用户可在主页列表中看到新问题。
+    3. 顶部导航和“上传图片”区块下方均提供“提交”按钮，复用同一 `handleSubmit` 逻辑，便于学生在不同滚动位置快速提交；
+    4. 使用 `questionService.createQuestion` 向后端创建问题；
+    5. 提交成功后跳转到新问题详情页（`/question/:id`），若后端未返回有效 `id` 则兜底跳转首页。
 
 - **点赞 / 收藏（QuestionDetailPage）**
   - 入口：问题详情页底部的点赞（Heart）与收藏（Star）按钮；
