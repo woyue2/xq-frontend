@@ -6,6 +6,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js'],
   moduleNameMapper: {},
   testMatch: ['**/*.spec.ts'],
+  maxWorkers: 1,
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.ts', '!src/tests/**'],
   coverageDirectory: 'coverage',

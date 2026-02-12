@@ -289,6 +289,14 @@ export class QuestionService {
       prisma.question.count({ where })
     ]);
 
+    // 批量查询作者的 role（避免 N+1 查询）
+    const authorIds = [...new Set(list.map(q => q.authorId))];
+    const authors = await prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, role: true }
+    });
+    const authorRoleMap = new Map(authors.map(a => [a.id, a.role]));
+
     return {
       list: list.map((q) => ({
         id: q.id,
@@ -301,8 +309,10 @@ export class QuestionService {
         authorId: q.authorId,
         authorName: q.authorName,
         authorAvatar: q.authorAvatar ?? undefined,
+        authorRole: authorRoleMap.get(q.authorId),  // 补充 authorRole
         isGoodQuestion: q.isGoodQuestion,
         isPinned: q.isPinned,
+        score: q.score ?? undefined,  // 补充 score
         understoodCount: q.understoodCount,
         notUnderstoodCount: q.notUnderstoodCount,
         likes: q.likes,
@@ -310,7 +320,19 @@ export class QuestionService {
         comments: q.comments,
         answers: q.answers,
         status: q.status,
-        createdAt: q.createdAt
+        createdAt: q.createdAt,
+        // 补充 aiAudit（从 aiResult 解析）
+        aiAudit: q.aiResult ? (() => {
+          try {
+            const parsed = JSON.parse(q.aiResult);
+            return {
+              safe: parsed.safe ?? true,
+              reason: parsed.reason
+            };
+          } catch {
+            return undefined;
+          }
+        })() : undefined
       })),
       pagination: {
         page: rawPage,
@@ -375,7 +397,19 @@ export class QuestionService {
       status: q.status,
       createdAt: q.createdAt,
       isLiked: false,
-      isFavorited: false
+      isFavorited: false,
+      // 补充 aiAudit（从 aiResult 解析）
+      aiAudit: q.aiResult ? (() => {
+        try {
+          const parsed = JSON.parse(q.aiResult);
+          return {
+            safe: parsed.safe ?? true,
+            reason: parsed.reason
+          };
+        } catch {
+          return undefined;
+        }
+      })() : undefined
     };
   }
   async delete(params: { id: string; userId: string; role: string }) {

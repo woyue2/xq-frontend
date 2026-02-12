@@ -204,11 +204,13 @@ export class ParentService {
     ]);
 
     return {
-      items,
-      total,
-      page,
-      pageSize: safePageSize,
-      totalPages: Math.ceil(total / safePageSize)
+      list: items,
+      pagination: {
+        total,
+        page,
+        pageSize: safePageSize,
+        totalPages: Math.ceil(total / safePageSize)
+      }
     };
   }
 }

@@ -158,7 +158,7 @@ describe('WhitelistService - 单元测试', () => {
       } as any);
 
       expect(result.pagination.page).toBe(1);
-      expect(result.pagination.pageSize).toBe(20);
+      expect(result.pagination.pageSize).toBe(100);
       expect(result.pagination.totalPages).toBe(0);
       expect(prismaAny.userWhitelist.findMany).toHaveBeenCalledWith({
         where: {
@@ -166,7 +166,7 @@ describe('WhitelistService - 单元测试', () => {
         },
         orderBy: { createdAt: 'desc' },
         skip: 0,
-        take: 20
+        take: 100
       });
     });
   });

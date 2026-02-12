@@ -40,7 +40,7 @@ notificationRouter.get(
         code: 200,
         message: 'success',
         data: {
-          notifications: notifications.map((n) => ({
+          list: notifications.map((n) => ({
             id: n.id,
             userId: n.userId,  // 添加 userId 字段
             type: n.type,
@@ -52,8 +52,13 @@ notificationRouter.get(
             readAt: n.readAt, // 新增：返回已读时间
             createdAt: n.createdAt
           })),
-          unreadCount,
-          total
+          pagination: {
+            page,
+            pageSize: limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          },
+          unreadCount
         },
         timestamp: Date.now()
       });

@@ -101,17 +101,21 @@ describe('Contract vs Implementation (route diff based checks)', () => {
     expect(res.body.data.items).toBeUndefined();
   });
 
-  it('doc notifications response shape differs: implementation uses notifications/unreadCount/total', async () => {
+  it('notifications response shape: uses standard paginated format with list/pagination/unreadCount', async () => {
     const res = await request(app)
       .get('/api/notifications')
       .set('Authorization', `Bearer ${teacherToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(200);
-    // 合同记录：实现为 notifications/unreadCount/total，而非简单 items/total。
-    expect(res.body.data.notifications).toBeDefined();
-    expect(Array.isArray(res.body.data.notifications)).toBe(true);
+    // 已统一为标准分页格式：{ list, pagination, unreadCount }
+    expect(res.body.data.list).toBeDefined();
+    expect(Array.isArray(res.body.data.list)).toBe(true);
+    expect(res.body.data.pagination).toBeDefined();
+    expect(typeof res.body.data.pagination.page).toBe('number');
+    expect(typeof res.body.data.pagination.pageSize).toBe('number');
+    expect(typeof res.body.data.pagination.total).toBe('number');
+    expect(typeof res.body.data.pagination.totalPages).toBe('number');
     expect(typeof res.body.data.unreadCount).toBe('number');
-    expect(typeof res.body.data.total).toBe('number');
   });
 });

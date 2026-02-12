@@ -72,15 +72,15 @@ describe('Notification API', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(200);
-    expect(res.body.data.notifications.length).toBe(2);
+    expect(res.body.data.list.length).toBe(2);
     expect(
-      res.body.data.notifications.every(
+      res.body.data.list.every(
         (n: any) =>
           ['系统通知 1', '回答通知'].includes(n.title) &&
-          n.userId === undefined
+          n.userId === studentId
       )
     ).toBe(true);
-    expect(res.body.data.total).toBe(2);
+    expect(res.body.data.pagination.total).toBe(2);
     expect(res.body.data.unreadCount).toBeGreaterThanOrEqual(2);
   });
 

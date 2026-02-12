@@ -211,9 +211,9 @@ describe('Parent API', () => {
     expect(res.status).toBe(200);
     expect(res.body.code).toBe(200);
     expect(res.body.data).toBeDefined();
-    expect(Array.isArray(res.body.data.items)).toBe(true);
+    expect(Array.isArray(res.body.data.list)).toBe(true);
 
-    const items = res.body.data.items;
+    const items = res.body.data.list;
     const ids = items.map((q: any) => q.id);
 
     expect(ids).toContain('q-child-approved-1');

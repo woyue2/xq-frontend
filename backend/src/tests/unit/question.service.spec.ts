@@ -180,33 +180,27 @@ describe('QuestionService unit tests', () => {
       expect(result.list[0].tags).toContain('tag-a');
     });
 
-    it('should throw INVALID_PAGINATION when page or pageSize is invalid', async () => {
-      await expect(
-        questionService.list({
-          page: 0,
-          pageSize: 20
-        } as any)
-      ).rejects.toMatchObject<AppError>({
-        code: 'INVALID_PAGINATION'
+    it('should fallback to safe defaults when page or pageSize is invalid', async () => {
+      const resultInvalidPage = await questionService.list({
+        page: 0,
+        pageSize: 20
       } as any);
+      expect(resultInvalidPage.pagination.page).toBe(1);
+      expect(resultInvalidPage.pagination.pageSize).toBe(20);
 
-      await expect(
-        questionService.list({
-          page: 1,
-          pageSize: 0
-        } as any)
-      ).rejects.toMatchObject<AppError>({
-        code: 'INVALID_PAGINATION'
+      const resultInvalidPageSize = await questionService.list({
+        page: 1,
+        pageSize: 0
       } as any);
+      expect(resultInvalidPageSize.pagination.page).toBe(1);
+      expect(resultInvalidPageSize.pagination.pageSize).toBe(20);
 
-      await expect(
-        questionService.list({
-          page: NaN as any,
-          pageSize: 20
-        } as any)
-      ).rejects.toMatchObject<AppError>({
-        code: 'INVALID_PAGINATION'
+      const resultInvalidPageNaN = await questionService.list({
+        page: NaN as any,
+        pageSize: 20
       } as any);
+      expect(resultInvalidPageNaN.pagination.page).toBe(1);
+      expect(resultInvalidPageNaN.pagination.pageSize).toBe(20);
     });
   });
 

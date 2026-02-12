@@ -128,7 +128,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在回答内容为空时抛出 EMPTY_CONTENT', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       await expect(
@@ -146,7 +147,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在作者不存在时抛出 USER_NOT_FOUND', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue(null)
@@ -167,7 +169,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       const createdAt = new Date();
 
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue({
@@ -223,7 +226,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在文本与图片均为空时抛出 EMPTY_CONTENT', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       await expect(
@@ -240,7 +244,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在作者不存在时抛出 USER_NOT_FOUND', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue(null)
@@ -261,7 +266,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       const createdAt = new Date();
 
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue({
@@ -315,7 +321,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在第一次点赞时创建 like 并增加计数', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       const tx = {
@@ -348,7 +355,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在再次调用 toggleQuestionLike 时取消点赞并减少计数', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       const tx = {

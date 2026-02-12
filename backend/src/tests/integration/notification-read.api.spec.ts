@@ -56,14 +56,28 @@ describe('Notification Read API', () => {
     });
   });
 
-  it('should reject empty ids array when marking notifications as read', async () => {
+  it('should mark all unread notifications as read when ids is empty array (NOTIFICATION-API-004)', async () => {
+    // 验证初始有2个未读通知
+    let unreadBefore = await prisma.notification.count({
+      where: { userId, isRead: false }
+    });
+    expect(unreadBefore).toBe(2);
+
     const res = await request(app)
       .post('/api/notifications/read')
       .set('Authorization', `Bearer ${token}`)
       .send({ ids: [] });
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('VALIDATION_ERROR');
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.success).toBe(true);
+    expect(res.body.data.updatedCount).toBeGreaterThanOrEqual(2);
+
+    // 验证所有通知已读
+    const unreadAfter = await prisma.notification.count({
+      where: { userId, isRead: false }
+    });
+    expect(unreadAfter).toBe(0);
   });
 
   it('should mark notifications as read when ids are valid', async () => {

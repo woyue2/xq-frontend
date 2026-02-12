@@ -235,7 +235,8 @@ describe('AuthService - 单元测试', () => {
           phone: '13800138000',
           code: '123456',
           nickname: '新用户',
-          password: '1234567'
+          password: '1234567',
+          name: '张三'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
         code: 'INVALID_PASSWORD_FORMAT',
@@ -271,6 +272,7 @@ describe('AuthService - 单元测试', () => {
         null
       );
       (prismaAny.refreshToken.create as jest.Mock).mockResolvedValue({});
+      (prismaAny.loginLog.create as jest.Mock).mockResolvedValue({});
 
       jest.spyOn(jwtUtils, 'signAccessToken').mockReturnValue('access-token');
       jest
@@ -281,7 +283,8 @@ describe('AuthService - 单元测试', () => {
         phone: '13800138000',
         code: '123456',
         // 不提供 nickname，期望后端自动生成
-        password: '12345678'
+        password: '12345678',
+        name: '张三'
       } as any);
 
       expect(result.user.nickname).toBeDefined();
@@ -300,7 +303,8 @@ describe('AuthService - 单元测试', () => {
           phone: '13800138000',
           code: '000000',
           nickname: '新用户',
-          password: '12345678'
+          password: '12345678',
+          name: '张三'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
         code: 'INVALID_CODE'
@@ -325,8 +329,9 @@ describe('AuthService - 单元测试', () => {
         service.register({
           phone: '13800138000',
           code: '123456',
-          nickname: '已存在用户',
-          password: '12345678'
+          nickname: '新用户',
+          password: '12345678',
+          name: '张三'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
         code: 'USER_EXISTS',
@@ -336,29 +341,24 @@ describe('AuthService - 单元测试', () => {
 
     it('应当在注册成功时返回 token 与用户信息', async () => {
       (prismaAny.verificationCode.findFirst as jest.Mock).mockResolvedValue({
-        id: 'vc1',
-        phone: '13800138000',
         code: '123456',
-        type: 'register',
-        used: false,
-        expireAt: new Date(Date.now() + 60 * 1000)
+        expireAt: new Date(Date.now() + 10000),
+        used: false
       });
-      (prismaAny.verificationCode.update as jest.Mock).mockResolvedValue({});
       (prismaAny.user.findUnique as jest.Mock).mockResolvedValue(null);
       (prismaAny.user.create as jest.Mock).mockResolvedValue({
-        id: 'user1',
-        phone: '13800138000',
+        id: 'user-new-001',
+        phone: '13900139000',
         nickname: '新用户',
-        avatar: null,
         role: 'student',
-        grade: null,
-        age: null,
-        school: null,
-        expiresAt: null
+        name: '张三'
       });
-      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue(
-        null
-      );
+      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue({
+        phone: '13900139000',
+        role: 'student',
+        name: '张三'
+      });
+      (prismaAny.loginLog.create as jest.Mock).mockResolvedValue({});
       (prismaAny.refreshToken.create as jest.Mock).mockResolvedValue({});
 
       const signAccessSpy = jest
@@ -369,15 +369,16 @@ describe('AuthService - 单元测试', () => {
         .mockReturnValue('refresh-token');
 
       const result = await service.register({
-        phone: '13800138000',
+        phone: '13900139000',
         code: '123456',
         nickname: '新用户',
+        name: '张三',
         password: '12345678'
       });
 
       expect(signAccessSpy).toHaveBeenCalled();
       expect(signRefreshSpy).toHaveBeenCalled();
-      expect(result.user.id).toBe('user1');
+      expect(result.user.id).toBe('user-new-001');
       expect(result.token).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
     });

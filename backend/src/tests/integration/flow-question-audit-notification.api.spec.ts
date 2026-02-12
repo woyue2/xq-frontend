@@ -140,9 +140,9 @@ describe('Flow: question → audit → notification', () => {
 
     expect(listRes.status).toBe(200);
     expect(listRes.body.code).toBe(200);
-    expect(listRes.body.data.notifications.length).toBeGreaterThanOrEqual(1);
+    expect(listRes.body.data.list.length).toBeGreaterThanOrEqual(1);
 
-    const hasAuditNotification = listRes.body.data.notifications.some(
+    const hasAuditNotification = listRes.body.data.list.some(
       (n: any) =>
         n.type === 'audit_result' &&
         n.targetType === 'question' &&
