@@ -272,6 +272,7 @@ export function CreateQuestionPage() {
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit}
+            data-testid="create-question-submit-top"
             className="bg-teal-500 hover:bg-teal-600"
           >
             提交
@@ -461,6 +462,16 @@ export function CreateQuestionPage() {
                   <span className="text-xs text-gray-500">上传图片</span>
                 </button>
               )}
+            </div>
+            <div className="pt-3">
+              <Button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                data-testid="create-question-submit-bottom"
+                className="w-full bg-teal-500 hover:bg-teal-600"
+              >
+                提交
+              </Button>
             </div>
           </div>
 
