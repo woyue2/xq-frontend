@@ -248,7 +248,7 @@ describe('Advanced Coverage Tests', () => {
             // Button should be disabled but let's check validation logic if clicks forced or logic
             // The code has validation in handleSubmit, but button might be disabled.
             // Component: disabled={!canSubmit}
-            const submitBtn = screen.getByText('提交');
+            const submitBtn = screen.getByTestId('create-question-submit-top');
             expect(submitBtn).toBeDisabled();
         });
 
@@ -264,7 +264,7 @@ describe('Advanced Coverage Tests', () => {
             fireEvent.change(titleInput, { target: { value: 'How to integrate?' } });
 
             // 3. Submit
-            const submitBtn = screen.getByText('提交');
+            const submitBtn = screen.getByTestId('create-question-submit-top');
             await waitFor(() => expect(submitBtn).not.toBeDisabled());
 
             fireEvent.click(submitBtn);
