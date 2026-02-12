@@ -7,7 +7,41 @@ import { signAccessToken } from '../utils/jwt';
 
 export const internalRouter = Router();
 
-// AI 审核回调：由外部 AI 服务调用
+/**
+ * @swagger
+ * /internal/ai-check:
+ *   post:
+ *     summary: AI 审核回调
+ *     description: 由外部 AI 服务回调审核结果，需提供内部鉴权头
+ *     tags:
+ *       - Internal
+ *     parameters:
+ *       - in: header
+ *         name: x-internal-token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 内部鉴权 Token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [targetType, targetId, result]
+ *             properties:
+ *               targetType:
+ *                 type: string
+ *                 enum: [question, answer, comment]
+ *               targetId:
+ *                 type: string
+ *               result:
+ *                 type: object
+ *                 description: AI 审核结果
+ *     responses:
+ *       200:
+ *         description: 回调处理成功
+ */
 internalRouter.post(
   '/ai-check',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -185,7 +219,30 @@ internalRouter.post(
   }
 );
 
-// 测试环境专用：生成测试用访问令牌，便于 Playwright / E2E 使用
+/**
+ * @swagger
+ * /internal/test-token:
+ *   post:
+ *     summary: 生成测试用访问令牌
+ *     description: 仅测试环境可用，便于 Playwright / E2E 使用
+ *     tags:
+ *       - Internal
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [student, parent, teacher]
+ *               phone:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 生成成功
+ */
 internalRouter.post(
   '/test-token',
   async (req: Request, res: Response, next: NextFunction) => {

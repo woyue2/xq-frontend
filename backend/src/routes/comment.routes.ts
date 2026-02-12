@@ -11,7 +11,37 @@ import { AppError } from '../errors/AppError';
 
 export const commentRouter = Router();
 
-// 创建评论：提问者(自己的问题)或教师
+/**
+ * @swagger
+ * /comments:
+ *   post:
+ *     summary: 创建评论
+ *     description: 为问题创建评论，提问者本人或教师可以评论
+ *     tags:
+ *       - Comment
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [questionId]
+ *             properties:
+ *               questionId:
+ *                 type: string
+ *                 description: 问题ID
+ *               content:
+ *                 type: string
+ *                 description: 评论内容
+ *               image:
+ *                 type: string
+ *                 description: 评论图片URL
+ *     responses:
+ *       201:
+ *         description: 评论提交成功，等待审核
+ */
 commentRouter.post(
   '/',
   authMiddleware,
@@ -73,7 +103,27 @@ commentRouter.post(
   }
 );
 
-// 删除评论：作者或教师
+/**
+ * @swagger
+ * /comments/{id}:
+ *   delete:
+ *     summary: 删除评论
+ *     description: 删除指定的评论，仅限评论作者本人或教师
+ *     tags:
+ *       - Comment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 评论ID
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ */
 commentRouter.delete(
   '/:id',
   authMiddleware,

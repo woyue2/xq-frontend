@@ -82,7 +82,27 @@ const audioUpload = multer({
   }
 });
 
-// 获取上传签名（图片/音频）
+/**
+ * @swagger
+ * /upload/signature:
+ *   get:
+ *     summary: 获取上传签名
+ *     description: 获取图片或音频上传签名
+ *     tags:
+ *       - Upload
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [image, audio]
+ *         description: 上传类型
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 uploadRouter.get(
   '/signature',
   authMiddleware,
@@ -145,7 +165,31 @@ uploadRouter.get(
   }
 );
 
-// 直接上传音频到本地后端存储，并返回可播放的 /static/audio URL
+/**
+ * @swagger
+ * /upload/audio:
+ *   post:
+ *     summary: 上传音频文件
+ *     description: 直接上传音频到本地后端存储并返回播放地址
+ *     tags:
+ *       - Upload
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file]
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: 上传成功
+ */
 uploadRouter.post(
   '/audio',
   authMiddleware,

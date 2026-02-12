@@ -19,7 +19,20 @@ adminQuestionDimensionRouter.use(
   })
 );
 
-// 获取所有题目维度及其选项
+/**
+ * @swagger
+ * /admin/question-dimensions:
+ *   get:
+ *     summary: 获取所有题目维度
+ *     description: 获取所有题目维度及其选项配置
+ *     tags:
+ *       - Admin - QuestionDimensions
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 adminQuestionDimensionRouter.get(
   '/',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -54,7 +67,43 @@ adminQuestionDimensionRouter.get(
   }
 );
 
-// 更新指定维度的基础配置（名称、开关、多选）
+/**
+ * @swagger
+ * /admin/question-dimensions/{key}:
+ *   put:
+ *     summary: 更新题目维度配置
+ *     description: 更新指定维度的基础配置（名称、开关、多选）
+ *     tags:
+ *       - Admin - QuestionDimensions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 维度key
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: 维度名称
+ *               enabled:
+ *                 type: boolean
+ *                 description: 是否启用
+ *               multiSelect:
+ *                 type: boolean
+ *                 description: 是否支持多选
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ */
 adminQuestionDimensionRouter.put(
   '/:key',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -99,7 +148,47 @@ adminQuestionDimensionRouter.put(
   }
 );
 
-// 为指定维度新增选项
+/**
+ * @swagger
+ * /admin/question-dimensions/{key}/options:
+ *   post:
+ *     summary: 新增维度选项
+ *     description: 为指定维度新增选项
+ *     tags:
+ *       - Admin - QuestionDimensions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 维度key
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [value, label]
+ *             properties:
+ *               value:
+ *                 type: string
+ *                 description: 选项值
+ *               label:
+ *                 type: string
+ *                 description: 选项标签
+ *               order:
+ *                 type: integer
+ *                 description: 排序
+ *               enabled:
+ *                 type: boolean
+ *                 description: 是否启用
+ *     responses:
+ *       201:
+ *         description: 创建成功
+ */
 adminQuestionDimensionRouter.post(
   '/:key/options',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -153,7 +242,49 @@ adminQuestionDimensionRouter.post(
   }
 );
 
-// 更新指定选项
+/**
+ * @swagger
+ * /admin/question-dimensions/{key}/options/{optionId}:
+ *   put:
+ *     summary: 更新维度选项
+ *     description: 更新指定选项的配置
+ *     tags:
+ *       - Admin - QuestionDimensions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 维度key
+ *       - in: path
+ *         name: optionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 选项ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               label:
+ *                 type: string
+ *                 description: 选项标签
+ *               order:
+ *                 type: integer
+ *                 description: 排序
+ *               enabled:
+ *                 type: boolean
+ *                 description: 是否启用
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ */
 adminQuestionDimensionRouter.put(
   '/:key/options/:optionId',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

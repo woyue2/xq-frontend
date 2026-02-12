@@ -2,8 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 import { loggerMiddleware } from './middlewares/logger.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
+import { swaggerOptions } from './config/swagger';
 import { authRouter } from './routes/auth.routes';
 import { adminWhitelistRouter } from './routes/admin-whitelist.routes';
 import { adminClassHoursRouter } from './routes/admin-class-hours.routes';
@@ -34,6 +37,30 @@ export const createApp = () => {
   );
   app.use(express.json());
   app.use(loggerMiddleware);
+
+  const specs = swaggerJsdoc(swaggerOptions);
+
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    customCss: `
+      .topbar-wrapper { background-color: #1890ff; }
+      .swagger-ui .info { margin: 20px 0; }
+      .swagger-ui topbar { display: block; }
+    `,
+    customSiteTitle: 'kpqa API 文档',
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+      defaultModelsExpandDepth: 3,
+      defaultModelExpandDepth: 3
+    }
+  }));
+
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(specs);
+  });
 
   // 本地音频静态资源目录映射：/static/audio/* -> AUDIO_BASE_DIR
   const audioDir = path.isAbsolute(env.AUDIO_BASE_DIR)

@@ -8,7 +8,36 @@ import { AppError } from '../errors/AppError';
 
 export const notificationRouter = Router();
 
-// 获取通知列表
+/**
+ * @swagger
+ * /notifications:
+ *   get:
+ *     summary: 获取通知列表
+ *     description: 获取当前用户的通知列表，支持分页和仅未读筛选
+ *     tags:
+ *       - Notification
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码（默认1）
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: 每页数量（默认20，最大100）
+ *       - in: query
+ *         name: unread
+ *         schema:
+ *           type: boolean
+ *         description: 仅返回未读通知
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 notificationRouter.get(
   '/notifications',
   authMiddleware,
@@ -68,7 +97,20 @@ notificationRouter.get(
   }
 );
 
-// 获取未读通知数量（必须在 /notifications/:id 之前，避免路由冲突）
+/**
+ * @swagger
+ * /notifications/unread-count:
+ *   get:
+ *     summary: 获取未读通知数量
+ *     description: 获取当前用户未读通知的数量
+ *     tags:
+ *       - Notification
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 notificationRouter.get(
   '/notifications/unread-count',
   authMiddleware,
@@ -96,7 +138,27 @@ notificationRouter.get(
   }
 );
 
-// 获取通知详情（问题76）
+/**
+ * @swagger
+ * /notifications/{id}:
+ *   get:
+ *     summary: 获取通知详情
+ *     description: 获取指定通知的详细信息
+ *     tags:
+ *       - Notification
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 通知ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 notificationRouter.get(
   '/notifications/:id',
   authMiddleware,
@@ -136,7 +198,32 @@ notificationRouter.get(
   }
 );
 
-// 标记通知已读
+/**
+ * @swagger
+ * /notifications/read:
+ *   post:
+ *     summary: 标记通知已读
+ *     description: 将指定的通知标记为已读状态
+ *     tags:
+ *       - Notification
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 通知ID列表
+ *     responses:
+ *       200:
+ *         description: 标记成功
+ */
 notificationRouter.post(
   '/notifications/read',
   authMiddleware,
@@ -182,7 +269,20 @@ notificationRouter.post(
   }
 );
 
-// 标记所有通知为已读（问题77）
+/**
+ * @swagger
+ * /notifications/read-all:
+ *   post:
+ *     summary: 标记所有通知已读
+ *     description: 将当前用户的所有通知标记为已读状态
+ *     tags:
+ *       - Notification
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 标记成功
+ */
 notificationRouter.post(
   '/notifications/read-all',
   authMiddleware,
@@ -211,7 +311,27 @@ notificationRouter.post(
   }
 );
 
-// 删除通知（问题78）
+/**
+ * @swagger
+ * /notifications/{id}:
+ *   delete:
+ *     summary: 删除通知
+ *     description: 删除指定的单个通知
+ *     tags:
+ *       - Notification
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 通知ID
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ */
 notificationRouter.delete(
   '/notifications/:id',
   authMiddleware,

@@ -4,7 +4,18 @@ import { questionDimensionService } from '../services/question-dimension.service
 
 export const configRouter = Router();
 
-// 面向前端：获取题目维度配置（当前主要用于解题方法/办法维度）
+/**
+ * @swagger
+ * /config/question-dimensions:
+ *   get:
+ *     summary: 获取题目维度配置
+ *     description: 获取题目维度配置信息，主要用于解题方法/办法维度
+ *     tags:
+ *       - Config
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 configRouter.get(
   '/question-dimensions',
   async (req: Request, res: Response, next: NextFunction) => {

@@ -18,7 +18,37 @@ adminAuditRouter.use(
   })
 );
 
-// 查询待审核内容
+/**
+ * @swagger
+ * /admin/audit/pending:
+ *   get:
+ *     summary: 查询待审核内容
+ *     description: 获取待审核的问题、回答或评论列表
+ *     tags:
+ *       - Admin - Audit
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [question, answer, comment]
+ *         description: 审核类型
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 adminAuditRouter.get(
   '/pending',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -55,7 +85,53 @@ adminAuditRouter.get(
   }
 );
 
-// 审核通过
+/**
+ * @swagger
+ * /admin/audit/{contentId}/approve:
+ *   post:
+ *     summary: 审核通过
+ *     description: 将指定内容审核通过，支持问题评分、标签设置等
+ *     tags:
+ *       - Admin - Audit
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: contentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 内容ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [question, comment]
+ *                 description: 内容类型
+ *               isGoodQuestion:
+ *                 type: boolean
+ *                 description: 是否为优质问题
+ *               score:
+ *                 type: number
+ *                 description: 问题评分
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 问题标签
+ *               difficulty:
+ *                 type: string
+ *                 description: 难度等级
+ *     responses:
+ *       200:
+ *         description: 审核通过成功
+ */
 adminAuditRouter.post(
   '/:contentId/approve',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -129,7 +205,42 @@ adminAuditRouter.post(
   }
 );
 
-// 审核驳回
+/**
+ * @swagger
+ * /admin/audit/{contentId}/reject:
+ *   post:
+ *     summary: 审核驳回
+ *     description: 将指定问题审核驳回
+ *     tags:
+ *       - Admin - Audit
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: contentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 内容ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, reason]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [question]
+ *                 description: 内容类型
+ *               reason:
+ *                 type: string
+ *                 description: 驳回原因
+ *     responses:
+ *       200:
+ *         description: 审核驳回成功
+ */
 adminAuditRouter.post(
   '/:contentId/reject',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -169,7 +280,42 @@ adminAuditRouter.post(
   }
 );
 
-// 封禁内容
+/**
+ * @swagger
+ * /admin/audit/{contentId}/ban:
+ *   post:
+ *     summary: 封禁内容
+ *     description: 将指定评论封禁
+ *     tags:
+ *       - Admin - Audit
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: contentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 内容ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, reason]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [comment]
+ *                 description: 内容类型
+ *               reason:
+ *                 type: string
+ *                 description: 封禁原因
+ *     responses:
+ *       200:
+ *         description: 封禁成功
+ */
 adminAuditRouter.post(
   '/:contentId/ban',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -209,7 +355,27 @@ adminAuditRouter.post(
   }
 );
 
-// 置顶 / 取消置顶问题
+/**
+ * @swagger
+ * /admin/audit/questions/{questionId}/pin:
+ *   post:
+ *     summary: 置顶/取消置顶问题
+ *     description: 将指定问题置顶或取消置顶
+ *     tags:
+ *       - Admin - Audit
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 操作成功
+ */
 adminAuditRouter.post(
   '/questions/:questionId/pin',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

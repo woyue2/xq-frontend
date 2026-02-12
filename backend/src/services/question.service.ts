@@ -291,10 +291,13 @@ export class QuestionService {
 
     // 批量查询作者的 role（避免 N+1 查询）
     const authorIds = [...new Set(list.map(q => q.authorId))];
-    const authors = await prisma.user.findMany({
-      where: { id: { in: authorIds } },
-      select: { id: true, role: true }
-    });
+    let authors: Array<{ id: string; role: string }> = [];
+    if (authorIds.length > 0) {
+      authors = await prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, role: true }
+      });
+    }
     const authorRoleMap = new Map(authors.map(a => [a.id, a.role]));
 
     return {

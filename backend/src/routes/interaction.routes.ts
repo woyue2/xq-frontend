@@ -20,7 +20,39 @@ export const interactionRouter = Router();
 
 interactionRouter.use(authMiddleware);
 
-// 点赞 / 取消点赞
+/**
+ * @swagger
+ * /interaction/like:
+ *   post:
+ *     summary: 点赞/取消点赞
+ *     description: 对问题进行点赞或取消点赞操作
+ *     tags:
+ *       - Interaction
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [targetType, targetId, action]
+ *             properties:
+ *               targetType:
+ *                 type: string
+ *                 enum: [question]
+ *                 description: 目标类型
+ *               targetId:
+ *                 type: string
+ *                 description: 目标ID
+ *               action:
+ *                 type: string
+ *                 enum: [like, unlike]
+ *                 description: 操作类型
+ *     responses:
+ *       200:
+ *         description: 操作成功
+ */
 interactionRouter.post(
   '/like',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -86,7 +118,35 @@ interactionRouter.post(
   }
 );
 
-// 收藏 / 取消收藏
+/**
+ * @swagger
+ * /interaction/favorite:
+ *   post:
+ *     summary: 收藏/取消收藏
+ *     description: 对问题进行收藏或取消收藏操作
+ *     tags:
+ *       - Interaction
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [questionId, action]
+ *             properties:
+ *               questionId:
+ *                 type: string
+ *                 description: 问题ID
+ *               action:
+ *                 type: string
+ *                 enum: [favorite, unfavorite]
+ *                 description: 操作类型
+ *     responses:
+ *       200:
+ *         description: 操作成功
+ */
 interactionRouter.post(
   '/favorite',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

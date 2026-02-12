@@ -11,7 +11,36 @@ export const parentRouter = Router();
 
 parentRouter.use(authMiddleware);
 
-// 绑定孩子
+/**
+ * @swagger
+ * /parents/bind:
+ *   post:
+ *     summary: 绑定孩子
+ *     description: 家长绑定孩子账号
+ *     tags:
+ *       - Parent
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [phone, code, childName]
+ *             properties:
+ *               phone:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *               childName:
+ *                 type: string
+ *               school:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 绑定成功
+ */
 parentRouter.post(
     '/bind',
     async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -43,7 +72,20 @@ parentRouter.post(
     }
 );
 
-// 获取已绑定孩子列表
+/**
+ * @swagger
+ * /parents/children:
+ *   get:
+ *     summary: 获取已绑定孩子列表
+ *     description: 家长获取已绑定孩子列表
+ *     tags:
+ *       - Parent
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 parentRouter.get(
     '/children',
     async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -65,7 +107,30 @@ parentRouter.get(
     }
 );
 
-// 解绑孩子
+/**
+ * @swagger
+ * /parents/unbind:
+ *   post:
+ *     summary: 解绑孩子
+ *     description: 家长解绑已绑定孩子
+ *     tags:
+ *       - Parent
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [childId]
+ *             properties:
+ *               childId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 解绑成功
+ */
 parentRouter.post(
     '/unbind',
     async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -88,7 +153,35 @@ parentRouter.post(
     }
 );
 
-// 获取孩子问题列表
+/**
+ * @swagger
+ * /parents/questions/{childId}:
+ *   get:
+ *     summary: 获取孩子问题列表
+ *     description: 家长查看孩子提问的问题列表
+ *     tags:
+ *       - Parent
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: childId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 孩子ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 parentRouter.get(
     '/questions/:childId',
     async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

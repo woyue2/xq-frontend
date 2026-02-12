@@ -14,7 +14,48 @@ export const userMeRouter = Router();
 
 userMeRouter.use(authMiddleware);
 
-// 获取当前用户基础信息（含课时状态）
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: 获取当前用户信息
+ *     description: 获取当前登录用户的详细信息，包括课时状态
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                   id:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   nickname:
+ *                     type: string
+ *                   avatar:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                   grade:
+ *                     type: string
+ *                   age:
+ *                     type: number
+ *                   school:
+ *                     type: string
+ *                   classHours:
+ *                     $ref: '#/components/schemas/ClassHours'
+ */
 userMeRouter.get(
   '/',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -65,7 +106,45 @@ userMeRouter.get(
   }
 );
 
-// 更新当前用户信息
+/**
+ * @swagger
+ * /users/me:
+ *   patch:
+ *     summary: 更新当前用户信息
+ *     description: 更新当前登录用户的个人信息
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: 真实姓名
+ *               nickname:
+ *                 type: string
+ *                 description: 昵称（2-20字符）
+ *               avatar:
+ *                 type: string
+ *                 description: 头像URL
+ *               grade:
+ *                 type: string
+ *                 description: 年级
+ *               age:
+ *                 type: number
+ *                 description: 年龄（0-120）
+ *               school:
+ *                 type: string
+ *                 description: 学校
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ */
 userMeRouter.patch(
   '/',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -197,7 +276,30 @@ userMeRouter.patch(
   }
 );
 
-// 查询我的点赞列表
+/**
+ * @swagger
+ * /users/me/likes:
+ *   get:
+ *     summary: 获取我的点赞列表
+ *     description: 获取当前用户点赞过的问题列表
+ *     tags:
+ *       - User
+ *       - Interaction
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 userMeRouter.get(
   '/likes',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -221,7 +323,30 @@ userMeRouter.get(
   }
 );
 
-// 查询我的收藏列表
+/**
+ * @swagger
+ * /users/me/favorites:
+ *   get:
+ *     summary: 获取我的收藏列表
+ *     description: 获取当前用户收藏过的问题列表
+ *     tags:
+ *       - User
+ *       - Interaction
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 userMeRouter.get(
   '/favorites',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

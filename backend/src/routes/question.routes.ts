@@ -14,6 +14,55 @@ import { prisma } from '../config/database';
 
 export const questionRouter = Router();
 
+/**
+ * @swagger
+ * /questions:
+ *   post:
+ *     summary: 创建问题
+ *     description: 学生或教师创建新问题，问题提交后需要审核
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: 问题标题
+ *                 example: "如何解一元二次方程？"
+ *               content:
+ *                 type: string
+ *                 description: 问题详细内容
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 图片URL列表
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 问题标签
+ *               difficulty:
+ *                 type: string
+ *                 enum: [easy, medium, hard]
+ *                 description: 难度等级
+ *               subject:
+ *                 type: string
+ *                 description: 学科
+ *                 example: "math"
+ *     responses:
+ *       201:
+ *         description: 问题创建成功，等待审核
+ */
+
 // 创建问题：学生（有效期内）或教师
 questionRouter.post(
   '/',
@@ -68,7 +117,75 @@ questionRouter.post(
   }
 );
 
-// 查询问题列表
+/**
+ * @swagger
+ * /questions:
+ *   get:
+ *     summary: 获取问题列表
+ *     description: 分页获取问题列表，支持按学科、状态、标签等条件筛选
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码，从1开始
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *       - in: query
+ *         name: subject
+ *         schema:
+ *           type: string
+ *         description: 学科筛选
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: 审核状态筛选
+ *       - in: query
+ *         name: isGoodQuestion
+ *         schema:
+ *           type: boolean
+ *         description: 是否精华
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: 标签筛选，逗号分隔
+ *       - in: query
+ *         name: authorId
+ *         schema:
+ *           type: string
+ *         description: 作者ID筛选
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: 关键词搜索
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                 type: object
+ *                 properties:
+ *                   list:
+ *                     type: array
+ *                     items:
+ *                       $ref: '#/components/schemas/Question'
+ *                   pagination:
+ *                     $ref: '#/components/schemas/PaginatedResponse'
+ */
 questionRouter.get(
   '/',
   authMiddleware,
@@ -128,7 +245,27 @@ questionRouter.get(
   }
 );
 
-// 查询某个问题的回答列表（只返回已通过审核的回答）
+/**
+ * @swagger
+ * /questions/{questionId}/answers:
+ *   get:
+ *     summary: 获取问题的回答列表
+ *     description: 获取指定问题的已审核回答列表
+ *     tags:
+ *       - Answer
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 questionRouter.get(
   '/:questionId/answers',
   authMiddleware,
@@ -151,7 +288,27 @@ questionRouter.get(
   }
 );
 
-// 查询某个问题的评论列表（只返回已通过审核的评论）
+/**
+ * @swagger
+ * /questions/{questionId}/comments:
+ *   get:
+ *     summary: 获取问题的评论列表
+ *     description: 获取指定问题的已审核评论列表
+ *     tags:
+ *       - Comment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 questionRouter.get(
   '/:questionId/comments',
   authMiddleware,
@@ -171,7 +328,40 @@ questionRouter.get(
   }
 );
 
-// 创建评论：作者(自己的问题)或教师
+/**
+ * @swagger
+ * /questions/{questionId}/comments:
+ *   post:
+ *     summary: 创建评论
+ *     description: 为问题创建评论，仅限问题作者本人或教师
+ *     tags:
+ *       - Comment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: 评论内容
+ *               image:
+ *                 type: string
+ *                 description: 评论图片URL
+ *     responses:
+ *       201:
+ *         description: 评论创建成功
+ */
 questionRouter.post(
   '/:questionId/comments',
   authMiddleware,
@@ -233,7 +423,27 @@ questionRouter.post(
   }
 );
 
-// 点赞 / 取消点赞问题
+/**
+ * @swagger
+ * /questions/{questionId}/like:
+ *   post:
+ *     summary: 点赞/取消点赞问题
+ *     description: 对问题进行点赞或取消点赞
+ *     tags:
+ *       - Interaction
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 操作成功
+ */
 questionRouter.post(
   '/:questionId/like',
   authMiddleware,
@@ -257,7 +467,27 @@ questionRouter.post(
   }
 );
 
-// 收藏 / 取消收藏问题
+/**
+ * @swagger
+ * /questions/{questionId}/favorite:
+ *   post:
+ *     summary: 收藏/取消收藏问题
+ *     description: 对问题进行收藏或取消收藏
+ *     tags:
+ *       - Interaction
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 操作成功
+ */
 questionRouter.post(
   '/:questionId/favorite',
   authMiddleware,
@@ -281,7 +511,38 @@ questionRouter.post(
   }
 );
 
-// 学生个人理解状态标记（弄懂了 / 没弄懂）
+/**
+ * @swagger
+ * /questions/{questionId}/understanding:
+ *   post:
+ *     summary: 标记理解状态
+ *     description: 学生标记自己对问题的理解状态（弄懂了/没弄懂），仅限提问者本人
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [understood, not_understood]
+ *                 description: 理解状态
+ *     responses:
+ *       200:
+ *         description: 标记成功
+ */
 questionRouter.post(
   '/:questionId/understanding',
   authMiddleware,
@@ -395,7 +656,50 @@ questionRouter.post(
   }
 );
 
-// 创建回答：教师可以回答任意问题；学生可以回答教师提出的问题
+/**
+ * @swagger
+ * /questions/{questionId}/answers:
+ *   post:
+ *     summary: 创建回答
+ *     description: 为问题创建回答，教师可以回答任意问题，学生只能回答教师发布的问题
+ *     tags:
+ *       - Answer
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: 回答内容
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 图片列表
+ *               audioUrl:
+ *                 type: string
+ *                 description: 音频URL
+ *               audioUrls:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 音频列表
+ *     responses:
+ *       201:
+ *         description: 回答创建成功
+ */
 questionRouter.post(
   '/:questionId/answers',
   authMiddleware,
@@ -470,7 +774,27 @@ questionRouter.post(
   }
 );
 
-// 删除问题
+/**
+ * @swagger
+ * /questions/{id}:
+ *   delete:
+ *     summary: 删除问题
+ *     description: 删除指定问题，仅限作者本人或管理员
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ */
 questionRouter.delete(
   '/:id',
   authMiddleware,
@@ -494,7 +818,27 @@ questionRouter.delete(
   }
 );
 
-// 查询问题详情
+/**
+ * @swagger
+ * /questions/{id}:
+ *   get:
+ *     summary: 获取问题详情
+ *     description: 获取指定问题的详细信息，包括点赞、收藏、理解状态等
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 问题ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 questionRouter.get(
   '/:id',
   authMiddleware,

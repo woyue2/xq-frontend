@@ -11,7 +11,30 @@ export const profileRouter = Router();
 
 profileRouter.use(authMiddleware);
 
-// 获取我的回答列表（教师为主，其他角色返回自己的回答）
+/**
+ * @swagger
+ * /profile/my-answers:
+ *   get:
+ *     summary: 获取我的回答列表
+ *     description: 获取当前用户回答列表（教师为主，其他角色返回自己的回答）
+ *     tags:
+ *       - Profile
+ *       - Answer
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
 profileRouter.get(
   '/my-answers',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

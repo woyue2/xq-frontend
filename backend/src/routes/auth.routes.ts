@@ -8,6 +8,59 @@ import {
 
 export const authRouter = Router();
 
+/**
+ * @swagger
+ * /auth/send-code:
+ *   post:
+ *     summary: 发送验证码
+ *     description: 向指定手机号发送登录验证码，支持登录、注册、绑定三种类型
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 手机号
+ *                 example: "13800138000"
+ *               type:
+ *                 type: string
+ *                 enum: [login, register, bind]
+ *                 description: 验证码类型
+ *                 default: login
+ *                 example: "login"
+ *     responses:
+ *       200:
+ *         description: 验证码发送成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "验证码已发送"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     expireIn:
+ *                       type: number
+ *                       description: 验证码有效期（秒）
+ *                     cooldown:
+ *                       type: number
+ *                       description: 发送间隔（秒）
+ *                 timestamp:
+ *                   type: number
+ */
 authRouter.post(
   '/send-code',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -26,6 +79,57 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: 验证码登录
+ *     description: 使用手机号和验证码登录，获取 JWT Token
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *               - code
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 手机号
+ *                 example: "13800138000"
+ *               code:
+ *                 type: string
+ *                 description: 验证码
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: number
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "登录成功"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                       description: JWT Token
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                 timestamp:
+ *                   type: number
+ */
 authRouter.post(
   '/login',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -44,6 +148,34 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/password-login:
+ *   post:
+ *     summary: 密码登录
+ *     description: 使用手机号和密码登录（需要先设置密码）
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *               - password
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 手机号
+ *               password:
+ *                 type: string
+ *                 description: 密码
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ */
 authRouter.post(
   '/password-login',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -65,6 +197,56 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: 用户注册
+ *     description: 使用手机号和验证码注册新用户
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *               - code
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 手机号
+ *               code:
+ *                 type: string
+ *                 description: 验证码
+ *               name:
+ *                 type: string
+ *                 description: 真实姓名
+ *               nickname:
+ *                 type: string
+ *                 description: 昵称
+ *               grade:
+ *                 type: string
+ *                 description: 年级
+ *               age:
+ *                 type: number
+ *                 description: 年龄
+ *               school:
+ *                 type: string
+ *                 description: 学校
+ *               role:
+ *                 type: string
+ *                 enum: [student, teacher, parent]
+ *                 description: 角色
+ *               password:
+ *                 type: string
+ *                 description: 密码（可选）
+ *     responses:
+ *       201:
+ *         description: 注册成功
+ */
 authRouter.post(
   '/register',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -103,6 +285,20 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/refresh-token:
+ *   post:
+ *     summary: 刷新 Token
+ *     description: 使用当前 Token 刷新获取新的 JWT Token
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token 刷新成功
+ */
 authRouter.post(
   '/refresh-token',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -125,6 +321,20 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: 退出登录
+ *     description: 使当前 Token 失效
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 退出成功
+ */
 authRouter.post(
   '/logout',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -146,6 +356,27 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: 获取当前用户信息
+ *     description: 根据 Token 获取当前登录用户的详细信息
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ */
 authRouter.get(
   '/me',
   authMiddleware,
@@ -164,6 +395,32 @@ authRouter.get(
   }
 );
 
+/**
+ * @swagger
+ * /auth/set-password:
+ *   post:
+ *     summary: 设置密码
+ *     description: 为已登录用户设置或修改密码
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPassword
+ *             properties:
+ *               newPassword:
+ *                 type: string
+ *                 description: 新密码
+ *     responses:
+ *       200:
+ *         description: 密码设置成功
+ */
 authRouter.post(
   '/set-password',
   authMiddleware,
@@ -182,6 +439,38 @@ authRouter.post(
   }
 );
 
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: 重置密码
+ *     description: 通过手机验证码重置密码
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *               - code
+ *               - newPassword
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 手机号
+ *               code:
+ *                 type: string
+ *                 description: 验证码
+ *               newPassword:
+ *                 type: string
+ *                 description: 新密码
+ *     responses:
+ *       200:
+ *         description: 密码重置成功
+ */
 authRouter.post(
   '/reset-password',
   async (req: Request, res: Response, next: NextFunction) => {

@@ -13,7 +13,35 @@ const METADATA_MAX_BYTES = 2 * 1024; // 单次 metadata 最大大小（约 2KB�
 
 export const behaviorRouter = Router();
 
-// 单条行为日志上报
+/**
+ * @swagger
+ * /behavior/log:
+ *   post:
+ *     summary: 单条行为日志上报
+ *     description: 上报单条用户行为日志，支持用户身份识别和简易防刷
+ *     tags:
+ *       - Behavior
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 description: 行为类型（1-50字符）
+ *               timestamp:
+ *                 type: number
+ *                 description: 行为发生时间戳
+ *               metadata:
+ *                 type: object
+ *                 description: 行为元数据（JSON对象，单次最大2KB）
+ *     responses:
+ *       200:
+ *         description: 上报成功
+ */
 behaviorRouter.post(
   '/log',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -115,7 +143,43 @@ behaviorRouter.post(
   }
 );
 
-// 批量行为日志上报
+/**
+ * @swagger
+ * /behavior/log/batch:
+ *   post:
+ *     summary: 批量行为日志上报
+ *     description: 批量上报多条用户行为日志，支持部分成功原则
+ *     tags:
+ *       - Behavior
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [events]
+ *             properties:
+ *               events:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       description: 行为类型
+ *                     timestamp:
+ *                       type: number
+ *                       description: 行为时间戳
+ *                     metadata:
+ *                       type: object
+ *                       description: 元数据
+ *                     sessionId:
+ *                       type: string
+ *                       description: 会话ID
+ *     responses:
+ *       200:
+ *         description: 上报完成
+ */
 behaviorRouter.post(
   '/log/batch',
   async (req: Request, res: Response, next: NextFunction) => {

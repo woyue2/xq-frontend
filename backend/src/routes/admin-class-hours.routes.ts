@@ -19,6 +19,28 @@ adminClassHoursRouter.use(
   })
 );
 
+/**
+ * @swagger
+ * /admin/class-hours/{userId}:
+ *   get:
+ *     summary: 获取用户课时信息
+ *     description: 获取指定用户的课时使用情况
+ *     tags:
+ *       - Admin - ClassHours
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 用户ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
+
 adminClassHoursRouter.get(
   '/:userId',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -36,6 +58,41 @@ adminClassHoursRouter.get(
     }
   }
 );
+
+/**
+ * @swagger
+ * /admin/class-hours/batch-update:
+ *   patch:
+ *     summary: 批量更新用户课时
+ *     description: 为多个用户批量增加或减少课时
+ *     tags:
+ *       - Admin - ClassHours
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userIds, action, months]
+ *             properties:
+ *               userIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: 用户ID列表
+ *               action:
+ *                 type: string
+ *                 enum: [extend, reduce]
+ *                 description: 操作类型（增加/减少）
+ *               months:
+ *                 type: integer
+ *                 description: 月数
+ *     responses:
+ *       200:
+ *         description: 批量更新成功
+ */
 
 adminClassHoursRouter.patch(
   '/batch-update',
