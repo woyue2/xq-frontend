@@ -9,7 +9,7 @@
 
 | 文件路径 | 行号 | 命中类别 | 原始片段 | 风险 | 建议迁移位置 | 建议配置名 |
 |---------|------|---------|---------|------|------------|-----------|
-| src/services/api.ts | 9 | URL/域名 | `const API_BASE = "http://localhost:3000/api"` | P0 | env | VITE_API_BASE_URL |
+| src/services/api.ts | 9 | URL/域名 | `const API_BASE = "http://localhost:4000/api"` | P0 | env | VITE_API_BASE_URL |
 | src/services/api.ts | 25 | URL/域名 | `wsEndpoint: "ws://localhost:3000"` | P0 | env | VITE_WS_ENDPOINT |
 | src/lib/permissions.ts | 12 | localhost | `return url.startsWith('http://localhost')` | P1 | env | VITE_DEV_ORIGIN |
 | src/pages/QuestionDetail.tsx | 45 | localhost | `window.location.origin !== 'http://localhost:5173'` | P1 | env | VITE_DEV_ORIGIN |
@@ -94,7 +94,7 @@
 | env变量名 | 类型 | 默认值 | 影响模块 | 当前状态 |
 |----------|------|--------|---------|---------|
 | **前端环境变量** |
-| VITE_API_BASE_URL | string | "http://localhost:3000/api" | src/services/api.ts | ❌ 硬编码 |
+| VITE_API_BASE_URL | string | "http://localhost:4000/api" | src/services/api.ts | ❌ 硬编码 |
 | VITE_WS_ENDPOINT | string | "ws://localhost:3000" | src/services/api.ts | ❌ 硬编码 |
 | VITE_API_TIMEOUT | number | 10000 | src/services/api.ts | ❌ 硬编码 |
 | VITE_IS_DEV | boolean | auto-detect | src/services/api.ts | ❌ 硬编码 |

@@ -69,7 +69,7 @@ jobs:
         run: |
           chmod +x scripts/perf-smoke.sh
           # 仅在 CI 中做短时间 perf 冒烟，失败不阻塞主流程
-          BACKEND_URL="http://localhost:3000" \
+          BACKEND_URL="http://localhost:4000" \
           BACKEND_SMOKE_TEACHER_TOKEN="" \
           scripts/perf-smoke.sh || echo "perf smoke failed (ignored in CI)"
 

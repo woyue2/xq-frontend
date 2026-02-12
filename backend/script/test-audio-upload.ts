@@ -71,7 +71,7 @@ const testAudioUpload = async () => {
   try {
     // 注意：这里使用本地服务器地址
     // 实际使用时需要确保后端服务正在运行
-    const response = await axios.post('http://localhost:3000/api/upload/audio', formData, {
+    const response = await axios.post('http://localhost:4000/api/upload/audio', formData, {
       headers: {
         ...formData.getHeaders(),
         // 注意：这里需要添加认证token
@@ -138,7 +138,7 @@ const testAudioUpload = async () => {
       }
     } else if (error.code === 'ECONNREFUSED') {
       console.log('  原因: 无法连接到后端服务器');
-      console.log('  解决: 确保后端服务正在运行 (http://localhost:3000)');
+      console.log('  解决: 确保后端服务正在运行 (http://localhost:4000)');
     } else {
       console.log('  原因: 未知错误');
       console.log(`  详情: ${error.message}`);

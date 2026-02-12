@@ -142,7 +142,7 @@
   - 审核 Worker 示例：`deploy/ai-audit-worker.ts`
   - 审核配置：`backend/src/config/ai-audit.ts`
 - 关键环境变量（可在根目录 `.env` 或运行命令时设置）：
-  - `BACKEND_BASE_URL`：当前后端地址（例如 `http://localhost:3000`）
+  - `BACKEND_BASE_URL`：当前后端地址（例如 `http://localhost:4000`）
   - `AI_AUDIT_BASE_URL`：你的审核服务 base_url（例如 `https://audit.example.com/api`）
   - 可选：`AI_AUDIT_PROMPT`：自定义审核提示词（不设置则使用脚本内默认中文提示词）
 
@@ -254,7 +254,7 @@
 1. **一次性手动运行（调试用）**
    ```bash
    # 在项目根目录
-   BACKEND_BASE_URL="http://localhost:3000" \
+   BACKEND_BASE_URL="http://localhost:4000" \
    AI_AUDIT_BASE_URL="https://your-audit-service/api" \
    npx tsx deploy/ai-audit-worker.ts
    ```

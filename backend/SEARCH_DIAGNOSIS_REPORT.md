@@ -188,7 +188,7 @@ import { prisma } from './src/config/database';
 "
 
 # 2. 测试包含所有状态的搜索
-curl "http://localhost:3000/api/questions?search=关键词&status="
+curl "http://localhost:4000/api/questions?search=关键词&status="
 ```
 
 **解决方案**：
@@ -286,7 +286,7 @@ import { prisma } from './src/config/database';
 
 ```bash
 # 检查后端版本
-curl http://localhost:3000/api/health
+curl http://localhost:4000/api/health
 
 # 检查进程
 ps aux | grep node
@@ -308,7 +308,7 @@ cd backend
 npm run dev  # 启动后端
 
 # 在另一个终端
-curl "http://localhost:3000/api/questions?search=勾股定理&page=1&pageSize=10"
+curl "http://localhost:4000/api/questions?search=勾股定理&page=1&pageSize=10"
 ```
 
 ### 步骤2：检查浏览器请求
