@@ -24,13 +24,30 @@ export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
  *
  * 约定：
  * - 老师（teacher）：永远视为有效会员，用于解锁管理与审核能力；
- * - 学生（student）：根据 expiresAt 判断是否在有效期内；
+ * - 学生（student）：优先使用 classHours（与后端课时状态一致），fallback 到 expiresAt；
  * - 家长（parent）：当前产品形态下仅支持「查看」，不参与课时计费，统一视为非有效会员。
  */
 export function isMemberActive(user?: User | null): boolean {
     if (!user) return false;
     if (user.role === 'teacher') return true;
     if (user.role === 'parent') return false;
+
+    // 与后端课时判定对齐：优先使用 classHours，避免前后端依据不同字段导致按钮误隐藏。
+    if (user.classHours) {
+        if (typeof user.classHours.isExpired === 'boolean') {
+            return !user.classHours.isExpired;
+        }
+        if (user.classHours.status === 'active') return true;
+        if (user.classHours.status === 'expired') return false;
+
+        // 兜底：历史数据可能缺少 status/isExpired 时，尝试使用 validUntil。
+        if (user.classHours.validUntil) {
+            const now = new Date();
+            const validUntil = new Date(user.classHours.validUntil);
+            return validUntil > now;
+        }
+    }
+
     if (!user.expiresAt) return false; // 如果没设置有效期，视为无效（严格模式）
 
     const now = new Date();
