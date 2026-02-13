@@ -37,7 +37,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
     toastErrorMock.mockReset();
   });
 
-  const renderWithUser = (user: any) => {
+  const renderWithUser = (user: any, view: 'pending' | 'answered' = 'pending') => {
     useAuthStoreMock.mockReturnValue({
       user,
       token: user ? 'fake-token' : null,
@@ -55,7 +55,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
         <Routes>
           <Route path="/login" element={<div data-testid="login-page">Login</div>} />
           <Route path="/profile" element={<div data-testid="profile-page">Profile</div>} />
-          <Route path="/my-answers" element={<MyAnswersPage />} />
+          <Route path="/my-answers" element={<MyAnswersPage view={view} />} />
         </Routes>
       </MemoryRouter>
     );
@@ -112,10 +112,10 @@ describe('MyAnswersPage permissions & boundaries', () => {
       id: 'u-teacher',
       role: 'teacher',
       nickname: '老师用户',
-    });
+    }, 'answered');
 
     await waitFor(() => {
-      expect(screen.getByText('我的回答')).toBeInTheDocument();
+      expect(screen.getByText('已回答')).toBeInTheDocument();
       expect(screen.getByText('示例问题标题')).toBeInTheDocument();
       expect(screen.getByText('示例回答内容')).toBeInTheDocument();
     });

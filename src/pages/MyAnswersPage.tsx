@@ -7,7 +7,11 @@ import type { MyAnswerSummary } from '@/types/api';
 import { profileService } from '@/services/api';
 import { toast } from 'sonner';
 
-export function MyAnswersPage() {
+type MyAnswersPageProps = {
+    view?: 'pending' | 'answered';
+};
+
+export function MyAnswersPage({ view = 'pending' }: MyAnswersPageProps) {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const [myAnswers, setMyAnswers] = useState<MyAnswerSummary[]>([]);
@@ -56,18 +60,30 @@ export function MyAnswersPage() {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
+    // 修改原因：基于路由页面类型（待回答/已回答）做最小过滤，不改后端接口。
+    const filteredAnswers = myAnswers.filter((answer) => {
+        if (view === 'answered') {
+            return answer.status === 'approved';
+        }
+        // ⚠️ 不确定因素：当前“待回答”口径按“非 approved”处理（含 pending/rejected）；
+        // 若后续产品定义为“仅 pending”，可在此改为 answer.status === 'pending'。
+        return answer.status !== 'approved';
+    });
+
+    const pageTitle = view === 'answered' ? '已回答' : '待回答';
+
     return (
         <div className="flex flex-col pb-10">
             {/* Header statistics */}
             <div className="bg-white rounded-3xl p-6 mb-4 shadow-sm">
                 <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                        <div className="text-2xl font-bold text-gray-800">{myAnswers.length}</div>
-                        <div className="text-sm text-gray-500 mt-1">我的回答</div>
+                        <div className="text-2xl font-bold text-gray-800">{filteredAnswers.length}</div>
+                        <div className="text-sm text-gray-500 mt-1">{pageTitle}</div>
                     </div>
                     <div>
                         <div className="text-2xl font-bold text-green-600">
-                            {myAnswers.reduce((sum, a) => sum + (a.likes || 0), 0)}
+                            {filteredAnswers.reduce((sum, a) => sum + (a.likes || 0), 0)}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">获赞总数</div>
                     </div>
@@ -79,10 +95,12 @@ export function MyAnswersPage() {
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
                     <div className="animate-pulse text-gray-400">加载中...</div>
                 </div>
-            ) : myAnswers.length === 0 ? (
+            ) : filteredAnswers.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
                     <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-400">还没有回答过问题哦</p>
+                    <p className="text-gray-400">
+                        {view === 'answered' ? '还没有已回答记录哦' : '暂无待回答记录'}
+                    </p>
                     <button
                         onClick={() => navigate('/')}
                         className="mt-6 px-6 py-2 bg-morandi-5 text-white rounded-full hover:bg-morandi-5/90 transition"
@@ -92,7 +110,7 @@ export function MyAnswersPage() {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {myAnswers.map((answer) => (
+                    {filteredAnswers.map((answer) => (
                         <div
                             key={answer.id}
                             onClick={() => navigate(`/question/${answer.questionId}`)}

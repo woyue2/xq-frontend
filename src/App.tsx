@@ -86,7 +86,10 @@ export function App() {
               <Route path="/my-questions" element={<MyQuestionsPage />} />
               <Route path="/my-questions/status/:status" element={<StatusListPage />} />
               <Route path="/good-questions" element={<GoodQuestionsPage />} />
-              <Route path="/my-answers" element={<MyAnswersPage />} />
+              {/* 修改原因：老师“我的回答”拆分为两个页面，并保留旧路由兼容。 */}
+              <Route path="/my-answers" element={<Navigate to="/my-answers/pending" replace />} />
+              <Route path="/my-answers/pending" element={<MyAnswersPage view="pending" />} />
+              <Route path="/my-answers/answered" element={<MyAnswersPage view="answered" />} />
               <Route path="/my-favorites" element={<MyFavoritesPage />} />
               <Route path="/my-likes" element={<MyLikesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
