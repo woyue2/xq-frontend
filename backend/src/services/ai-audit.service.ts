@@ -425,7 +425,13 @@ export class AiAuditService {
                     { feature: 'ai-audit', response },
                     'Failed to extract JSON from AI response'
                 );
-                return { safe: true, quality: { clear: true } };
+                // 修改原因：解析失败属于不可判定状态，避免误放行，统一转人工复核。
+                return {
+                    safe: false,
+                    requiresManualReview: true,
+                    reason: 'AI审核结果解析失败，已转人工复核',
+                    quality: { clear: true }
+                };
             }
 
             const parsed = JSON.parse(jsonMatch[0]);
@@ -444,7 +450,13 @@ export class AiAuditService {
                 { feature: 'ai-audit', response, error },
                 'Failed to parse AI audit response'
             );
-            return { safe: true, quality: { clear: true } };
+            // 修改原因：JSON 解析异常不再默认通过，改为人工复核，降低漏审风险。
+            return {
+                safe: false,
+                requiresManualReview: true,
+                reason: 'AI审核结果解析异常，已转人工复核',
+                quality: { clear: true }
+            };
         }
     }
 
@@ -459,7 +471,12 @@ export class AiAuditService {
                     { feature: 'ai-audit-image', response },
                     'Failed to extract JSON from image audit response'
                 );
-                return { safe: true };
+                // 修改原因：图片审核解析失败时不再默认安全，转人工复核。
+                return {
+                    safe: false,
+                    requiresManualReview: true,
+                    reason: '图片审核结果解析失败，已转人工复核'
+                };
             }
 
             const parsed = JSON.parse(jsonMatch[0]);
@@ -476,7 +493,12 @@ export class AiAuditService {
                 { feature: 'ai-audit-image', response, error },
                 'Failed to parse image audit response'
             );
-            return { safe: true };
+            // 修改原因：图片审核 JSON 解析异常时转人工复核，避免误放行。
+            return {
+                safe: false,
+                requiresManualReview: true,
+                reason: '图片审核结果解析异常，已转人工复核'
+            };
         }
     }
 

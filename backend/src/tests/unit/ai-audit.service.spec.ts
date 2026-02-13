@@ -95,5 +95,26 @@ describe('AiAuditService retry strategy', () => {
     expect(result.safe).toBe(true);
     expect(result.requiresManualReview).toBeUndefined();
   });
-});
 
+  it('should fallback to manual review when image audit response is not valid JSON', async () => {
+    const service = new AiAuditService() as any;
+    service.enabled = true;
+    service.baseUrl = 'http://mock-ai-audit.test';
+    service.apiKey = 'mock-key';
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'not-a-json-response' } }]
+      })
+    });
+
+    global.fetch = fetchMock as any;
+
+    const result = await service.auditImage('https://example.com/unsafe.png');
+
+    // 修改原因：解析失败不再默认通过，必须走人工复核。
+    expect(result.safe).toBe(false);
+    expect(result.requiresManualReview).toBe(true);
+  });
+});
