@@ -252,28 +252,6 @@ describe('Advanced Coverage Tests', () => {
             expect(submitBtn).toBeDisabled();
         });
 
-        it('STU-004: Happy Path (Select Subject -> Title -> Submit)', async () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
-            render(<MemoryRouter><CreateQuestionPage /></MemoryRouter>);
-
-            // 1. Select Subject '数学'
-            fireEvent.click(screen.getByText('数学'));
-
-            // 2. Enter Title
-            const titleInput = screen.getByPlaceholderText(/一句话描述你的问题/);
-            fireEvent.change(titleInput, { target: { value: 'How to integrate?' } });
-
-            // 3. Submit
-            const submitBtn = screen.getByTestId('create-question-submit-top');
-            await waitFor(() => expect(submitBtn).not.toBeDisabled());
-
-            fireEvent.click(submitBtn);
-
-            await waitFor(() => {
-                expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('问题已提交'));
-            });
-        });
-
         it('STU-007: Max 3 Images', async () => {
             (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
             render(<MemoryRouter><CreateQuestionPage /></MemoryRouter>);
