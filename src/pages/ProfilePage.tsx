@@ -1,7 +1,6 @@
 import { ArrowLeft, ChatCentered, PencilSimple, CaretRight, SignOut, ShieldCheck, Camera, Check, Users, Pencil, SpinnerGap, Baby, Phone, Plus, Key } from '@phosphor-icons/react';
-// 修改原因：按需求保持点赞/收藏图标为原始样式，并为“我的提问”使用更直观的问题图标。
-// ⚠️ 不确定因素：这里将“原来的图标”解释为 lucide-react 的视觉样式。
-import { Heart, Star, MessageSquare } from 'lucide-react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，并为"我的提问"使用与 MyQuestionsPage 一致的 ChatCentered 图标。
+import { Heart, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -497,8 +496,8 @@ const handleGetBindCode = async () => {
       onClick: () => navigate('/my-favorites'),
     },
     {
-      // 修改原因：为“我的提问”分配独立问题语义图标，避免与“待回答”入口图标重复。
-      icon: MessageSquare,
+      // 修改原因：为"我的提问"分配独立问题语义图标，避免与"待回答"入口图标重复。
+      icon: ChatCentered,
       label: '我的提问',
       color: 'text-blue-500',
       visible: currentUser.role === 'student' || currentUser.role === 'teacher',
@@ -646,7 +645,11 @@ const handleGetBindCode = async () => {
                   data-testid={`menu-item-${item.label.replace(/\s/g, '-')}`}
                   className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-b-0 active:scale-[0.98]"
                 >
-                  <div className={`p-2 rounded-2xl bg-opacity-10 ${item.color.replace('text', 'bg')}`}>
+                  <div
+                    // 修改原因：Tailwind v4 下 bg-opacity-* 对该动态类不稳定，改为 bg-*/10 语法，避免“我的点赞”图标被同色实底淹没。
+                    // ⚠️ 不确定因素：该色值由字符串替换生成；若后续 color 字段改成非 text-* 形式，这里需同步调整映射规则。
+                    className={`p-2 rounded-2xl ${item.color.replace('text-', 'bg-')}/10`}
+                  >
                     <item.icon className={`w-5 h-5 ${item.color}`} />
                   </div>
                   <span className="flex-1 text-left font-medium text-gray-700">{item.label}</span>
