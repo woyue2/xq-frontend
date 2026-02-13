@@ -31,6 +31,7 @@ import type {
     MyLikedQuestion,
     MyFavoritedQuestion,
     MyAnswerSummary,
+    MyAnswerTodoQuestion,
     UpdateProfilePayload,
     RegisterPayload,
     QuestionDimensionDto,
@@ -69,8 +70,61 @@ export const api = axios.create({
     },
 });
 
+type UploadFeedbackKind = 'image' | 'audio';
+
+const uploadFeedbackCounter: Record<UploadFeedbackKind, number> = {
+    image: 0,
+    audio: 0,
+};
+
+const uploadFeedbackMeta: Record<
+    UploadFeedbackKind,
+    { id: string; text: string }
+> = {
+    image: { id: 'global-upload-image', text: '图片上传中...' },
+    audio: { id: 'global-upload-audio', text: '音频上传中...' },
+};
+
+const beginUploadFeedback = (kind: UploadFeedbackKind) => {
+    // 修改原因：统一上传过程提示入口，避免各页面遗漏“进行中”反馈。
+    const next = uploadFeedbackCounter[kind] + 1;
+    uploadFeedbackCounter[kind] = next;
+
+    if (next === 1) {
+        const { id, text } = uploadFeedbackMeta[kind];
+        toast.loading(text, { id });
+    }
+};
+
+const endUploadFeedback = (kind: UploadFeedbackKind) => {
+    // 修改原因：统一上传结束收敛，确保失败/成功都能关闭“上传中”提示。
+    const next = Math.max(0, uploadFeedbackCounter[kind] - 1);
+    uploadFeedbackCounter[kind] = next;
+
+    if (next === 0) {
+        const { id } = uploadFeedbackMeta[kind];
+        toast.dismiss(id);
+    }
+};
+
+// ⚠️ 不确定因素：仅覆盖走 questionService.uploadImage/uploadAudio 的上传路径；
+// 若页面直接 fetch 第三方上传地址（绕过 service），需在对应页面单独补齐反馈。
+
 // Request Interceptor: Token Injection + Headers
 api.interceptors.request.use((config) => {
+    // 修改原因：上传 FormData 时不应沿用默认 application/json，需让浏览器自动附带 multipart boundary。
+    const isFormDataPayload =
+        typeof FormData !== 'undefined' && config.data instanceof FormData;
+    if (isFormDataPayload) {
+        // ⚠️ 不确定因素：不同运行环境（浏览器/WebView）对 header 合并策略存在差异，
+        // 这里同时 delete + undefined 以最大化避免错误 Content-Type 被发送。
+        if (!config.headers) {
+            config.headers = {} as any;
+        }
+        delete (config.headers as any)['Content-Type'];
+        (config.headers as any)['Content-Type'] = undefined;
+    }
+
     // 1) 首选：直接从 Zustand Store 取
     const { token } = useAuthStore.getState();
     let authToken: string | null = token ?? null;
@@ -724,151 +778,189 @@ export const questionService = {
         return data.data;
     },
     uploadAudio: async (blob: Blob) => {
-        // 真实环境下：音频直接上传到后端本地存储，由后端返回 /static/audio/... 可播放 URL
-        const file = blob instanceof File
-            ? blob
-            : new File([blob], `answer-audio-${Date.now()}.webm`, {
-                type: blob.type || 'audio/webm'
-            });
+        beginUploadFeedback('audio');
+        try {
+            // 真实环境下：音频直接上传到后端本地存储，由后端返回 /static/audio/... 可播放 URL
+            const file = blob instanceof File
+                ? blob
+                : new File([blob], `answer-audio-${Date.now()}.webm`, {
+                    type: blob.type || 'audio/webm'
+                });
 
-        const formData = new FormData();
-        formData.append('file', file);
+            const formData = new FormData();
+            formData.append('file', file);
 
-        // 使用带有 Authorization 注入的 axios 实例，避免 401 问题
-        const { data } = await api.post<
-            ApiResponse<{
-                audioUrl: string;
-            }>
-        >('/upload/audio', formData);
+            // 使用带有 Authorization 注入的 axios 实例，避免 401 问题
+            const { data } = await api.post<
+                ApiResponse<{
+                    audioUrl: string;
+                }>
+            >('/upload/audio', formData);
 
-        const audioUrl =
-            (data.data && typeof data.data.audioUrl === 'string'
-                ? data.data.audioUrl
-                : undefined) ?? undefined;
+            const audioUrl =
+                (data.data && typeof data.data.audioUrl === 'string'
+                    ? data.data.audioUrl
+                    : undefined) ?? undefined;
 
-        if (!audioUrl) {
-            throw new Error('音频上传失败，请稍后重试');
+            if (!audioUrl) {
+                throw new Error('音频上传失败，请稍后重试');
+            }
+
+            return { audioUrl };
+        } finally {
+            endUploadFeedback('audio');
         }
-
-        return { audioUrl };
     },
     uploadImage: async (file: File, context?: UploadImageContext) => {
-        // 1. 前置：压缩图片并统一转为 JPG，控制在 1MB 以内
-        const compressed = await compressImage(file, {
-            maxWidth: 1600,
-            maxHeight: 1600,
-            maxSizeKB: 1024,
-            initialQuality: 0.85,
-            minQuality: 0.6,
-        });
-
-        // 基于业务上下文重命名文件，以便在图床或日志中更好识别
-        let finalFile: File = compressed;
-        const customName = buildUploadFileName(context);
-        if (customName) {
-            finalFile = new File([compressed], customName, { type: compressed.type });
-        }
-
-        // 2. 向后端请求上传签名
-        const { data } = await api.get<
-            ApiResponse<{
-                uploadUrl: string;
-                key: string;
-                policy: string;
-                signature: string;
-                expireAt: number;
-            }>
-        >('/upload/signature', { params: { type: 'image' } });
-
-        const { uploadUrl, key } = data.data;
-
-        // 在 MOCK 模式下，仅基于签名构造稳定的图片 URL，避免真实网络请求
-        if (USE_MOCK) {
-            const base = uploadUrl.split('?')[0].replace(/\/upload$/, '');
-            const imageUrl = `${base}/${key}`;
-            return { imageUrl };
-        }
-
-        // 3. 使用表单直传到 ImgURL 图床（或兼容的直传服务）
-        //    - 后端通过 OSS_UPLOAD_BASE_URL 提供 uploadUrl（可能附带 ?token=sk-xxx）
-        //    - 这里解析出基础地址与 token，并按官方文档使用 Authorization 头上传
-        let targetUrl = uploadUrl;
-        let authHeader: string | undefined;
+        beginUploadFeedback('image');
         try {
-            const parsed = new URL(uploadUrl);
-            targetUrl = `${parsed.origin}${parsed.pathname}`;
-            const tokenFromQuery = parsed.searchParams.get('token');
-            if (tokenFromQuery) {
-                authHeader = tokenFromQuery.toLowerCase().startsWith('bearer ')
-                    ? tokenFromQuery
-                    : `Bearer ${tokenFromQuery}`;
+            // 1. 前置：压缩图片并统一转为 JPG，控制在 1MB 以内
+            const compressed = await compressImage(file, {
+                maxWidth: 1600,
+                maxHeight: 1600,
+                maxSizeKB: 1024,
+                initialQuality: 0.85,
+                minQuality: 0.6,
+            });
+
+            // 基于业务上下文重命名文件，以便在图床或日志中更好识别
+            let finalFile: File = compressed;
+            const customName = buildUploadFileName(context);
+            if (customName) {
+                finalFile = new File([compressed], customName, { type: compressed.type });
             }
-        } catch {
-            // 如果 URL 解析失败，则直接使用原始 uploadUrl，并不附加 Authorization 头
-        }
 
-        const formData = new FormData();
-        formData.append('file', finalFile);
+            // 2. 向后端请求上传签名
+            const { data } = await api.get<
+                ApiResponse<{
+                    uploadUrl: string;
+                    key: string;
+                    policy: string;
+                    signature: string;
+                    expireAt: number;
+                }>
+            >('/upload/signature', { params: { type: 'image' } });
 
-        const response = await fetch(targetUrl, {
-            method: 'POST',
-            headers: authHeader ? { Authorization: authHeader } : undefined,
-            body: formData,
-        });
+            const { uploadUrl, key } = data.data;
 
-        if (!response.ok) {
-            throw new Error('图片上传失败，请稍后重试');
-        }
+            // 在 MOCK 模式下，仅基于签名构造稳定的图片 URL，避免真实网络请求
+            if (USE_MOCK) {
+                const base = uploadUrl.split('?')[0].replace(/\/upload$/, '');
+                const imageUrl = `${base}/${key}`;
+                return { imageUrl };
+            }
 
-        // 4. 优先使用图床返回的真实 URL（兼容多种字段与结构）
-        let imageUrl: string | undefined;
-        try {
-            const json: any = await response.json();
-            if (json && typeof json === 'object') {
-                // 常见字段约定：data.url 或顶层 url
-                if (json.data && typeof json.data.url === 'string') {
-                    imageUrl = json.data.url;
-                } else if (typeof json.url === 'string') {
-                    imageUrl = json.url;
-                } else {
-                    // 兼容 ImgURL 等第三方：在响应体中递归查找第一个看起来像图片地址的字段
-                    const collectFirstUrl = (value: any): string | undefined => {
-                        if (!value) return undefined;
-                        if (typeof value === 'string') {
-                            const str = value.trim();
-                            if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str)) {
-                                return str;
-                            }
-                            return undefined;
-                        }
-                        if (Array.isArray(value)) {
-                            for (const item of value) {
-                                const found = collectFirstUrl(item);
-                                if (found) return found;
-                            }
-                            return undefined;
-                        }
-                        if (typeof value === 'object') {
-                            for (const key of Object.keys(value)) {
-                                const found = collectFirstUrl((value as any)[key]);
-                                if (found) return found;
-                            }
-                        }
-                        return undefined;
-                    };
-                    imageUrl = collectFirstUrl(json);
+            // 3. 使用表单直传到 ImgURL 图床（或兼容的直传服务）
+            //    - 后端通过 OSS_UPLOAD_BASE_URL 提供 uploadUrl（可能附带 ?token=sk-xxx）
+            //    - 这里解析出基础地址与 token，并按官方文档使用 Authorization 头上传
+            let targetUrl = uploadUrl;
+            let authHeader: string | undefined;
+            try {
+                const parsed = new URL(uploadUrl);
+                targetUrl = `${parsed.origin}${parsed.pathname}`;
+                const tokenFromQuery = parsed.searchParams.get('token');
+                if (tokenFromQuery) {
+                    authHeader = tokenFromQuery.toLowerCase().startsWith('bearer ')
+                        ? tokenFromQuery
+                        : `Bearer ${tokenFromQuery}`;
                 }
+            } catch {
+                // 如果 URL 解析失败，则直接使用原始 uploadUrl，并不附加 Authorization 头
             }
-        } catch {
-            // 忽略 JSON 解析失败，走后备方案
-        }
 
-        // 5. 如果图床未返回任何可用 URL，则视为上传失败，避免构造错误地址
-        if (!imageUrl) {
-            throw new Error('图床未返回图片 URL，请联系管理员检查配置');
-        }
+            const formData = new FormData();
+            formData.append('file', finalFile);
 
-        return { imageUrl };
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                headers: authHeader ? { Authorization: authHeader } : undefined,
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('图片上传失败，请稍后重试');
+            }
+
+            // 4. 优先使用图床返回的真实 URL（兼容多种字段与结构）
+            let imageUrl: string | undefined;
+            try {
+                const json: any = await response.json();
+                if (json && typeof json === 'object') {
+                    // 常见字段约定：data.url 或顶层 url
+                    if (json.data && typeof json.data.url === 'string') {
+                        imageUrl = json.data.url;
+                    } else if (typeof json.url === 'string') {
+                        imageUrl = json.url;
+                    } else {
+                        // 兼容 ImgURL 等第三方：在响应体中递归查找第一个看起来像图片地址的字段
+                        const collectFirstUrl = (value: any): string | undefined => {
+                            if (!value) return undefined;
+                            if (typeof value === 'string') {
+                                const str = value.trim();
+                                if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str)) {
+                                    return str;
+                                }
+                                return undefined;
+                            }
+                            if (Array.isArray(value)) {
+                                for (const item of value) {
+                                    const found = collectFirstUrl(item);
+                                    if (found) return found;
+                                }
+                                return undefined;
+                            }
+                            if (typeof value === 'object') {
+                                for (const key of Object.keys(value)) {
+                                    const found = collectFirstUrl((value as any)[key]);
+                                    if (found) return found;
+                                }
+                            }
+                            return undefined;
+                        };
+                        imageUrl = collectFirstUrl(json);
+                    }
+                }
+            } catch {
+                // 忽略 JSON 解析失败，走后备方案
+            }
+
+            // 5. 如果图床未返回任何可用 URL，则视为上传失败，避免构造错误地址
+            if (!imageUrl) {
+                throw new Error('图床未返回图片 URL，请联系管理员检查配置');
+            }
+
+            // 修改原因：上传成功后立即执行图片审核；不通过的图片在提交前就拦截。
+            const auditResponse = await api.post<
+                ApiResponse<{
+                    safe: boolean;
+                    reason?: string;
+                    category?: string;
+                    requiresManualReview?: boolean;
+                }>
+            >('/upload/audit-image', { imageUrl });
+            const auditData = auditResponse.data.data;
+
+            if (!auditData.safe || auditData.requiresManualReview) {
+                // 修改原因：审核未通过（或需人工复核）时，立即删除已上传图片，避免违规图片继续留在图床。
+                const deleteResponse = await api.post<ApiResponse<{ removed: boolean }>>(
+                    '/upload/delete-image',
+                    { imageUrl }
+                );
+                // ⚠️ 不确定因素：部分第三方图床的删除协议与当前实现可能不一致，removed=false 时会有残留风险，需结合图床文档核对。
+                if (!deleteResponse.data.data.removed) {
+                    // eslint-disable-next-line no-console
+                    console.warn('[uploadImage] image audit failed but cleanup was not confirmed', {
+                        imageUrl,
+                        reason: auditData.reason
+                    });
+                }
+                throw new Error(auditData.reason || '图片审核未通过，已移除');
+            }
+
+            return { imageUrl };
+        } finally {
+            endUploadFeedback('image');
+        }
     }
 };
 
@@ -1263,9 +1355,88 @@ export const profileService = {
     },
     getMyAnswers: async (params?: { page?: number; pageSize?: number }) => {
         const { data } = await api.get<
-            ApiResponse<PaginatedResponse<MyAnswerSummary>>
+            ApiResponse<{
+                // 后端当前返回 items；保留 list 兼容历史响应格式
+                items?: MyAnswerSummary[];
+                list?: MyAnswerSummary[];
+                total?: number;
+                page?: number;
+                totalPages?: number;
+                pagination?: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
         >('/profile/my-answers', { params });
-        return data.data;
+
+        // 修改原因：兼容 /profile/my-answers 的 items/list 差异，统一给页面返回 list，避免 undefined.filter 崩溃。
+        const normalizedList = Array.isArray(data.data.items)
+            ? data.data.items
+            : Array.isArray(data.data.list)
+                ? data.data.list
+                : [];
+
+        const page = data.data.pagination?.page ?? data.data.page ?? 1;
+        const pageSize = data.data.pagination?.pageSize ?? (params?.pageSize ?? 20);
+        const total = data.data.pagination?.total ?? data.data.total ?? normalizedList.length;
+        const totalPages =
+            data.data.pagination?.totalPages ??
+            data.data.totalPages ??
+            Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+
+        return {
+            list: normalizedList,
+            pagination: {
+                page,
+                pageSize,
+                total,
+                totalPages
+            }
+        } as PaginatedResponse<MyAnswerSummary>;
+    },
+    getMyAnswerTodos: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<{
+                items?: MyAnswerTodoQuestion[];
+                list?: MyAnswerTodoQuestion[];
+                total?: number;
+                page?: number;
+                totalPages?: number;
+                pagination?: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
+        >('/profile/my-answer-todos', { params });
+
+        // 修改原因：与“我的回答”保持同样的 items/list 兼容处理，降低接口字段差异带来的页面崩溃风险。
+        const normalizedList = Array.isArray(data.data.items)
+            ? data.data.items
+            : Array.isArray(data.data.list)
+                ? data.data.list
+                : [];
+
+        const page = data.data.pagination?.page ?? data.data.page ?? 1;
+        const pageSize = data.data.pagination?.pageSize ?? (params?.pageSize ?? 20);
+        const total = data.data.pagination?.total ?? data.data.total ?? normalizedList.length;
+        const totalPages =
+            data.data.pagination?.totalPages ??
+            data.data.totalPages ??
+            Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+
+        return {
+            list: normalizedList,
+            pagination: {
+                page,
+                pageSize,
+                total,
+                totalPages
+            }
+        } as PaginatedResponse<MyAnswerTodoQuestion>;
     }
 };
 

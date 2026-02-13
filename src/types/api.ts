@@ -178,6 +178,17 @@ export interface MyAnswerSummary {
     createdAt: string;
 }
 
+export interface MyAnswerTodoQuestion {
+    id: string;
+    title: string;
+    content: string;
+    subject?: string;
+    difficulty?: string;
+    likes: number;
+    createdAt: string;
+    authorName: string;
+}
+
 // 更新用户信息参数
 export interface UpdateProfilePayload {
     name?: string;

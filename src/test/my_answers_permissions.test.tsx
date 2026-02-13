@@ -12,10 +12,12 @@ vi.mock('@/stores/useAuthStore', () => ({
 
 // Mock profileService，避免真实网络请求
 const getMyAnswersMock = vi.fn();
+const getMyAnswerTodosMock = vi.fn();
 
 vi.mock('@/services/api', () => ({
   profileService: {
     getMyAnswers: (...args: any[]) => getMyAnswersMock(...args),
+    getMyAnswerTodos: (...args: any[]) => getMyAnswerTodosMock(...args),
   },
 }));
 
@@ -34,6 +36,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
   beforeEach(() => {
     useAuthStoreMock.mockReset();
     getMyAnswersMock.mockReset();
+    getMyAnswerTodosMock.mockReset();
     toastErrorMock.mockReset();
   });
 
@@ -69,6 +72,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
     });
 
     expect(getMyAnswersMock).not.toHaveBeenCalled();
+    expect(getMyAnswerTodosMock).not.toHaveBeenCalled();
   });
 
   it('blocks non-teacher users and navigates back to profile', async () => {
@@ -83,6 +87,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
     });
 
     expect(getMyAnswersMock).not.toHaveBeenCalled();
+    expect(getMyAnswerTodosMock).not.toHaveBeenCalled();
     expect(toastErrorMock).toHaveBeenCalledWith('只有老师可以查看我的回答');
   });
 
@@ -108,6 +113,8 @@ describe('MyAnswersPage permissions & boundaries', () => {
       }
     });
 
+    getMyAnswerTodosMock.mockResolvedValue({ list: [], pagination: { total: 0, page: 1, pageSize: 10, totalPages: 1 } });
+
     renderWithUser({
       id: 'u-teacher',
       role: 'teacher',
@@ -121,6 +128,60 @@ describe('MyAnswersPage permissions & boundaries', () => {
     });
 
     expect(getMyAnswersMock).toHaveBeenCalled();
+  });
+
+  it('falls back to empty list when API payload has no list field', async () => {
+    getMyAnswerTodosMock.mockResolvedValue({});
+
+    renderWithUser(
+      {
+        id: 'u-teacher',
+        role: 'teacher',
+        nickname: '老师用户',
+      },
+      'pending'
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('暂无待回答问题')).toBeInTheDocument();
+    });
+  });
+
+  it('loads pending todo questions for teacher user in pending view', async () => {
+    const now = new Date().toISOString();
+    getMyAnswerTodosMock.mockResolvedValue({
+      list: [
+        {
+          id: 'q1',
+          title: '待作答问题标题',
+          content: '待作答问题内容',
+          likes: 2,
+          createdAt: now,
+          authorName: '学生A',
+        },
+      ],
+      pagination: {
+        total: 1,
+        page: 1,
+        pageSize: 10,
+        totalPages: 1,
+      },
+    });
+    getMyAnswersMock.mockResolvedValue({ list: [], pagination: { total: 0, page: 1, pageSize: 10, totalPages: 1 } });
+
+    renderWithUser(
+      {
+        id: 'u-teacher',
+        role: 'teacher',
+        nickname: '老师用户',
+      },
+      'pending'
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('待作答问题标题')).toBeInTheDocument();
+      expect(screen.getByText('待作答问题内容')).toBeInTheDocument();
+    });
   });
 });
 
