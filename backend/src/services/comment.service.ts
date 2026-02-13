@@ -46,7 +46,7 @@ export class CommentService {
       throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
     }
 
-    // AI 内容审核（仅对非老师用户）
+    // AI 内容审核（老师与非老师都需要经过 AI 审核）
     let auditResult: {
       safe: boolean;
       reason?: string;
@@ -60,7 +60,7 @@ export class CommentService {
     let initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
     let aiResultText = '无违规';
 
-    if (author.role !== 'teacher' && hasText) {
+    if (hasText) {
       const result = await aiAuditService.auditContent(content!, 'comment');
       auditResult = {
         safe: result.safe,
@@ -86,8 +86,8 @@ export class CommentService {
           category: result.category
         });
       } else {
-        // AI 审核通过，但仍需教师人工复核，故保持 pending
-        initialStatus = 'pending';
+        // 修改原因：老师评论也接入 AI 审核；AI 通过后老师维持自动通过，学生仍待人工复核。
+        initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
         aiResultText = JSON.stringify({ safe: true });
       }
     }
