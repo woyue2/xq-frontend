@@ -756,6 +756,85 @@ export const questionService = {
 
         return paginated;
     },
+    getGoodQuestions: async (params: Pick<QuestionListParams, 'page' | 'pageSize'> = {}) => {
+        // 修改原因：使用后端“好问题专用接口”，避免在前端基于通用列表做二次过滤造成空态误判。
+        const backendParams: any = {};
+        if (params.page !== undefined) backendParams.page = params.page;
+        if (params.pageSize !== undefined) backendParams.pageSize = params.pageSize;
+
+        const { data } = await api.get<
+            ApiResponse<{
+                list: BackendQuestionListItem[];
+                pagination: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
+        >('/questions/good', { params: backendParams });
+
+        const { list, pagination } = data.data;
+
+        const items: Question[] = list.map((q) => {
+            const likes = q.likes ?? 0;
+            const favorites = q.favorites ?? 0;
+            const comments = q.comments ?? 0;
+            const answers = q.answers ?? 0;
+
+            return {
+                id: q.id,
+                title: q.title,
+                content: q.content ?? '',
+                subject: (q.subject as SubjectType) ?? 'math',
+                tags: q.tags ?? [],
+                topics: [],
+                images: q.images ?? [],
+                audioUrl: undefined,
+                status: q.status as AuditStatus,
+                isPinned: q.isPinned,
+                isGoodQuestion: q.isGoodQuestion,
+                difficulty: (q.difficulty as DifficultyLevel) ?? undefined,
+                score: undefined,
+                aiResult: undefined,
+                understoodCount: typeof q.understoodCount === 'number' ? q.understoodCount : undefined,
+                notUnderstoodCount: typeof q.notUnderstoodCount === 'number' ? q.notUnderstoodCount : undefined,
+                understandingStatus: q.understandingStatus ?? null,
+                likes,
+                favorites,
+                comments,
+                answers,
+                stats: {
+                    likes,
+                    favorites,
+                    comments,
+                    answers,
+                    views: undefined
+                },
+                answerCount: answers,
+                viewCount: undefined,
+                likeCount: likes,
+                collectionCount: favorites,
+                authorId: q.authorId,
+                authorName: q.authorName,
+                authorAvatar: q.authorAvatar ?? undefined,
+                authorRole: undefined,
+                createdAt: q.createdAt,
+                isLiked: !!q.isLiked,
+                isFavorited: !!q.isFavorited
+            };
+        });
+
+        return {
+            list: items,
+            pagination: {
+                page: pagination.page,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                totalPages: pagination.totalPages
+            }
+        } as PaginatedResponse<Question>;
+    },
     getMyStatusCounts: async () => {
         // 修改原因：提供“我的提问”独立统计口径，避免前端仅基于当前分页列表统计造成偏差。
         const { data } = await api.get<ApiResponse<MyQuestionStatusStats>>('/questions/my-status-counts');
