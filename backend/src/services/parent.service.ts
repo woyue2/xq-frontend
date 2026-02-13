@@ -250,8 +250,42 @@ export class ParentService {
       })
     ]);
 
+    // 修改原因：家长侧问题列表也需要返回“当前家长本人”的点赞/收藏状态，
+    // 避免前端卡片刷新后出现固定空心态。
+    let likedQuestionIds = new Set<string>();
+    let favoritedQuestionIds = new Set<string>();
+    if (items.length > 0) {
+      const questionIds = items.map((item) => item.id);
+      const [likes, favorites] = await Promise.all([
+        prisma.like.findMany({
+          where: {
+            userId: parentId,
+            targetType: 'question',
+            targetId: { in: questionIds }
+          },
+          select: { targetId: true }
+        }),
+        prisma.favorite.findMany({
+          where: {
+            userId: parentId,
+            questionId: { in: questionIds }
+          },
+          select: { questionId: true }
+        })
+      ]);
+
+      likedQuestionIds = new Set(likes.map((item) => item.targetId));
+      favoritedQuestionIds = new Set(favorites.map((item) => item.questionId));
+    }
+
     return {
-      list: items,
+      list: items.map((item) => ({
+        ...item,
+        // ⚠️ 不确定因素：如果后续产品策略改为“家长不可互动”，这两个字段将始终是 false；
+        // 这里仍保留输出，保持前后端字段契约稳定。
+        isLiked: likedQuestionIds.has(item.id),
+        isFavorited: favoritedQuestionIds.has(item.id)
+      })),
       pagination: {
         total,
         page,
