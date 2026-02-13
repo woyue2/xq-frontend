@@ -51,7 +51,7 @@ describe('MyQuestionsPage delete button visibility', () => {
       </MemoryRouter>
     );
 
-  it('shows delete button for student when own question has no answers', async () => {
+  it('hides delete button for student when own question is approved and has no answers', async () => {
     mockedUseQuestions.mockReturnValue({
       data: {
         pages: [
@@ -81,33 +81,26 @@ describe('MyQuestionsPage delete button visibility', () => {
 
     renderMyQuestions();
 
-    const deleteBtn = await screen.findByTestId(
-      'delete-question-q-no-answer'
-    );
-    expect(deleteBtn).toBeInTheDocument();
-
-    fireEvent.click(deleteBtn);
-
-    await waitFor(() => {
-      expect(mockedDelete).toHaveBeenCalledWith('q-no-answer');
-    });
+    const deleteBtn = screen.queryByTestId('delete-question-q-no-answer');
+    expect(deleteBtn).toBeNull();
+    expect(mockedDelete).not.toHaveBeenCalled();
   });
 
-  it('hides delete button for student when own question already has answers', async () => {
+  it('shows delete button for student when own pending question has no answers', async () => {
     mockedUseQuestions.mockReturnValue({
       data: {
         pages: [
           {
             list: [
               {
-                id: 'q-with-answer',
-                title: 'With Answer Question',
+                id: 'q-pending-no-answer',
+                title: 'Pending No Answer Question',
                 content: 'Content',
-                status: 'approved',
+                status: 'pending',
                 createdAt: new Date().toISOString(),
-                stats: { likes: 0, comments: 0, answers: 2 },
+                stats: { likes: 0, comments: 0, answers: 0 },
                 isGoodQuestion: false,
-                answerCount: 2,
+                answerCount: 0,
                 subject: 'math',
                 likeCount: 0,
                 collectionCount: 0,
@@ -123,8 +116,14 @@ describe('MyQuestionsPage delete button visibility', () => {
 
     renderMyQuestions();
 
-    const deleteBtn = screen.queryByTestId('delete-question-q-with-answer');
-    expect(deleteBtn).toBeNull();
+    const deleteBtn = await screen.findByTestId('delete-question-q-pending-no-answer');
+    expect(deleteBtn).toBeInTheDocument();
+
+    fireEvent.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(mockedDelete).toHaveBeenCalledWith('q-pending-no-answer');
+    });
   });
 });
 

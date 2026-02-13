@@ -544,10 +544,13 @@ export function QuestionDetailPage() {
   const isQuestionAuthor = currentUser?.id === question.authorId;
   const isTeacher = currentUser?.role === 'teacher';
   const hasAnyAnswer = (question.stats.answers ?? 0) > 0;
+  const isApprovedQuestion = question.status === 'approved';
+  // 修改原因：详情页删除入口与“通过后不可删”规则对齐，避免与后端权限语义不一致。
   const canDelete =
     isTeacher ||
     (isQuestionAuthor &&
-      !hasAnyAnswer);
+      !hasAnyAnswer &&
+      !isApprovedQuestion);
   // 仅老师可以看到并使用“去回答”入口，防止前端 UI 与后端权限语义出现不一致
   const canAnswer = isTeacher;
 

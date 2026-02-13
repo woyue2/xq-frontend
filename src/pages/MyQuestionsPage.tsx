@@ -52,9 +52,11 @@ export function MyQuestionsPage() {
                 ? question.stats.answers
                 : 0);
         const hasAnyAnswer = (answers as number) > 0;
+        const isApproved = question.status === 'approved';
 
         if (isTeacher) return true;
-        return isAuthor && !hasAnyAnswer;
+        // 修改原因：前端删除入口与后端权限保持一致，学生已通过问题不展示删除按钮。
+        return isAuthor && !hasAnyAnswer && !isApproved;
     };
 
     const handleDelete = async (e: React.MouseEvent, question: any) => {
