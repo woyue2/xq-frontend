@@ -8,9 +8,6 @@ import { VitePWA } from 'vite-plugin-pwa'
 const isProduction = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
-  // 修改原因：当前头像资源存放在根目录 static/avators，指定为 publicDir 后才能通过 /avators/* 正常访问。
-  // ⚠️ 不确定因素：若未来新增同名 public 目录并希望继续默认行为，需要同步调整此配置。
-  publicDir: 'static',
   plugins: [
     react(),
     tailwindcss(),
