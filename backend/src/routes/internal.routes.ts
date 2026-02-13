@@ -4,6 +4,10 @@ import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 import { env } from '../config/env';
 import { signAccessToken } from '../utils/jwt';
+import {
+  internalAuditService,
+  type AiResultPayload
+} from '../services/internal-audit.service';
 
 export const internalRouter = Router();
 
@@ -86,12 +90,6 @@ internalRouter.post(
         );
       }
 
-      type AiResultPayload = {
-        safe?: boolean;
-        score?: number;
-        [key: string]: unknown;
-      };
-
       const body = req.body as any;
       const targetType = String(body.targetType ?? '');
       const targetId = String(body.targetId ?? '');
@@ -111,96 +109,12 @@ internalRouter.post(
         );
       }
 
-      let aiResult: string;
-      try {
-        aiResult = JSON.stringify(result);
-      } catch {
-        throw new AppError(
-          400,
-          'INVALID_RESULT_PAYLOAD',
-          'AI 回调结果字段不可序列化'
-        );
-      }
-
-      const safe = result.safe === true;
-
-      let updated: any = null;
-
-      if (targetType === 'question') {
-        // 获取作者角色，判断逻辑：仅当作者是老师且 AI 判定安全时，才设为 approved
-        const question = await prisma.question.findUnique({
-          where: { id: targetId },
-          select: { authorId: true }
-        });
-
-        if (!question) throw new AppError(404, 'CONTENT_NOT_FOUND', '问题不存在');
-
-        const author = await prisma.user.findUnique({
-          where: { id: question.authorId },
-          select: { role: true }
-        });
-
-        // 核心逻辑修复：如果 safe 且作者是 teacher，则 approved；
-        // 如果 safe 但作者是 student/parent，则保持 pending (除非人工干预，回调不应自动通过学生内容)
-        // 注意：此处回调逻辑应保证：违规必 rejected；合规则根据角色决定是 approved 还是继续 pending。
-        let nextStatus = 'rejected';
-        if (safe) {
-          nextStatus = (author?.role === 'teacher') ? 'approved' : 'pending';
-        }
-
-        updated = await prisma.question.update({
-          where: { id: targetId },
-          data: {
-            aiResult,
-            status: nextStatus as any,
-            score: typeof result.score === 'number' ? result.score : undefined
-          },
-          select: { id: true, status: true, aiResult: true }
-        });
-      } else if (targetType === 'answer') {
-        // 处理回答（通常只有老师能回答，但逻辑应一致）
-        const nextStatus = safe ? 'approved' : 'rejected';
-        updated = await prisma.answer.update({
-          where: { id: targetId },
-          data: { aiResult, status: nextStatus as any },
-          select: { id: true, status: true, aiResult: true }
-        });
-      } else if (targetType === 'comment') {
-        // 处理评论：目前评论默认为人工审核流，AI 判定安全后仍应由老师审核？ 
-        // 参照 Question 逻辑，设为 pending 如果是学生。
-        const comment = await prisma.comment.findUnique({
-          where: { id: targetId },
-          select: { authorId: true }
-        });
-        if (!comment) throw new AppError(404, 'CONTENT_NOT_FOUND', '评论不存在');
-
-        const author = await prisma.user.findUnique({
-          where: { id: comment.authorId },
-          select: { role: true }
-        });
-
-        const nextStatus = (safe && author?.role === 'teacher') ? 'approved' : (safe ? 'pending' : 'rejected');
-
-        updated = await prisma.comment.update({
-          where: { id: targetId },
-          data: { aiResult, status: nextStatus as any },
-          select: { id: true, status: true, aiResult: true }
-        });
-      } else {
-        throw new AppError(
-          400,
-          'INVALID_CONTENT_TYPE',
-          '不支持的审核内容类型'
-        );
-      }
-
-      if (!updated) {
-        throw new AppError(
-          404,
-          'CONTENT_NOT_FOUND',
-          '内容不存在'
-        );
-      }
+      // 修改原因：将 ai-check 的业务判定与数据访问下沉到 Service，降低 Route 业务耦合（P0-3）。
+      const updated = await internalAuditService.processAiCheckCallback({
+        targetType,
+        targetId,
+        result
+      });
 
       return res.json({
         code: 200,
