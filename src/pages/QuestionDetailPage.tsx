@@ -18,6 +18,7 @@ import { interactionService, behaviorService, questionService, answerService, co
 import { USE_MOCK } from '@/lib/mock-env';
 import { useQuestions } from '@/hooks/useQuestions';
 import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
 
 const normalizeQuestion = (raw: any) => {
   if (!raw) return null;
@@ -61,7 +62,10 @@ export function QuestionDetailPage() {
   const { user: currentUser } = useAuthStore();
   const { getQuestionById } = useQuestions();
   const safeQuestionId = questionId || '';
+  const shareToken = searchParams.get('shareToken') || undefined;
+  const isSharedVisitor = !currentUser && !!shareToken;
   const commentImageInputRef = useRef<HTMLInputElement | null>(null);
+  const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   // 初始优先从列表缓存中读取（Home/MyQuestions 等通过 useQuestions 已经加载的场景）
   // 这样在前端单元测试中仍然可以通过 mock useQuestions 提供数据，无需真实网络请求。
@@ -79,7 +83,8 @@ export function QuestionDetailPage() {
     setIsLoadingDetail(true);
 
     questionService
-      .getQuestionById(safeQuestionId)
+      // 修改原因：详情读取支持 shareToken，允许未登录访客查看单题分享页。
+      .getQuestionByIdWithShare(safeQuestionId, shareToken)
       .then((q) => {
         if (!cancelled && q) {
           setRawQuestion(q);
@@ -97,7 +102,7 @@ export function QuestionDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [safeQuestionId]);
+  }, [safeQuestionId, shareToken]);
 
   const question = normalizeQuestion(rawQuestion);
 
@@ -112,7 +117,8 @@ export function QuestionDetailPage() {
     setIsLoadingAnswers(true);
 
     answerService
-      .listByQuestion(safeQuestionId)
+      // 修改原因：分享访客模式下，回答列表请求需要附带 shareToken。
+      .listByQuestion(safeQuestionId, shareToken)
       .then((res) => {
         if (!cancelled && res && Array.isArray(res.list)) {
           // 若已通过测试注入或 Mock 提供本地 answers，则只在本地为空时覆盖
@@ -131,11 +137,13 @@ export function QuestionDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [safeQuestionId]);
+  }, [safeQuestionId, shareToken]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
+  // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   // 修改原因：详情页点赞/收藏状态改为以后端返回为准，避免刷新后被本地 mock 状态重置。
   const liked = !!question?.isLiked;
   const favorited = !!question?.isFavorited;
@@ -143,6 +151,8 @@ export function QuestionDetailPage() {
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  // 修改原因：详情页存在“问题图/回答图/评论图/评论输入预览图”多来源，预览时需要带上对应图片集合。
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const questionAudioRef = useRef<HTMLAudioElement | null>(null);
   const answerAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -154,6 +164,12 @@ export function QuestionDetailPage() {
   });
   const [highlightAnswerId, setHighlightAnswerId] = useState<string | null>(null);
 
+  const openImagePreview = (image: string, images: string[]) => {
+    // ⚠️ 不确定因素：若上游传入重复 URL，轮播定位会命中第一个重复项；当前按现有数据模型先保持该行为。
+    setPreviewImages(images);
+    setSelectedImage(image);
+  };
+
   useEffect(() => {
     if (!safeQuestionId) return;
 
@@ -161,7 +177,8 @@ export function QuestionDetailPage() {
     setIsLoadingComments(true);
 
     commentService
-      .listByQuestion(safeQuestionId)
+      // 修改原因：分享访客模式下，评论列表请求需要附带 shareToken。
+      .listByQuestion(safeQuestionId, shareToken)
       .then((res) => {
         if (!cancelled && res && Array.isArray(res.list)) {
           setComments(res.list);
@@ -179,7 +196,7 @@ export function QuestionDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [safeQuestionId]);
+  }, [safeQuestionId, shareToken]);
 
   // 当回答列表加载完成并且存在目标 answerId 时，自动滚动并高亮目标回答卡片
   useEffect(() => {
@@ -285,6 +302,12 @@ export function QuestionDetailPage() {
         questionId: question.id,
         action: nextLiked ? 'like' : 'unlike'
       });
+      try {
+        // 修改原因：标记首页列表需要刷新，避免返回首页仍显示 staleTime(5min) 内旧计数。
+        window.sessionStorage.setItem('questions_need_refresh', '1');
+      } catch {
+        // ignore
+      }
 
       toast.success(nextLiked ? '点赞成功' : '已取消点赞');
     } catch {
@@ -325,6 +348,12 @@ export function QuestionDetailPage() {
         questionId: question.id,
         action: nextFavorited ? 'favorite' : 'unfavorite'
       });
+      try {
+        // 修改原因：标记首页列表需要刷新，避免返回首页仍显示 staleTime(5min) 内旧计数。
+        window.sessionStorage.setItem('questions_need_refresh', '1');
+      } catch {
+        // ignore
+      }
 
       toast.success(nextFavorited ? '收藏成功' : '已取消收藏');
     } catch {
@@ -333,7 +362,22 @@ export function QuestionDetailPage() {
   };
 
   const handleShare = async () => {
-    const shareUrl = buildQuestionShareUrl(question.id);
+    if (!currentUser) {
+      toast.error('请先登录后生成分享链接');
+      navigate('/login');
+      return;
+    }
+
+    let shareMeta: { shareToken: string; expireAt: number };
+    try {
+      // 修改原因：分享链接改为后端签发短时 token（1小时），避免普通链接被无限传播。
+      shareMeta = await questionService.createShareLink(question.id);
+    } catch {
+      toast.error('分享链接生成失败，请稍后重试');
+      return;
+    }
+
+    const shareUrl = buildQuestionShareUrl(question.id, shareMeta.shareToken);
     if (!shareUrl) {
       toast.error('暂未配置分享域名，当前不支持复制分享链接');
       return;
@@ -341,7 +385,7 @@ export function QuestionDetailPage() {
 
     const copied = await copyToClipboardSafe(shareUrl);
     if (copied) {
-      toast.success('分享链接已复制');
+      toast.success('分享链接已复制（1小时内有效）');
     } else {
       // 剪贴板不可用时，退化为直接展示链接，交由用户手动复制
       toast.success(`分享链接：${shareUrl}`);
@@ -399,8 +443,20 @@ export function QuestionDetailPage() {
     }
 
     const file = files[0];
+    const requestCrop = (nextFile: File) =>
+      new Promise<File | null>((resolve) => {
+        cropResolveRef.current = resolve;
+        setPendingCropFile(nextFile);
+      });
     try {
-      const { imageUrl } = await questionService.uploadImage(file, {
+      // 修改原因：评论图片上传前先裁剪，再进入现有压缩+上传链路，兼顾清晰度与体积控制。
+      // ⚠️ 不确定因素：若用户取消裁剪，当前策略为“取消本次上传，不保留旧待上传文件”。
+      const croppedFile = await requestCrop(file);
+      if (!croppedFile) {
+        return;
+      }
+
+      const { imageUrl } = await questionService.uploadImage(croppedFile, {
         purpose: '评论',
         senderName: currentUser?.nickname ?? currentUser?.name ?? '用户A',
         receiverName: question?.authorName ?? '用户B'
@@ -414,6 +470,22 @@ export function QuestionDetailPage() {
     } finally {
       event.target.value = '';
     }
+  };
+
+  const handleCropCancel = () => {
+    if (cropResolveRef.current) {
+      cropResolveRef.current(null);
+      cropResolveRef.current = null;
+    }
+    setPendingCropFile(null);
+  };
+
+  const handleCropConfirm = (file: File) => {
+    if (cropResolveRef.current) {
+      cropResolveRef.current(file);
+      cropResolveRef.current = null;
+    }
+    setPendingCropFile(null);
   };
 
   const handleSubmitComment = async () => {
@@ -650,6 +722,12 @@ export function QuestionDetailPage() {
 
           {/* 问题标题 */}
           <h2 className="text-xl font-bold text-gray-800 leading-tight">{question.title}</h2>
+          {isSharedVisitor && (
+            <div className="text-[11px] text-amber-600">
+              {/* 修改原因：明确提示访客当前为分享只读态，降低“为什么不能互动”的困惑。 */}
+              访客查看模式（仅可查看该问题）
+            </div>
+          )}
 
           {/* 提问信息 */}
           <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -679,7 +757,7 @@ export function QuestionDetailPage() {
                 <div
                   key={index}
                   className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity active:scale-[0.98]"
-                  onClick={() => setSelectedImage(image)}
+                  onClick={() => openImagePreview(image, question.images ?? [])}
                 >
                   <ImageWithFallback
                     src={image}
@@ -837,7 +915,7 @@ export function QuestionDetailPage() {
                         <div
                           key={index}
                           className="relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:scale-95 transition"
-                          onClick={() => setSelectedImage(image)}
+                          onClick={() => openImagePreview(image, answer.images ?? [])}
                         >
                           <ImageWithFallback src={image} alt="answer img" className="w-full h-full object-cover" />
                         </div>
@@ -948,7 +1026,7 @@ export function QuestionDetailPage() {
                           {comment.content}
                         </p>
                         {comment.image && (
-                          <div className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 mt-2 active:scale-95 transition cursor-pointer" onClick={() => setSelectedImage(comment.image!)}>
+                          <div className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 mt-2 active:scale-95 transition cursor-pointer" onClick={() => openImagePreview(comment.image!, [comment.image!])}>
                             <ImageWithFallback src={comment.image} alt="comment img" className="w-full h-full object-cover" />
                           </div>
                         )}
@@ -962,10 +1040,17 @@ export function QuestionDetailPage() {
             {(isQuestionAuthor || currentUser?.role === 'teacher') && (
               <div className="space-y-2 pt-2 border-t border-gray-50">
                 {commentImage && (
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-morandi-5">
+                  <div
+                    className="relative w-16 h-16 rounded-xl overflow-hidden border border-morandi-5 cursor-pointer"
+                    onClick={() => openImagePreview(commentImage, [commentImage])}
+                  >
+                    {/* 修改原因：评论上传前的缩略图也支持查看大图，覆盖“上传前可放大查看”的诉求。 */}
                     <ImageWithFallback src={commentImage} alt="preview" className="w-full h-full object-cover" />
                     <button
-                      onClick={() => setCommentImage(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCommentImage(null);
+                      }}
                       className="absolute top-0.5 right-0.5 bg-black bg-opacity-50 text-white rounded-full p-0.5 active:scale-75 transition"
                     >
                       <X className="w-3 h-3" />
@@ -1063,10 +1148,21 @@ export function QuestionDetailPage() {
 
       {/* 图片预览模态框 (Carousel) */}
       <ImageCarousel
-        images={question.images || []}
-        initialIndex={question.images?.indexOf(selectedImage || '') || 0}
+        images={previewImages}
+        // 修改原因：按当前预览集合定位，避免非问题图片（回答/评论）打开时索引异常。
+        initialIndex={Math.max(0, previewImages.indexOf(selectedImage || ''))}
         open={!!selectedImage}
-        onClose={() => setSelectedImage(null)}
+        onClose={() => {
+          setSelectedImage(null);
+          setPreviewImages([]);
+        }}
+      />
+
+      <ImageCropDialog
+        open={!!pendingCropFile}
+        file={pendingCropFile}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
       />
     </motion.div>
   );

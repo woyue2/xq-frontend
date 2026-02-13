@@ -50,10 +50,16 @@ export const getShareBaseUrl = (): string | null => {
  * - 再退化到 window.location.origin
  * - 在无浏览器环境下返回 null
  */
-export const buildQuestionShareUrl = (questionId: string): string | null => {
+export const buildQuestionShareUrl = (
+  questionId: string,
+  shareToken?: string
+): string | null => {
   const base = getShareBaseUrl();
   if (!base) return null;
-  return `${base}/question/${questionId}`;
+  const raw = `${base}/question/${questionId}`;
+  if (!shareToken) return raw;
+  const sep = raw.includes('?') ? '&' : '?';
+  return `${raw}${sep}shareToken=${encodeURIComponent(shareToken)}`;
 };
 
 /**

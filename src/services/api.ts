@@ -749,6 +749,23 @@ export const questionService = {
         const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`);
         return data.data;
     },
+    createShareLink: async (id: string) => {
+        // 修改原因：由后端生成 1 小时有效分享 token，前端仅负责拼接展示链接。
+        const { data } = await api.post<
+            ApiResponse<{
+                shareToken: string;
+                expireAt: number;
+            }>
+        >(`/questions/${id}/share-link`);
+        return data.data;
+    },
+    getQuestionByIdWithShare: async (id: string, shareToken?: string) => {
+        // 修改原因：支持访客通过 shareToken 拉取单题详情。
+        const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`, {
+            params: shareToken ? { shareToken } : undefined
+        });
+        return data.data;
+    },
     createQuestion: async (payload: CreateQuestionPayload) => {
         // eslint-disable-next-line no-console
         console.debug('[questionService.createQuestion] payload', {
@@ -1313,9 +1330,13 @@ export const answerService = {
         );
         return data.data;
     },
-    listByQuestion: async (questionId: string) => {
+    listByQuestion: async (questionId: string, shareToken?: string) => {
         const { data } = await api.get<ApiResponse<{ list: Answer[]; total: number }>>(
-            `/questions/${questionId}/answers`
+            `/questions/${questionId}/answers`,
+            {
+                // 修改原因：分享访客模式下，回答列表需携带同一 shareToken 才能只读访问。
+                params: shareToken ? { shareToken } : undefined
+            }
         );
         return data.data;
     }
@@ -1332,10 +1353,13 @@ export const commentService = {
         );
         return data.data;
     },
-    listByQuestion: async (questionId: string) => {
+    listByQuestion: async (questionId: string, shareToken?: string) => {
         const { data } = await api.get<
             ApiResponse<CommentListResponse>
-        >(`/questions/${questionId}/comments`);
+        >(`/questions/${questionId}/comments`, {
+            // 修改原因：分享访客模式下，评论列表需携带同一 shareToken 才能只读访问。
+            params: shareToken ? { shareToken } : undefined
+        });
         return data.data;
     }
 };
