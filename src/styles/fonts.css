@@ -1,0 +1,14 @@
+:root {
+  --font-family-base: "Source Han Sans SC", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  font-family: var(--font-family-base);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
