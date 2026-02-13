@@ -41,6 +41,41 @@ export function AnswerQuestionPage() {
   const [question, setQuestion] = useState<Question | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const MAX_RECORDING_SECONDS = 60;
+  // 修改原因：在进入录音流程前先做能力探测，避免用户点击后才报错。
+  const getAudioCapability = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return {
+        supported: false,
+        reason: '当前环境不支持录音功能'
+      };
+    }
+
+    // 修改原因：移动端浏览器常要求安全上下文才能申请麦克风权限。
+    // ⚠️ 不确定因素：部分 WebView 即使在 HTTPS 下也可能额外限制录音权限，需真机验证。
+    if (!window.isSecureContext) {
+      return {
+        supported: false,
+        reason: '当前页面不是安全环境（需 HTTPS 或 localhost）'
+      };
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return {
+        supported: false,
+        reason: '当前浏览器不支持麦克风能力'
+      };
+    }
+
+    if (typeof MediaRecorder === 'undefined') {
+      return {
+        supported: false,
+        reason: '当前浏览器不支持录音编码能力（MediaRecorder）'
+      };
+    }
+
+    return { supported: true, reason: '' };
+  };
+  const audioCapability = getAudioCapability();
 
   // 基础权限校验：仅允许教师进入回答页面
   useEffect(() => {
@@ -75,7 +110,10 @@ export function AnswerQuestionPage() {
     return () => {
       cancelled = true;
     };
-  }, [questionId, question]);
+  }, [
+    // 仅依赖 questionId，避免 setQuestion 后因 question 引用变化触发重复请求。
+    questionId
+  ]);
 
   const handleImageUpload = () => {
     if (images.length >= 5) {
@@ -133,8 +171,9 @@ export function AnswerQuestionPage() {
   const handleStartRecording = async () => {
     if (isRecording) return;
 
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast.error('当前浏览器不支持录音功能');
+    if (!audioCapability.supported) {
+      // 修改原因：统一使用能力探测结论，给出更明确的失败原因。
+      toast.error(audioCapability.reason);
       return;
     }
 
@@ -424,6 +463,7 @@ export function AnswerQuestionPage() {
                   {!isRecording ? (
                     <Button
                       onClick={handleStartRecording}
+                      disabled={!audioCapability.supported}
                       variant="outline"
                       className="flex items-center gap-2"
                     >
@@ -470,6 +510,12 @@ export function AnswerQuestionPage() {
                 </div>
               )}
             </div>
+            {!audioCapability.supported && (
+              <p className="text-xs text-amber-600">
+                {/* 修改原因：在按钮旁直接展示不可用原因，减少无效点击。 */}
+                当前不可录音：{audioCapability.reason}
+              </p>
+            )}
             <audio ref={audioElementRef} src={audioUrl ?? undefined} className="hidden" />
           </div>
 
