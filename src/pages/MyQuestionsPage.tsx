@@ -199,8 +199,9 @@ export function MyQuestionsPage() {
                                 {/* 底部信息 */}
                                 <div className="flex items-center justify-between text-xs text-gray-400 mt-3">
                                     <div className="flex items-center gap-3">
-                                        <span>{question.subject}</span>
-                                        <span>•</span>
+                                        {/* 修改原因：产品当前仅支持数学场景，隐藏固定的 math 文本标签，避免底部信息换行。 */}
+                                        {question.subject !== 'math' && <span>{question.subject}</span>}
+                                        {question.subject !== 'math' && <span>•</span>}
                                         <span>{answers as number} 回答</span>
                                     </div>
                                     <div className="flex items-center gap-3">
