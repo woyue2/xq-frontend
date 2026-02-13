@@ -107,4 +107,31 @@ describe('Behavior Log API', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('VALIDATION_ERROR');
   });
+
+  // BEHAVIOR-API-005 批量上报同样受限流约束（超过阈值后进入部分失败）
+  it('should rate limit high frequency logs in batch endpoint (BEHAVIOR-API-005)', async () => {
+    const events = Array.from({ length: 35 }).map((_, index) => ({
+      type: 'click_good_question_batch_limit',
+      timestamp: Date.now(),
+      metadata: {
+        questionId: `q-batch-${index}`,
+        sourcePage: '/question/batch-limit'
+      }
+    }));
+
+    const res = await request(app)
+      .post('/api/behavior/log/batch')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ events });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.successCount).toBeGreaterThan(0);
+    expect(res.body.data.failedCount).toBeGreaterThan(0);
+
+    const hasRateLimitedError = (res.body.data.results as Array<{ error?: string }>).some(
+      (item) => typeof item.error === 'string' && item.error.includes('行为上报过于频繁')
+    );
+    expect(hasRateLimitedError).toBe(true);
+  });
 });

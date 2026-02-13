@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { behaviorLogService } from '../services/behavior-log.service';
 import { AppError } from '../errors/AppError';
 import { verifyToken } from '../utils/jwt';
+import { getRedisClient } from '../config/redis';
 
 // 简单的内存级防刷：按 (userId/IP + type) 在短时间内限流
 type RateLimitKey = string;
@@ -10,6 +11,115 @@ const behaviorRateMap = new Map<RateLimitKey, { count: number; windowStart: numb
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 分钟窗口
 const RATE_LIMIT_MAX_EVENTS = 30; // 每窗口允许的最大上报次数
 const METADATA_MAX_BYTES = 2 * 1024; // 单次 metadata 最大大小（约 2KB）
+// 修改原因：测试环境给限流 key 增加进程隔离前缀，避免 Redis 残留计数影响同机重复执行测试。
+const RATE_LIMIT_KEY_PREFIX =
+  process.env.NODE_ENV === 'test'
+    ? `behavior:rate:test:${process.pid}`
+    : 'behavior:rate:v1';
+
+const parseUserIdFromRequest = (req: Request): string | undefined => {
+  let userId: string | undefined;
+  const authHeader = req.headers.authorization ?? '';
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : '';
+
+  if (token) {
+    try {
+      const payload: any = verifyToken(token);
+      if (payload?.sub) {
+        userId = String(payload.sub);
+      }
+    } catch {
+      // token 无效时忽略用户信息
+    }
+  }
+
+  return userId;
+};
+
+const validateMetadataSize = (
+  metadata: any,
+  tooLargeMessage: string,
+  invalidMessage = 'metadata 必须是可序列化的 JSON 对象'
+): void => {
+  if (metadata == null) {
+    return;
+  }
+
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(metadata);
+  } catch {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      invalidMessage
+    );
+  }
+
+  const length = Buffer.byteLength(serialized, 'utf8');
+  if (length > METADATA_MAX_BYTES) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      tooLargeMessage
+    );
+  }
+};
+
+const consumeMemoryRateLimit = (key: string): void => {
+  const now = Date.now();
+  const current = behaviorRateMap.get(key);
+
+  if (!current || now - current.windowStart > RATE_LIMIT_WINDOW_MS) {
+    behaviorRateMap.set(key, { count: 1, windowStart: now });
+    return;
+  }
+
+  if (current.count >= RATE_LIMIT_MAX_EVENTS) {
+    throw new AppError(
+      429,
+      'RATE_LIMITED',
+      '行为上报过于频繁，请稍后再试'
+    );
+  }
+
+  current.count += 1;
+};
+
+const enforceBehaviorRateLimit = async (identity: string, type: string): Promise<void> => {
+  const key: RateLimitKey = `${identity}:${type}`;
+  const redis = await getRedisClient();
+
+  if (!redis) {
+    // 修改原因：方案B要求统一到 Redis 限流；当 Redis 不可用时降级到内存，避免上报接口整体不可用。
+    // ⚠️ 不确定因素：降级后在多实例场景会回到“各实例各自计数”，仅保证可用性不保证全局一致性。
+    consumeMemoryRateLimit(key);
+    return;
+  }
+
+  const redisKey = `${RATE_LIMIT_KEY_PREFIX}:${key}`;
+  const count = await redis.incr(redisKey);
+
+  if (count === 1) {
+    await redis.pExpire(redisKey, RATE_LIMIT_WINDOW_MS);
+  } else {
+    // 修改原因：兜底处理历史异常键（例如意外丢失 TTL），防止计数永不过期。
+    const ttl = await redis.pTTL(redisKey);
+    if (ttl < 0) {
+      await redis.pExpire(redisKey, RATE_LIMIT_WINDOW_MS);
+    }
+  }
+
+  if (count > RATE_LIMIT_MAX_EVENTS) {
+    throw new AppError(
+      429,
+      'RATE_LIMITED',
+      '行为上报过于频繁，请稍后再试'
+    );
+  }
+};
 
 export const behaviorRouter = Router();
 
@@ -60,63 +170,13 @@ behaviorRouter.post(
         );
       }
 
-      // metadata 大小限制，避免单次埋点携带过大 payload
-      if (metadata != null) {
-        try {
-          const serialized = JSON.stringify(metadata);
-          const length = Buffer.byteLength(serialized, 'utf8');
-          if (length > METADATA_MAX_BYTES) {
-            throw new AppError(
-              400,
-              'VALIDATION_ERROR',
-              'metadata 过大，单次埋点数据请控制在 2KB 以内'
-            );
-          }
-        } catch {
-          // 如果无法序列化，视为参数错误
-          throw new AppError(
-            400,
-            'VALIDATION_ERROR',
-            'metadata 必须是可序列化的 JSON 对象'
-          );
-        }
-      }
+      validateMetadataSize(metadata, 'metadata 过大，单次埋点数据请控制在 2KB 以内');
 
-      let userId: string | undefined;
-      const authHeader = req.headers.authorization ?? '';
-      const token = authHeader.startsWith('Bearer ')
-        ? authHeader.slice('Bearer '.length)
-        : '';
+      const userId = parseUserIdFromRequest(req);
 
-      if (token) {
-        try {
-          const payload: any = verifyToken(token);
-          if (payload?.sub) {
-            userId = String(payload.sub);
-          }
-        } catch {
-          // token 无效时忽略用户信息
-        }
-      }
-
-      // 防刷：按 userId 或 IP + type 做简易限流
+      // 修改原因：方案B将限流统一到 Redis（单条与批量共用），避免多实例下内存限流不一致。
       const identity = userId || req.ip || 'anonymous';
-      const key: RateLimitKey = `${identity}:${type}`;
-      const now = Date.now();
-      const current = behaviorRateMap.get(key);
-
-      if (!current || now - current.windowStart > RATE_LIMIT_WINDOW_MS) {
-        behaviorRateMap.set(key, { count: 1, windowStart: now });
-      } else {
-        if (current.count >= RATE_LIMIT_MAX_EVENTS) {
-          throw new AppError(
-            429,
-            'RATE_LIMITED',
-            '行为上报过于频繁，请稍后再试'
-          );
-        }
-        current.count += 1;
-      }
+      await enforceBehaviorRateLimit(identity, type);
 
       const created = await behaviorLogService.logSingle({
         userId,
@@ -211,6 +271,9 @@ behaviorRouter.post(
       let successCount = 0;
       let failedCount = 0;
 
+      const userId = parseUserIdFromRequest(req);
+      const identity = userId || req.ip || 'anonymous';
+
       // 并行处理所有事件（部分成功原则）
       const processedPromises = events.map(async (event, index) => {
         try {
@@ -224,44 +287,13 @@ behaviorRouter.post(
             );
           }
 
-          // metadata 大小限制
-          if (metadata != null) {
-            try {
-              const serialized = JSON.stringify(metadata);
-              const length = Buffer.byteLength(serialized, 'utf8');
-              if (length > METADATA_MAX_BYTES) {
-                throw new AppError(
-                  400,
-                  'VALIDATION_ERROR',
-                  `事件[${index}]metadata 过大，请控制在 2KB 以内`
-                );
-              }
-            } catch {
-              throw new AppError(
-                400,
-                'VALIDATION_ERROR',
-                `事件[${index}]metadata 必须是可序列化的 JSON 对象`
-              );
-            }
-          }
-
-          // 获取用户ID（从token，与单条接口一致）
-          let userId: string | undefined;
-          const authHeader = req.headers.authorization ?? '';
-          const token = authHeader.startsWith('Bearer ')
-            ? authHeader.slice('Bearer '.length)
-            : '';
-
-          if (token) {
-            try {
-              const payload: any = verifyToken(token);
-              if (payload?.sub) {
-                userId = String(payload.sub);
-              }
-            } catch {
-              // token 无效时忽略用户信息
-            }
-          }
+          validateMetadataSize(
+            metadata,
+            `事件[${index}]metadata 过大，请控制在 2KB 以内`,
+            `事件[${index}]metadata 必须是可序列化的 JSON 对象`
+          );
+          // 修改原因：补齐批量接口限流，避免绕过单条接口限流阈值。
+          await enforceBehaviorRateLimit(identity, type);
 
           // 调用服务层记录日志
           const created = await behaviorLogService.logSingle({
