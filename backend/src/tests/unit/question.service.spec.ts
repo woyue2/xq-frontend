@@ -139,7 +139,7 @@ describe('QuestionService unit tests', () => {
 
       expect(storedWithoutSubject?.subject).toBe('math');
       expect(storedWithOtherSubject?.subject).toBe('math');
-    });
+    }, 15000); // 修改原因：启用“单次重试”后该用例在外部审核接口慢响应时可能超过默认 5s。
   });
 
   describe('list', () => {

@@ -123,6 +123,9 @@ export class AiAuditService {
     private apiKey: string;
     private enabled: boolean;
     private readonly requestTimeoutMs = 5000;
+    // 修改原因：方案B要求“卡住时先快速重试一次，再转人工审核”，避免瞬时网络抖动直接放大量人工单。
+    // ⚠️ 不确定因素：重试次数和触发条件需结合线上SLA/失败率再调优，当前先采用最保守的单次重试。
+    private readonly maxRequestAttempts = 2;
 
     constructor() {
         this.baseUrl = env.AI_AUDIT_BASE_URL || '';
@@ -177,7 +180,7 @@ export class AiAuditService {
                         : '用户昵称';
 
         try {
-            const response = await this.fetchWithTimeout(this.baseUrl, {
+            const response = await this.requestAuditWithSingleRetry({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -197,7 +200,8 @@ export class AiAuditService {
                     ],
                     temperature: 0.1,
                     max_tokens: 500
-                })
+                }),
+                feature: 'ai-audit'
             });
 
             if (!response.ok) {
@@ -286,7 +290,7 @@ export class AiAuditService {
         }
 
         try {
-            const response = await this.fetchWithTimeout(this.baseUrl, {
+            const response = await this.requestAuditWithSingleRetry({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -317,7 +321,8 @@ export class AiAuditService {
                     ],
                     temperature: 0.1,
                     max_tokens: 500
-                })
+                }),
+                feature: 'ai-audit-image'
             });
 
             if (!response.ok) {
@@ -506,6 +511,76 @@ export class AiAuditService {
         } finally {
             clearTimeout(timeout);
         }
+    }
+
+    /**
+     * 单次快速重试包装：仅针对超时/网络错误/服务端繁忙(429/5xx)进行一次重试
+     */
+    private async requestAuditWithSingleRetry(params: {
+        method: string;
+        headers: Record<string, string>;
+        body: string;
+        feature: 'ai-audit' | 'ai-audit-image';
+    }): Promise<Response> {
+        let lastResponse: Response | null = null;
+        let lastError: unknown;
+
+        for (let attempt = 1; attempt <= this.maxRequestAttempts; attempt++) {
+            try {
+                const response = await this.fetchWithTimeout(this.baseUrl, {
+                    method: params.method,
+                    headers: params.headers,
+                    body: params.body
+                });
+
+                lastResponse = response;
+                const canRetryStatus =
+                    (response.status === 429 || response.status >= 500) &&
+                    attempt < this.maxRequestAttempts;
+
+                if (canRetryStatus) {
+                    coreLogger.warn(
+                        {
+                            feature: params.feature,
+                            attempt,
+                            maxAttempts: this.maxRequestAttempts,
+                            status: response.status
+                        },
+                        'AI audit request failed with retryable status, retrying once'
+                    );
+                    continue;
+                }
+
+                return response;
+            } catch (error) {
+                lastError = error;
+                const errorName = (error as { name?: string })?.name;
+                const canRetryError =
+                    (errorName === 'AbortError' || errorName === 'TypeError') &&
+                    attempt < this.maxRequestAttempts;
+
+                if (canRetryError) {
+                    coreLogger.warn(
+                        {
+                            feature: params.feature,
+                            attempt,
+                            maxAttempts: this.maxRequestAttempts,
+                            errorName
+                        },
+                        'AI audit request failed with retryable error, retrying once'
+                    );
+                    continue;
+                }
+
+                throw error;
+            }
+        }
+
+        if (lastResponse) {
+            return lastResponse;
+        }
+
+        throw lastError ?? new Error('AI audit request failed without response');
     }
 }
 
