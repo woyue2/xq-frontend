@@ -93,3 +93,10 @@
 - 上传与埋点：
   - 抽象独立上传客户端模块（`upload-client`），复用在回答与评论图片上传场景；
   - 补齐“浏览问题 / 提交评论”等行为的埋点记录与埋点测试。
+
+### 六、样式基线补充（全局字体）
+
+- 前端全局字体基线已统一为思源黑体优先栈（`Source Han Sans SC`）：
+  - 配置位置：`src/styles/fonts.css`；
+  - 生效范围：`body` 及表单控件（`button/input/select/textarea` 继承全局字体）；
+  - 回退顺序：`Noto Sans CJK SC` → `PingFang SC` → `Microsoft YaHei` → `Helvetica Neue` → `Arial` → `sans-serif`。
