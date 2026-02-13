@@ -117,4 +117,26 @@ describe('AiAuditService retry strategy', () => {
     expect(result.safe).toBe(false);
     expect(result.requiresManualReview).toBe(true);
   });
+
+  it('should fallback to manual review when text audit service is disabled', async () => {
+    const service = new AiAuditService() as any;
+    service.enabled = false;
+
+    const result = await service.auditContent('这是一个数学问题', 'question');
+
+    expect(result.safe).toBe(false);
+    expect(result.requiresManualReview).toBe(true);
+    expect(result.reason).toContain('未启用');
+  });
+
+  it('should fallback to manual review when image audit service is disabled', async () => {
+    const service = new AiAuditService() as any;
+    service.enabled = false;
+
+    const result = await service.auditImage('https://example.com/math.png');
+
+    expect(result.safe).toBe(false);
+    expect(result.requiresManualReview).toBe(true);
+    expect(result.reason).toContain('未启用');
+  });
 });

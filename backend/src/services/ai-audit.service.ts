@@ -147,14 +147,16 @@ export class AiAuditService {
         content: string,
         type: ContentType = 'question'
     ): Promise<AuditResult> {
-        // 如果服务未启用，默认通过
+        // 修改原因：AI 不可用时禁止“默认通过”，统一转人工审核。
         if (!this.enabled) {
             coreLogger.info(
                 { feature: 'ai-audit', content: content.slice(0, 50) },
                 'AI audit skipped: service not enabled'
             );
             return {
-                safe: true,
+                safe: false,
+                requiresManualReview: true,
+                reason: 'AI审核服务未启用，已转人工审核',
                 quality: { clear: true }
             };
         }
@@ -275,13 +277,17 @@ export class AiAuditService {
      * @param imageUrl 图片 URL 或 base64 编码的图片（需包含 data:image/xxx;base64, 前缀）
      */
     async auditImage(imageUrl: string): Promise<ImageAuditResult> {
-        // 如果服务未启用，默认通过
+        // 修改原因：AI 不可用时禁止“默认通过”，统一转人工审核。
         if (!this.enabled) {
             coreLogger.info(
                 { feature: 'ai-audit-image' },
                 'Image audit skipped: service not enabled'
             );
-            return { safe: true };
+            return {
+                safe: false,
+                requiresManualReview: true,
+                reason: '图片审核服务未启用，已转人工审核'
+            };
         }
 
         // 图片 URL 为空
