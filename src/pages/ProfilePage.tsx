@@ -91,13 +91,17 @@ export function ProfilePage() {
     }
 
     const loadPendingAuditCount = async () => {
-      const [questionsRes, commentsRes] = await Promise.allSettled([
+      const [questionsRes, answersRes, commentsRes] = await Promise.allSettled([
         auditService.getPendingQuestions({ page: 1, pageSize: 20 }),
+        // 修改原因：回答待审核已接入审核台，红点统计需覆盖回答维度。
+        auditService.getPendingAnswers({ page: 1, pageSize: 20 }),
         auditService.getPendingComments({ page: 1, pageSize: 20 })
       ]);
 
       const pendingQuestions =
         questionsRes.status === 'fulfilled' ? questionsRes.value : undefined;
+      const pendingAnswers =
+        answersRes.status === 'fulfilled' ? answersRes.value : undefined;
       const pendingComments =
         commentsRes.status === 'fulfilled' ? commentsRes.value : undefined;
 
@@ -107,12 +111,16 @@ export function ProfilePage() {
         pendingQuestions?.pagination?.total ??
         (Array.isArray(pendingQuestions?.list) ? pendingQuestions.list.length : 0);
 
+      const answerCount =
+        pendingAnswers?.pagination?.total ??
+        (Array.isArray(pendingAnswers?.list) ? pendingAnswers.list.length : 0);
+
       // ⚠️ 不确定因素：当前评论接口可能不返回 pagination.total，缺失时退化为首屏 list 数量。
       const commentCount =
         pendingComments?.pagination?.total ??
         (Array.isArray(pendingComments?.list) ? pendingComments.list.length : 0);
 
-      setPendingAuditCount(questionCount + commentCount);
+      setPendingAuditCount(questionCount + answerCount + commentCount);
     };
 
     loadPendingAuditCount();
