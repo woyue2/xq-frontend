@@ -208,26 +208,13 @@ questionRouter.get(
         search: typeof search === 'string' ? search : undefined
       });
 
-      // 补充当前登录用户的理解状态（仅针对题目作者本人，有记录才返回）
+      // 修改原因：将“理解状态”查询下沉到 Service，避免 Route 直接访问数据层（P0-3）。
       let listWithUnderstanding = result.list;
       if (req.user && result.list.length > 0) {
-        const questionIds = result.list.map((q: any) => q.id);
-
-        const understandingList = await prisma.questionUnderstanding.findMany({
-          where: {
-            questionId: { in: questionIds },
-            userId: req.user.id
-          }
+        listWithUnderstanding = await questionService.appendUnderstandingStatusToList({
+          list: result.list,
+          userId: req.user.id
         });
-
-        const understandingMap = new Map(
-          understandingList.map((u) => [u.questionId, u.status])
-        );
-
-        listWithUnderstanding = result.list.map((q: any) => ({
-          ...q,
-          understandingStatus: understandingMap.get(q.id) ?? null
-        }));
       }
 
       return res.json({
@@ -237,6 +224,46 @@ questionRouter.get(
           ...result,
           list: listWithUnderstanding
         },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /questions/my-status-counts:
+ *   get:
+ *     summary: 获取当前用户提问状态统计
+ *     description: 返回当前登录用户在各审核状态下的问题数量统计
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
+questionRouter.get(
+  '/my-status-counts',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      // 修改原因：统计口径以“当前登录用户本人”为准，避免 authorId 透传带来的越权读取风险。
+      const stats = await questionService.getMyStatusCounts({
+        authorId: req.user.id
+      });
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: stats,
         timestamp: Date.now()
       });
     } catch (err) {
@@ -450,15 +477,33 @@ questionRouter.post(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { questionId } = req.params;
+      const { action } = (req.body ?? {}) as {
+        action?: 'like' | 'unlike';
+      };
+      if (action && action !== 'like' && action !== 'unlike') {
+        throw new AppError(
+          400,
+          'INVALID_ACTION',
+          'action 只能为 like 或 unlike'
+        );
+      }
+      // 修改原因：旧入口兼容支持显式 action，与 /api/interactions/like 语义对齐，降低重试/乱序下的反向翻转风险。
+      // ⚠️ 不确定因素：未传 action 时仍保留 toggle 以兼容历史客户端，历史调用链在重试场景下仍可能出现反向翻转。
       const result = await interactionService.toggleQuestionLike({
         questionId,
-        userId: req.user!.id
+        userId: req.user!.id,
+        action
       });
 
       return res.json({
         code: 200,
         message: result.isLiked ? '点赞成功' : '取消点赞',
-        data: result,
+        data: {
+          ...result,
+          // 修改原因：旧入口补齐 liked/likesCount 字段，统一与 /api/interactions/like 的响应契约。
+          liked: result.isLiked,
+          likesCount: result.likes
+        },
         timestamp: Date.now()
       });
     } catch (err) {
@@ -494,15 +539,33 @@ questionRouter.post(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { questionId } = req.params;
+      const { action } = (req.body ?? {}) as {
+        action?: 'favorite' | 'unfavorite';
+      };
+      if (action && action !== 'favorite' && action !== 'unfavorite') {
+        throw new AppError(
+          400,
+          'INVALID_ACTION',
+          'action 只能为 favorite 或 unfavorite'
+        );
+      }
+      // 修改原因：旧入口兼容支持显式 action，与 /api/interactions/favorite 语义对齐，降低重试/乱序下的反向翻转风险。
+      // ⚠️ 不确定因素：未传 action 时仍保留 toggle 以兼容历史客户端，历史调用链在重试场景下仍可能出现反向翻转。
       const result = await interactionService.toggleQuestionFavorite({
         questionId,
-        userId: req.user!.id
+        userId: req.user!.id,
+        action
       });
 
       return res.json({
         code: 200,
         message: result.isFavorited ? '收藏成功' : '取消收藏',
-        data: result,
+        data: {
+          ...result,
+          // 修改原因：旧入口补齐 favorited/favoritesCount 字段，统一与 /api/interactions/favorite 的响应契约。
+          favorited: result.isFavorited,
+          favoritesCount: result.favorites
+        },
         timestamp: Date.now()
       });
     } catch (err) {
@@ -559,89 +622,11 @@ questionRouter.post(
         );
       }
 
-      const question = await prisma.question.findUnique({
-        where: { id: questionId }
-      });
-
-      if (!question) {
-        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
-      }
-
-      // 仅允许提问的学生本人标记理解状态
-      if (question.authorId !== req.user!.id) {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '只有提问的学生可以标记是否弄懂'
-        );
-      }
-
-      const userId = req.user!.id;
-
-      const result = await prisma.$transaction(async (tx) => {
-        const existing = await tx.questionUnderstanding.findUnique({
-          where: {
-            questionId_userId: {
-              questionId,
-              userId
-            }
-          }
-        });
-
-        let understoodDelta = 0;
-        let notUnderstoodDelta = 0;
-
-        if (!existing) {
-          await tx.questionUnderstanding.create({
-            data: {
-              questionId,
-              userId,
-              status
-            }
-          });
-
-          if (status === 'understood') {
-            understoodDelta += 1;
-          } else {
-            notUnderstoodDelta += 1;
-          }
-        } else if (existing.status !== status) {
-          await tx.questionUnderstanding.update({
-            where: { id: existing.id },
-            data: { status }
-          });
-
-          if (existing.status === 'understood') {
-            understoodDelta -= 1;
-          } else if (existing.status === 'not_understood') {
-            notUnderstoodDelta -= 1;
-          }
-
-          if (status === 'understood') {
-            understoodDelta += 1;
-          } else if (status === 'not_understood') {
-            notUnderstoodDelta += 1;
-          }
-        }
-
-        const updatedQuestion = await tx.question.update({
-          where: { id: questionId },
-          data: {
-            understoodCount: {
-              increment: understoodDelta
-            },
-            notUnderstoodCount: {
-              increment: notUnderstoodDelta
-            }
-          }
-        });
-
-        return {
-          questionId,
-          status,
-          understoodCount: updatedQuestion.understoodCount,
-          notUnderstoodCount: updatedQuestion.notUnderstoodCount
-        };
+      // 修改原因：将理解状态事务写入下沉到 Service，Route 仅保留参数校验与响应组装（P0-3）。
+      const result = await questionService.markUnderstandingStatus({
+        questionId,
+        userId: req.user!.id,
+        status
       });
 
       return res.json({
@@ -850,53 +835,20 @@ questionRouter.get(
         role: req.user!.role
       });
 
-      // 计算当前用户对该问题的点赞 / 收藏状态
-      let isLiked = false;
-      let isFavorited = false;
-      let understandingStatus: string | null = null;
-
-      if (req.user) {
-        const [like, favorite, understanding] = await Promise.all([
-          prisma.like.findUnique({
-            where: {
-              userId_targetType_targetId: {
-                userId: req.user.id,
-                targetType: 'question',
-                targetId: id
-              }
-            }
-          }),
-          prisma.favorite.findUnique({
-            where: {
-              userId_questionId: {
-                userId: req.user.id,
-                questionId: id
-              }
-            }
-          }),
-          prisma.questionUnderstanding.findUnique({
-            where: {
-              questionId_userId: {
-                questionId: id,
-                userId: req.user.id
-              }
-            }
-          })
-        ]);
-
-        isLiked = !!like;
-        isFavorited = !!favorite;
-        understandingStatus = understanding?.status ?? null;
-      }
+      // 修改原因：将详情页互动状态查询下沉到 Service，减少 Route 对数据访问细节的耦合（P0-3）。
+      const interactionState = await questionService.getInteractionState({
+        questionId: id,
+        userId: req.user?.id
+      });
 
       return res.json({
         code: 200,
         message: 'success',
         data: {
           ...data,
-          isLiked,
-          isFavorited,
-          understandingStatus,
+          isLiked: interactionState.isLiked,
+          isFavorited: interactionState.isFavorited,
+          understandingStatus: interactionState.understandingStatus,
           understoodCount: (data as any).understoodCount ?? undefined,
           notUnderstoodCount: (data as any).notUnderstoodCount ?? undefined
         },

@@ -4,6 +4,39 @@ import { coreLogger } from '../middlewares/logger.middleware';
 import { aiAuditService } from './ai-audit.service';
 
 export class QuestionService {
+  // 修改原因：为“我的提问”提供独立状态计数，避免前端受分页数据影响出现统计偏差。
+  async getMyStatusCounts(params: { authorId: string }) {
+    const { authorId } = params;
+
+    const grouped = await prisma.question.groupBy({
+      by: ['status'],
+      where: { authorId },
+      _count: { _all: true }
+    });
+
+    // ⚠️ 不确定因素：历史数据可能出现非预期状态值，统一归入 other，避免前端展示中断。
+    const counts = {
+      total: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      banned: 0,
+      other: 0
+    };
+
+    for (const item of grouped) {
+      const c = item._count._all ?? 0;
+      counts.total += c;
+      if (item.status === 'pending') counts.pending += c;
+      else if (item.status === 'approved') counts.approved += c;
+      else if (item.status === 'rejected') counts.rejected += c;
+      else if (item.status === 'banned') counts.banned += c;
+      else counts.other += c;
+    }
+
+    return counts;
+  }
+
   async create(params: {
     title: string;
     content?: string;
@@ -462,6 +495,174 @@ export class QuestionService {
       })() : undefined
     };
   }
+
+  // 修改原因：承接列表接口的“理解状态补充”查询，减少 Route 的数据访问职责（P0-3）。
+  async appendUnderstandingStatusToList<T extends { id: string }>(params: {
+    list: T[];
+    userId: string;
+  }) {
+    const { list, userId } = params;
+
+    if (list.length === 0) {
+      return list.map((item) => ({ ...item, understandingStatus: null }));
+    }
+
+    const questionIds = list.map((q) => q.id);
+    const understandingList = await prisma.questionUnderstanding.findMany({
+      where: {
+        questionId: { in: questionIds },
+        userId
+      }
+    });
+
+    const understandingMap = new Map(
+      understandingList.map((u) => [u.questionId, u.status])
+    );
+
+    return list.map((item) => ({
+      ...item,
+      understandingStatus: understandingMap.get(item.id) ?? null
+    }));
+  }
+
+  // 修改原因：承接理解状态接口的事务写入，确保 Route 只保留参数校验与响应组装（P0-3）。
+  async markUnderstandingStatus(params: {
+    questionId: string;
+    userId: string;
+    status: 'understood' | 'not_understood';
+  }) {
+    const { questionId, userId, status } = params;
+
+    const question = await prisma.question.findUnique({
+      where: { id: questionId }
+    });
+
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+    }
+
+    if (question.authorId !== userId) {
+      throw new AppError(
+        403,
+        'PERMISSION_DENIED',
+        '只有提问的学生可以标记是否弄懂'
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.questionUnderstanding.findUnique({
+        where: {
+          questionId_userId: {
+            questionId,
+            userId
+          }
+        }
+      });
+
+      let understoodDelta = 0;
+      let notUnderstoodDelta = 0;
+
+      if (!existing) {
+        await tx.questionUnderstanding.create({
+          data: {
+            questionId,
+            userId,
+            status
+          }
+        });
+
+        if (status === 'understood') {
+          understoodDelta += 1;
+        } else {
+          notUnderstoodDelta += 1;
+        }
+      } else if (existing.status !== status) {
+        await tx.questionUnderstanding.update({
+          where: { id: existing.id },
+          data: { status }
+        });
+
+        if (existing.status === 'understood') {
+          understoodDelta -= 1;
+        } else if (existing.status === 'not_understood') {
+          notUnderstoodDelta -= 1;
+        }
+
+        if (status === 'understood') {
+          understoodDelta += 1;
+        } else {
+          notUnderstoodDelta += 1;
+        }
+      }
+
+      const updatedQuestion = await tx.question.update({
+        where: { id: questionId },
+        data: {
+          understoodCount: {
+            increment: understoodDelta
+          },
+          notUnderstoodCount: {
+            increment: notUnderstoodDelta
+          }
+        }
+      });
+
+      return {
+        questionId,
+        status,
+        understoodCount: updatedQuestion.understoodCount,
+        notUnderstoodCount: updatedQuestion.notUnderstoodCount
+      };
+    });
+  }
+
+  // 修改原因：承接详情页互动状态读取，避免 Route 直接查询 like/favorite/understanding（P0-3）。
+  async getInteractionState(params: { questionId: string; userId?: string }) {
+    const { questionId, userId } = params;
+
+    if (!userId) {
+      return {
+        isLiked: false,
+        isFavorited: false,
+        understandingStatus: null as string | null
+      };
+    }
+
+    const [like, favorite, understanding] = await Promise.all([
+      prisma.like.findUnique({
+        where: {
+          userId_targetType_targetId: {
+            userId,
+            targetType: 'question',
+            targetId: questionId
+          }
+        }
+      }),
+      prisma.favorite.findUnique({
+        where: {
+          userId_questionId: {
+            userId,
+            questionId
+          }
+        }
+      }),
+      prisma.questionUnderstanding.findUnique({
+        where: {
+          questionId_userId: {
+            questionId,
+            userId
+          }
+        }
+      })
+    ]);
+
+    return {
+      isLiked: !!like,
+      isFavorited: !!favorite,
+      understandingStatus: understanding?.status ?? null
+    };
+  }
+
   async delete(params: { id: string; userId: string; role: string }) {
     const { id, userId, role } = params;
 

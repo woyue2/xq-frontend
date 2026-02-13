@@ -20,7 +20,8 @@ vi.mock('@/services/api', async (orig) => {
     ...actual,
     questionService: {
       ...actual.questionService,
-      delete: vi.fn()
+      delete: vi.fn(),
+      getMyStatusCounts: vi.fn()
     }
   };
 });
@@ -29,12 +30,21 @@ describe('MyQuestionsPage delete button visibility', () => {
   const mockedUseAuth = useAuthStore as unknown as vi.Mock;
   const mockedUseQuestions = useQuestions as unknown as vi.Mock;
   const mockedDelete = questionService.delete as unknown as vi.Mock;
+  const mockedGetMyStatusCounts = questionService.getMyStatusCounts as unknown as vi.Mock;
 
   beforeEach(() => {
     mockedUseAuth.mockReturnValue({
       user: { id: 'u1', nickname: 'Test User', role: 'student' }
     });
     mockedDelete.mockReset();
+    mockedGetMyStatusCounts.mockResolvedValue({
+      total: 1,
+      pending: 1,
+      approved: 0,
+      rejected: 0,
+      banned: 0,
+      other: 0
+    });
     (window as any).confirm = vi.fn(() => true);
   });
 

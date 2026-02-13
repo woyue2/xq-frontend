@@ -113,6 +113,9 @@ describe('Question API', () => {
             'q-author-1',
             'q-author-2',
             'q-author-other',
+            'q-count-1',
+            'q-count-2',
+            'q-count-3',
             'q-detail-1'
           ]
         }
@@ -544,6 +547,77 @@ describe('Question API', () => {
           (q.status === 'pending' || q.status === 'approved')
       )
     ).toBe(true);
+  });
+
+  // Q-API-010A 我的提问状态统计应返回服务端聚合结果（不受分页影响）
+  it('should return my question status counts (Q-API-010A)', async () => {
+    await prisma.question.createMany({
+      data: [
+        {
+          id: 'q-count-1',
+          title: '统计 pending',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          difficulty: 'easy',
+          status: 'pending',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        },
+        {
+          id: 'q-count-2',
+          title: '统计 approved',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          difficulty: 'medium',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        },
+        {
+          id: 'q-count-3',
+          title: '统计 rejected',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          difficulty: 'hard',
+          status: 'rejected',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get('/api/questions/my-status-counts')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.total).toBe(3);
+    expect(res.body.data.pending).toBe(1);
+    expect(res.body.data.approved).toBe(1);
+    expect(res.body.data.rejected).toBe(1);
+    expect(res.body.data.banned).toBe(0);
   });
 
   // Q-API-008 查询问题详情

@@ -16,6 +16,7 @@ import type {
     CreateCommentPayload,
     CommentListResponse,
     QuestionListParams,
+    MyQuestionStatusStats,
     LikePayload,
     LikeResponse,
     FavoritePayload,
@@ -684,6 +685,11 @@ export const questionService = {
         );
 
         return paginated;
+    },
+    getMyStatusCounts: async () => {
+        // 修改原因：提供“我的提问”独立统计口径，避免前端仅基于当前分页列表统计造成偏差。
+        const { data } = await api.get<ApiResponse<MyQuestionStatusStats>>('/questions/my-status-counts');
+        return data.data;
     },
     getQuestionById: async (id: string) => {
         const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`);

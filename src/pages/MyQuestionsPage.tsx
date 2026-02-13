@@ -6,12 +6,17 @@ import { useQuestions } from '@/hooks/useQuestions';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { toast } from 'sonner';
 import { questionService } from '@/services/api';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export function MyQuestionsPage() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const { data, isLoading, refetch } = useQuestions({ authorId: user?.id });
+    const [statusStats, setStatusStats] = useState<{
+        total: number;
+        pending: number;
+        approved: number;
+    } | null>(null);
 
     // 未登录用户访问“我的提问”时统一跳转登录页，避免误展示公共列表
     useEffect(() => {
@@ -20,6 +25,34 @@ export function MyQuestionsPage() {
             navigate('/login');
         }
     }, [user, navigate]);
+
+    useEffect(() => {
+        if (!user) {
+            setStatusStats(null);
+            return;
+        }
+
+        let alive = true;
+        // 修改原因：统计卡片改为使用后端聚合结果，避免“仅首屏分页数据”导致待审核数量偏差。
+        questionService.getMyStatusCounts()
+            .then((stats) => {
+                if (!alive) return;
+                setStatusStats({
+                    total: stats.total,
+                    pending: stats.pending,
+                    approved: stats.approved
+                });
+            })
+            .catch(() => {
+                if (!alive) return;
+                // ⚠️ 不确定因素：统计接口临时失败时，先回退为当前页本地统计，可能仍受分页影响。
+                setStatusStats(null);
+            });
+
+        return () => {
+            alive = false;
+        };
+    }, [user?.id]);
 
      // 获取当前用户的问题
      const myQuestions = (data?.pages.flatMap(p => p.list) || []).filter(q => q && q.id);
@@ -81,7 +114,7 @@ export function MyQuestionsPage() {
             <div className="bg-white rounded-3xl p-6 mb-4 shadow-sm">
                 <div className="grid grid-cols-3 gap-4 text-center">
                     <div className="flex flex-col justify-center items-center h-full p-2 rounded-xl">
-                        <div className="text-2xl font-bold text-gray-800">{myQuestions.length}</div>
+                        <div className="text-2xl font-bold text-gray-800">{statusStats?.total ?? myQuestions.length}</div>
                         <div className="text-sm text-gray-500 mt-1">全部提问</div>
                     </div>
                     <div 
@@ -90,7 +123,7 @@ export function MyQuestionsPage() {
                         onClick={() => navigate('/my-questions/status/approved')}
                     >
                         <div className="text-2xl font-bold text-green-600">
-                            {myQuestions.filter(q => q.status === 'approved').length}
+                            {statusStats?.approved ?? myQuestions.filter(q => q.status === 'approved').length}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">已通过</div>
                     </div>
@@ -100,7 +133,7 @@ export function MyQuestionsPage() {
                         onClick={() => navigate('/my-questions/status/pending')}
                     >
                         <div className="text-2xl font-bold text-blue-600">
-                            {myQuestions.filter(q => q.status === 'pending').length}
+                            {statusStats?.pending ?? myQuestions.filter(q => q.status === 'pending').length}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">待审核</div>
                     </div>

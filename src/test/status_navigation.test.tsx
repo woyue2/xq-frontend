@@ -5,6 +5,7 @@ import { MyQuestionsPage } from '@/pages/MyQuestionsPage';
 import { StatusListPage } from '@/pages/StatusListPage';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { questionService } from '@/services/api';
 import { toast } from 'sonner';
 
 // Mock hooks & toast
@@ -24,6 +25,17 @@ vi.mock('sonner', () => ({
     }
 }));
 
+vi.mock('@/services/api', async (orig) => {
+    const actual = await orig();
+    return {
+        ...actual,
+        questionService: {
+            ...actual.questionService,
+            getMyStatusCounts: vi.fn()
+        }
+    };
+});
+
 describe('Status Navigation Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -31,6 +43,14 @@ describe('Status Navigation Tests', () => {
         // Mock User（默认学生）
         (useAuthStore as any).mockReturnValue({
             user: { id: 'u1', nickname: 'Test User', role: 'student' }
+        });
+        (questionService.getMyStatusCounts as any).mockResolvedValue({
+            total: 2,
+            pending: 1,
+            approved: 1,
+            rejected: 0,
+            banned: 0,
+            other: 0
         });
 
         const allQuestions = [
@@ -108,6 +128,55 @@ describe('Status Navigation Tests', () => {
                 status: 'pending'
             })
         );
+    });
+
+    it('uses server status counts for stat cards instead of current page list only', async () => {
+        (questionService.getMyStatusCounts as any).mockResolvedValueOnce({
+            total: 12,
+            pending: 3,
+            approved: 9,
+            rejected: 0,
+            banned: 0,
+            other: 0
+        });
+
+        // 修改原因：模拟“当前页数据不足以代表总数”的场景，验证统计卡片使用后端聚合值。
+        (useQuestions as any).mockReturnValue({
+            data: {
+                pages: [{
+                    list: [{
+                        id: 'q-only-1',
+                        title: 'Only One In Page',
+                        content: 'C',
+                        status: 'approved',
+                        createdAt: new Date().toISOString(),
+                        stats: { likes: 0, comments: 0, answers: 0 },
+                        isGoodQuestion: false,
+                        answerCount: 0,
+                        subject: 'math',
+                        likeCount: 0,
+                        collectionCount: 0,
+                        authorId: 'u1'
+                    }]
+                }]
+            },
+            isLoading: false,
+            refetch: vi.fn()
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/my-questions']}>
+                <Routes>
+                    <Route path="/my-questions" element={<MyQuestionsPage />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('12')).toBeDefined();
+            expect(screen.getByText('3')).toBeDefined();
+            expect(screen.getByText('9')).toBeDefined();
+        });
     });
 
     it('navigates to approved list when clicking approved stats', async () => {

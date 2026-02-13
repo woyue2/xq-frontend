@@ -99,6 +99,15 @@ export interface QuestionListParams {
     authorId?: string;
 }
 
+export interface MyQuestionStatusStats {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    banned: number;
+    other: number;
+}
+
 // 评论相关
 export interface CreateCommentPayload {
     content?: string;
