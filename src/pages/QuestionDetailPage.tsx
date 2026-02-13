@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type PointerEvent } from 'react';
+import { useState, useEffect, useRef, type MouseEvent, type PointerEvent } from 'react';
 import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -22,6 +22,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { cn } from '@/lib/utils';
 import { ImageCarousel } from '@/components/ui/image-carousel';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CommentPraiseFloat, type PraiseFloatItem } from '@/components/CommentPraiseFloat';
 import { UI_CONFIG } from '@/config/ui-config';
 import { Pin } from 'lucide-react';
 import { interactionService, behaviorService, questionService, answerService, commentService } from '@/services/api';
@@ -29,6 +30,10 @@ import { USE_MOCK } from '@/lib/mock-env';
 import { useQuestions } from '@/hooks/useQuestions';
 import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
+
+type CommentPraiseFloatStateItem = PraiseFloatItem & {
+  commentId: string;
+};
 
 const normalizeQuestion = (raw: any) => {
   if (!raw) return null;
@@ -155,6 +160,8 @@ export function QuestionDetailPage() {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
+  // 修改原因：方案B要求将飘字动画渲染抽成轻量子组件，页面仅管理触发状态。
+  const [praiseFloatItems, setPraiseFloatItems] = useState<CommentPraiseFloatStateItem[]>([]);
   const [showCommentExitDialog, setShowCommentExitDialog] = useState(false);
   // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
@@ -188,11 +195,40 @@ export function QuestionDetailPage() {
     return (fromQuery || fromState) ?? null;
   });
   const [highlightAnswerId, setHighlightAnswerId] = useState<string | null>(null);
+  const praiseTimerRefs = useRef<number[]>([]);
+  const MAX_PRAISE_FLOAT_COUNT = 3;
+  const PRAISE_FLOAT_DURATION_MS = 900;
 
   const openImagePreview = (image: string, images: string[]) => {
     // ⚠️ 不确定因素：若上游传入重复 URL，轮播定位会命中第一个重复项；当前按现有数据模型先保持该行为。
     setPreviewImages(images);
     setSelectedImage(image);
+  };
+
+  const triggerZhenbangFloat = (
+    commentId: string,
+    event: MouseEvent<HTMLButtonElement>
+  ) => {
+    // 修改原因：快速点击“真棒”按钮时限制并发实例，避免动画堆叠遮挡评论内容。
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width * 0.2;
+    const y = rect.top + rect.height * 0.4;
+    setPraiseFloatItems((prev) => {
+      const sameCommentItems = prev.filter((item) => item.commentId === commentId);
+      const otherCommentItems = prev.filter((item) => item.commentId !== commentId);
+      const nextSameCommentItems = [...sameCommentItems, { id, text: '真棒', commentId, x, y }]
+        .slice(-MAX_PRAISE_FLOAT_COUNT);
+      return [...otherCommentItems, ...nextSameCommentItems];
+    });
+
+    // ⚠️ 不确定因素：极端低性能设备上 setTimeout 回调可能略有延迟，导致飘字停留时间略长。
+    const timer = window.setTimeout(() => {
+      setPraiseFloatItems((prev) => prev.filter((item) => item.id !== id));
+      praiseTimerRefs.current = praiseTimerRefs.current.filter((t) => t !== timer);
+    }, PRAISE_FLOAT_DURATION_MS);
+
+    praiseTimerRefs.current.push(timer);
   };
 
   useEffect(() => {
@@ -240,6 +276,13 @@ export function QuestionDetailPage() {
       // ⚠️ 不确定因素：本地缓存可能被手工修改为无效 JSON，当前仅忽略异常并保持空输入。
     }
   }, [commentDraftKey]);
+
+  useEffect(() => {
+    return () => {
+      praiseTimerRefs.current.forEach((timer) => window.clearTimeout(timer));
+      praiseTimerRefs.current = [];
+    };
+  }, []);
 
   // 当回答列表加载完成并且存在目标 answerId 时，自动滚动并高亮目标回答卡片
   useEffect(() => {
@@ -1214,19 +1257,25 @@ export function QuestionDetailPage() {
                         <AvatarImage src={comment.authorAvatar} />
                         <AvatarFallback className="text-[10px]">{comment.authorName[0]}</AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 space-y-2">
+                      <div className="flex-1 space-y-2 relative">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-gray-600">{comment.authorName}</span>
                           <span className="text-[10px] text-gray-300">{formatDate(comment.createdAt)}</span>
                         </div>
                         {comment.authorRole === 'teacher' && comment.content.trim() === '真棒' ? (
-                          <button
-                            type="button"
-                            // 修改原因：按需求将“老师评论真棒”渲染为 button 形态，便于后续直接扩展点击交互。
-                            className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 active:scale-95 transition"
-                          >
-                            真棒
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              // 修改原因：按需求将“老师评论真棒”渲染为 button 形态，便于后续直接扩展点击交互。
+                              className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 active:scale-95 transition"
+                              onClick={(event) => triggerZhenbangFloat(comment.id, event)}
+                            >
+                              真棒
+                            </button>
+                            <span className="text-xs font-bold text-amber-500 select-none">
+                              {`<<<< 点击有惊喜`}
+                            </span>
+                          </div>
                         ) : (
                           <p className="text-xs text-gray-700 leading-relaxed font-medium">
                             {comment.content}
@@ -1302,6 +1351,9 @@ export function QuestionDetailPage() {
                 </div>
               </div>
             )}
+            <CommentPraiseFloat
+              items={praiseFloatItems.map(({ id, text, x, y }) => ({ id, text, x, y }))}
+            />
           </div>
         </div>
       </div>
