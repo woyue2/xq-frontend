@@ -68,6 +68,24 @@ describe('Upload API', () => {
     expect(res.body.data.audioUrl.startsWith('/static/audio/')).toBe(true);
   });
 
+  // 兼容历史客户端：音频字段名为 audio 也可上传
+  it('should allow teacher to upload audio file with audio field alias', async () => {
+    const buffer = Buffer.alloc(1024, 'a');
+
+    const res = await request(app)
+      .post('/api/upload/audio')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .attach('audio', buffer, {
+        filename: 'answer.webm',
+        contentType: 'audio/webm'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(typeof res.body.data.audioUrl).toBe('string');
+    expect(res.body.data.audioUrl.startsWith('/static/audio/')).toBe(true);
+  });
+
   // 学生上传音频应被拒绝
   it('should reject audio upload from non-teacher user', async () => {
     const buffer = Buffer.alloc(1024, 'a');

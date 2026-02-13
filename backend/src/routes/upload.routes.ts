@@ -9,6 +9,8 @@ import { env } from '../config/env';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { aiAuditService } from '../services/ai-audit.service';
+import { coreLogger } from '../middlewares/logger.middleware';
 
 export const uploadRouter = Router();
 
@@ -81,6 +83,39 @@ const audioUpload = multer({
     cb(null, true);
   }
 });
+
+const toBearerToken = (token: string) =>
+  token.toLowerCase().startsWith('bearer ') ? token : `Bearer ${token}`;
+
+const deleteUploadedImage = async (imageUrl: string): Promise<boolean> => {
+  try {
+    const parsed = new URL(imageUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false;
+    }
+
+    const headers: Record<string, string> = {};
+    if (env.OSS_UPLOAD_TOKEN) {
+      headers.Authorization = toBearerToken(env.OSS_UPLOAD_TOKEN);
+    }
+
+    // 修改原因：上传后审核不通过时立即删除图片，避免违规图片继续留在图床。
+    // ⚠️ 不确定因素：不同图床的删除协议不统一，当前按“对图片 URL 发 DELETE”实现；
+    // 若第三方图床不支持该语义，需按其官方删除 API 再做适配。
+    const response = await fetch(imageUrl, {
+      method: 'DELETE',
+      headers: Object.keys(headers).length > 0 ? headers : undefined
+    });
+
+    return response.ok || response.status === 404;
+  } catch (error) {
+    coreLogger.error(
+      { feature: 'upload-delete-image', imageUrl, error },
+      'Failed to delete uploaded image'
+    );
+    return false;
+  }
+};
 
 /**
  * @swagger
@@ -193,7 +228,8 @@ uploadRouter.get(
 uploadRouter.post(
   '/audio',
   authMiddleware,
-  audioUpload.single('file'),
+  // 修改原因：统一前后端上传契约时保留兼容路径，避免历史客户端使用 audio 字段导致服务端取不到文件。
+  audioUpload.fields([{ name: 'file', maxCount: 1 }, { name: 'audio', maxCount: 1 }]),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -208,7 +244,11 @@ uploadRouter.post(
         );
       }
 
-      const file = (req as any).file as Express.Multer.File | undefined;
+      const files = (req as any).files as
+        | Record<string, Express.Multer.File[]>
+        | undefined;
+      const file = files?.file?.[0] ?? files?.audio?.[0];
+      // ⚠️ 不确定因素：若第三方客户端使用了其他字段名（既非 file 也非 audio），仍会命中 NO_FILE。
 
       if (!file) {
         throw new AppError(400, 'NO_FILE', '未找到上传的音频文件');
@@ -222,6 +262,67 @@ uploadRouter.post(
         message: 'success',
         data: {
           audioUrl
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+uploadRouter.post(
+  '/audit-image',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const { imageUrl } = req.body as { imageUrl?: string };
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'imageUrl 不能为空');
+      }
+
+      const result = await aiAuditService.auditImage(imageUrl);
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          safe: result.safe,
+          reason: result.reason,
+          category: result.category,
+          requiresManualReview: result.requiresManualReview === true
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+uploadRouter.post(
+  '/delete-image',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const { imageUrl } = req.body as { imageUrl?: string };
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new AppError(400, 'VALIDATION_ERROR', 'imageUrl 不能为空');
+      }
+
+      const removed = await deleteUploadedImage(imageUrl);
+      return res.json({
+        code: 200,
+        message: removed ? '图片已删除' : '图片删除失败',
+        data: {
+          removed
         },
         timestamp: Date.now()
       });
