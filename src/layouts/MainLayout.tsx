@@ -7,18 +7,27 @@ import { Input } from '@/components/ui/input';
 import { Search, Plus, X, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type PointerEvent } from 'react';
 import { getCurrentSlogan } from '@/config/ai-text';
 import { notificationService } from '@/services/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export function MainLayout() {
     const { user, logout, isActiveMember } = useAuthStore();
     const navigate = useNavigate();
     const location = useLocation();
+    const queryClient = useQueryClient();
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [slogan, setSlogan] = useState(getCurrentSlogan());
     const [unreadCount, setUnreadCount] = useState(0);
+    const [refreshTick, setRefreshTick] = useState(0);
+    const [swipeStart, setSwipeStart] = useState<{
+        x: number;
+        y: number;
+        pointerId: number;
+    } | null>(null);
 
     useEffect(() => {
         // Update slogan every minute to check if 5-minute block changed
@@ -64,6 +73,58 @@ export function MainLayout() {
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const getPageScrollTop = () =>
+        window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+
+    const isRefreshBlockedTarget = (target: EventTarget | null) => {
+        if (!(target instanceof HTMLElement)) return false;
+        return !!target.closest('input,textarea,button,a,select,label,[data-no-refresh="true"]');
+    };
+
+    const triggerPageDataRefresh = async () => {
+        // 修改原因：按需求“刷新数据而非整页 reload”，统一走 React Query 失效 + 当前页重挂载。
+        await queryClient.invalidateQueries();
+        setRefreshTick((prev) => prev + 1);
+        toast.success('已刷新数据');
+    };
+
+    const handleMainPointerDown = (event: PointerEvent<HTMLElement>) => {
+        if (isRefreshBlockedTarget(event.target)) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+        setSwipeStart({
+            x: event.clientX,
+            y: event.clientY,
+            pointerId: event.pointerId
+        });
+    };
+
+    const handleMainPointerUp = async (event: PointerEvent<HTMLElement>) => {
+        if (!swipeStart) return;
+        if (swipeStart.pointerId !== event.pointerId) return;
+
+        const deltaX = event.clientX - swipeStart.x;
+        const deltaY = event.clientY - swipeStart.y;
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+        const top = getPageScrollTop();
+        setSwipeStart(null);
+
+        // 修改原因：只在“页面到顶 + 上滑手势”触发刷新，避免普通滚动误触。
+        // ⚠️ 不确定因素：阈值基于通用手感（90px、纵向优势1.2）；若真机误触需再调参。
+        if (top > 2) return;
+        if (deltaY > -90) return;
+        if (absY <= absX * 1.2) return;
+
+        await triggerPageDataRefresh();
+    };
+
+    const handleMainPointerCancel = (event: PointerEvent<HTMLElement>) => {
+        if (!swipeStart) return;
+        if (swipeStart.pointerId !== event.pointerId) return;
+        setSwipeStart(null);
     };
 
     const isActive = (path: string) => location.pathname === path;
@@ -167,8 +228,13 @@ export function MainLayout() {
 
 
             {/* Main Content Area */}
-            <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 pb-24 animate-in fade-in duration-500">
-                <Outlet />
+            <main
+                className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 pb-24 animate-in fade-in duration-500"
+                onPointerDown={handleMainPointerDown}
+                onPointerUp={handleMainPointerUp}
+                onPointerCancel={handleMainPointerCancel}
+            >
+                <Outlet key={`${location.pathname}${location.search}:${refreshTick}`} />
             </main>
 
             {/* 提问入口按钮：仅对非家长且在有效期内的用户显示 */}
