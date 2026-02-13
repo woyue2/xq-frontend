@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
-import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
+import { TAXONOMY } from '@/config/taxonomy';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { isMemberActive } from '@/lib/permissions';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -38,7 +38,7 @@ export function CreateQuestionPage() {
   // Permission Check
   useEffect(() => {
     if (user && !isMemberActive(user)) {
-      toast.error('您的会员已过期，请联系老师续费');
+      toast.error('您的会员已过期');
       navigate('/');
     }
   }, [user, navigate]);
@@ -49,7 +49,9 @@ export function CreateQuestionPage() {
   const [showExitDialog, setShowExitDialog] = useState(false);
 
   // Structured input state
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  // 修改原因：产品当前仅支持数学提问，前端提交口径固定为 math，避免用户再选择科目。
+  // ⚠️ 不确定因素：后续若恢复“学科/生活”分类，需要恢复此处的可选状态并同步后端校验。
+  const [selectedSubject] = useState<string>('math');
   const [selectedTopic, setSelectedTopic] = useState<string>('');
   const [selectedMethod, setSelectedMethod] = useState<string>('');
 
@@ -187,11 +189,6 @@ export function CreateQuestionPage() {
       return;
     }
 
-    if (!selectedSubject) {
-      toast.error('请选择科目');
-      return;
-    }
-
     if (!title.trim()) {
       toast.error('请输入问题标题');
       return;
@@ -216,6 +213,7 @@ export function CreateQuestionPage() {
       const payload = {
         title,
         content,
+        // 修改原因：即使未来页面上出现异常状态，也确保请求体中的 subject 固定为 math。
         subject: selectedSubject,
         tags: [selectedTopic, selectedMethod].filter(Boolean),
         images
@@ -253,7 +251,7 @@ export function CreateQuestionPage() {
     }
   };
 
-  const canSubmit = !submitting && title.trim().length > 0 && selectedSubject;
+  const canSubmit = !submitting && title.trim().length > 0 && Boolean(selectedSubject);
 
   if (!user) return null; // Should be handled by layout but safe guard
 
@@ -283,30 +281,8 @@ export function CreateQuestionPage() {
       {/* 编辑区域 */}
       <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6 text-sm">
         <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-          {/* 1. 科目选择 (Taxonomy) */}
-          <div className="space-y-3">
-            <Label className="text-base font-bold">选择科目 <span className="text-red-500">*</span></Label>
-            <div className="flex gap-2">
-              {SUBJECT_OPTIONS.map((sub) => (
-                <button
-                  key={sub.value}
-                  onClick={() => {
-                    setSelectedSubject(sub.value);
-                    setSelectedTopic('');
-                    setSelectedMethod('');
-                  }}
-                  className={`px-4 py-2 rounded-full border transition-all ${selectedSubject === sub.value
-                    ? 'bg-blue-500 text-white border-blue-500 shadow-md'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                    }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. 考点与方法联动 (Dynamic Chips) */}
+          {/* 修改原因：仅保留数学维度，移除“选择科目”交互，减少与产品定位不一致的入口。 */}
+          {/* 1. 考点与方法联动 (Dynamic Chips) */}
           {currentSubjectConfig && (
             <div
               className={`grid grid-cols-1 ${showMethodField ? 'md:grid-cols-2' : ''
@@ -367,7 +343,7 @@ export function CreateQuestionPage() {
             </div>
           )}
 
-          {/* 3. 问题标题 */}
+          {/* 2. 问题标题 */}
           <div className="space-y-2">
             <Label htmlFor="title" className="text-base font-bold">
               问题标题 <span className="text-red-500">*</span>
@@ -407,7 +383,7 @@ export function CreateQuestionPage() {
             </div>
           </div>
 
-          {/* 4. 问题详情 */}
+          {/* 3. 问题详情 */}
           <div className="space-y-2">
             <Label htmlFor="content" className="text-base font-bold">问题详情</Label>
             <Textarea
@@ -422,7 +398,7 @@ export function CreateQuestionPage() {
             </div>
           </div>
 
-          {/* 5. 图片上传区 */}
+          {/* 4. 图片上传区 */}
           <div className="space-y-2">
             <Label className="font-bold">上传图片（最多3张）</Label>
             <div className="flex flex-wrap gap-3">
@@ -478,7 +454,7 @@ export function CreateQuestionPage() {
           {/* 审核提示 */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
             <p className="text-sm text-indigo-800">
-              💡 AI 小贴士：准确选择 <b>科目</b> 和 <b>考点</b> 能让老师更快回答哦！
+              💡 AI 小贴士：准确选择 <b>考点</b> 和 <b>解题方法</b> 能让老师更快回答哦！
             </p>
           </div>
         </div>
