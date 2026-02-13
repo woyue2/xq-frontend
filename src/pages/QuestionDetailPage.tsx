@@ -5,7 +5,6 @@ import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { userLikes, userFavorites } from '@/lib/mock-data';
 import type { Comment, DifficultyLevel, Answer } from '@/types';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -137,8 +136,9 @@ export function QuestionDetailPage() {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
-  const [liked, setLiked] = useState(userLikes.has(safeQuestionId));
-  const [favorited, setFavorited] = useState(userFavorites.has(safeQuestionId));
+  // 修改原因：详情页点赞/收藏状态改为以后端返回为准，避免刷新后被本地 mock 状态重置。
+  const liked = !!question?.isLiked;
+  const favorited = !!question?.isFavorited;
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
@@ -259,13 +259,26 @@ export function QuestionDetailPage() {
     }
 
     const nextLiked = !liked;
-    setLiked(nextLiked);
 
     try {
-      await interactionService.like({
+      const result = await interactionService.like({
         targetType: 'question',
         targetId: question.id,
         action: nextLiked ? 'like' : 'unlike'
+      });
+
+      // 修改原因：以接口返回的 liked/likesCount 回写详情页状态，保证与后端真实值一致。
+      setRawQuestion((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          isLiked: result.liked,
+          likes: result.likesCount,
+          stats: {
+            ...(prev.stats ?? {}),
+            likes: result.likesCount
+          }
+        };
       });
 
       await behaviorService.log('question_like', {
@@ -275,8 +288,7 @@ export function QuestionDetailPage() {
 
       toast.success(nextLiked ? '点赞成功' : '已取消点赞');
     } catch {
-      // 回滚本地状态
-      setLiked(!nextLiked);
+      // ⚠️ 不确定因素：失败时可能是网络抖动或服务端拒绝；此处不做本地反向写入，保持后端已知状态不变。
     }
   };
 
@@ -288,12 +300,25 @@ export function QuestionDetailPage() {
     }
 
     const nextFavorited = !favorited;
-    setFavorited(nextFavorited);
 
     try {
-      await interactionService.favorite({
+      const result = await interactionService.favorite({
         questionId: question.id,
         action: nextFavorited ? 'favorite' : 'unfavorite'
+      });
+
+      // 修改原因：以接口返回的 favorited/favoritesCount 回写详情页状态，保证与后端真实值一致。
+      setRawQuestion((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          isFavorited: result.favorited,
+          favorites: result.favoritesCount,
+          stats: {
+            ...(prev.stats ?? {}),
+            favorites: result.favoritesCount
+          }
+        };
       });
 
       await behaviorService.log('question_favorite', {
@@ -303,7 +328,7 @@ export function QuestionDetailPage() {
 
       toast.success(nextFavorited ? '收藏成功' : '已取消收藏');
     } catch {
-      setFavorited(!nextFavorited);
+      // ⚠️ 不确定因素：失败时可能是网络抖动或服务端拒绝；此处不做本地反向写入，保持后端已知状态不变。
     }
   };
 
@@ -727,7 +752,7 @@ export function QuestionDetailPage() {
                 className={cn("flex items-center gap-1 transition-colors", liked ? "text-pink-500" : "text-gray-400")}
               >
                 <Heart className={cn("w-6 h-6", liked && "fill-current")} />
-                <span className="text-xs">{question.stats.likes + (liked ? 1 : 0)}</span>
+                <span className="text-xs">{question.stats.likes}</span>
               </button>
 
               <button
@@ -736,7 +761,7 @@ export function QuestionDetailPage() {
                 className={cn("flex items-center gap-1 transition-colors", favorited ? "text-amber-400" : "text-gray-400")}
               >
                 <Star className={cn("w-6 h-6", favorited && "fill-current")} />
-                <span className="text-xs">{question.stats.favorites + (favorited ? 1 : 0)}</span>
+                <span className="text-xs">{question.stats.favorites}</span>
               </button>
 
               <button className="flex items-center gap-1 text-gray-400">

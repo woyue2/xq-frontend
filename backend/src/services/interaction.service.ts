@@ -2,8 +2,12 @@ import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 
 export class InteractionService {
-  async toggleQuestionLike(params: { questionId: string; userId: string }) {
-    const { questionId, userId } = params;
+  async toggleQuestionLike(params: {
+    questionId: string;
+    userId: string;
+    action?: 'like' | 'unlike' | 'toggle';
+  }) {
+    const { questionId, userId, action = 'toggle' } = params;
 
     const question = await prisma.question.findUnique({
       where: { id: questionId }
@@ -27,6 +31,70 @@ export class InteractionService {
           }
         }
       });
+
+      // 修改原因：/api/interactions/like 需要按 action 显式执行，避免重试/乱序时“toggle 反向翻转”。
+      // ⚠️ 不确定因素：仍保留 action='toggle' 兼容老入口 /questions/:id/like，后续若统一单入口可删除该兼容分支。
+      if (action === 'like') {
+        if (existing) {
+          return {
+            questionId,
+            isLiked: true,
+            likes: question.likes
+          };
+        }
+
+        await tx.like.create({
+          data: {
+            userId,
+            targetType: 'question',
+            targetId: questionId
+          }
+        });
+
+        const updated = await tx.question.update({
+          where: { id: questionId },
+          data: {
+            likes: {
+              increment: 1
+            }
+          }
+        });
+
+        return {
+          questionId,
+          isLiked: true,
+          likes: updated.likes
+        };
+      }
+
+      if (action === 'unlike') {
+        if (!existing) {
+          return {
+            questionId,
+            isLiked: false,
+            likes: question.likes
+          };
+        }
+
+        await tx.like.delete({
+          where: { id: existing.id }
+        });
+
+        const updated = await tx.question.update({
+          where: { id: questionId },
+          data: {
+            likes: {
+              decrement: 1
+            }
+          }
+        });
+
+        return {
+          questionId,
+          isLiked: false,
+          likes: updated.likes
+        };
+      }
 
       if (!existing) {
         await tx.like.create({
@@ -76,8 +144,12 @@ export class InteractionService {
     return result;
   }
 
-  async toggleQuestionFavorite(params: { questionId: string; userId: string }) {
-    const { questionId, userId } = params;
+  async toggleQuestionFavorite(params: {
+    questionId: string;
+    userId: string;
+    action?: 'favorite' | 'unfavorite' | 'toggle';
+  }) {
+    const { questionId, userId, action = 'toggle' } = params;
 
     const question = await prisma.question.findUnique({
       where: { id: questionId }
@@ -100,6 +172,66 @@ export class InteractionService {
           }
         }
       });
+
+      // 修改原因：/api/interactions/favorite 需要按 action 显式执行，避免重试/乱序时“toggle 反向翻转”。
+      // ⚠️ 不确定因素：仍保留 action='toggle' 兼容老入口 /questions/:id/favorite，后续若统一单入口可删除该兼容分支。
+      if (action === 'favorite') {
+        if (existing) {
+          return {
+            questionId,
+            isFavorited: true,
+            favorites: question.favorites
+          };
+        }
+
+        await tx.favorite.create({
+          data: { userId, questionId }
+        });
+
+        const updated = await tx.question.update({
+          where: { id: questionId },
+          data: {
+            favorites: {
+              increment: 1
+            }
+          }
+        });
+
+        return {
+          questionId,
+          isFavorited: true,
+          favorites: updated.favorites
+        };
+      }
+
+      if (action === 'unfavorite') {
+        if (!existing) {
+          return {
+            questionId,
+            isFavorited: false,
+            favorites: question.favorites
+          };
+        }
+
+        await tx.favorite.delete({
+          where: { id: existing.id }
+        });
+
+        const updated = await tx.question.update({
+          where: { id: questionId },
+          data: {
+            favorites: {
+              decrement: 1
+            }
+          }
+        });
+
+        return {
+          questionId,
+          isFavorited: false,
+          favorites: updated.favorites
+        };
+      }
 
       if (!existing) {
         await tx.favorite.create({

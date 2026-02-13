@@ -98,17 +98,22 @@ interactionRouter.post(
         );
       }
 
+      // 修改原因：交互主入口按请求 action 显式执行，避免客户端重试导致状态被反向翻转。
       const result = await interactionService.toggleQuestionLike({
         questionId: targetId,
-        userId: req.user.id
+        userId: req.user.id,
+        action
       });
 
       return res.json({
         code: 200,
         message: result.isLiked ? '点赞成功' : '取消点赞',
         data: {
+          // 修改原因：统一新旧入口响应字段，避免前端/调用方因 liked 与 isLiked 差异产生分支不一致。
           liked: result.isLiked,
-          likesCount: result.likes
+          isLiked: result.isLiked,
+          likesCount: result.likes,
+          likes: result.likes
         },
         timestamp: Date.now()
       });
@@ -182,17 +187,22 @@ interactionRouter.post(
         );
       }
 
+      // 修改原因：交互主入口按请求 action 显式执行，避免客户端重试导致状态被反向翻转。
       const result = await interactionService.toggleQuestionFavorite({
         questionId,
-        userId: req.user.id
+        userId: req.user.id,
+        action
       });
 
       return res.json({
         code: 200,
         message: result.isFavorited ? '收藏成功' : '取消收藏',
         data: {
+          // 修改原因：统一新旧入口响应字段，避免前端/调用方因 favorited 与 isFavorited 差异产生分支不一致。
           favorited: result.isFavorited,
-          favoritesCount: result.favorites
+          isFavorited: result.isFavorited,
+          favoritesCount: result.favorites,
+          favorites: result.favorites
         },
         timestamp: Date.now()
       });
