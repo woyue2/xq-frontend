@@ -2,8 +2,54 @@ import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 import { coreLogger } from '../middlewares/logger.middleware';
 import { aiAuditService } from './ai-audit.service';
+import {
+  signQuestionShareToken,
+  verifyQuestionShareToken
+} from '../utils/jwt';
 
 export class QuestionService {
+  async createShareLink(params: {
+    questionId: string;
+    userId: string;
+    role: string;
+  }) {
+    const { questionId, userId, role } = params;
+
+    // 修改原因：分享链接生成前复用现有详情权限校验，避免无权用户为他人内容生成外链。
+    await this.getById(questionId, { userId, role });
+
+    const shareToken = signQuestionShareToken(questionId);
+    // 修改原因：MVP 固定 1 小时有效期，保持规则简单可控。
+    const expireAt = Date.now() + 60 * 60 * 1000;
+
+    return {
+      shareToken,
+      expireAt
+    };
+  }
+
+  async assertShareTokenAccess(params: {
+    questionId: string;
+    shareToken: string;
+  }) {
+    const { questionId, shareToken } = params;
+
+    let payload: { questionId: string };
+    try {
+      payload = verifyQuestionShareToken(shareToken);
+    } catch {
+      throw new AppError(401, 'INVALID_SHARE_TOKEN', '分享链接无效或已过期');
+    }
+
+    if (payload.questionId !== questionId) {
+      throw new AppError(
+        403,
+        'SHARE_TOKEN_SCOPE_MISMATCH',
+        '分享链接与目标问题不匹配'
+      );
+    }
+  }
+
   // 修改原因：为“我的提问”提供独立状态计数，避免前端受分页数据影响出现统计偏差。
   async getMyStatusCounts(params: { authorId: string }) {
     const { authorId } = params;

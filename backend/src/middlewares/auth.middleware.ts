@@ -43,6 +43,36 @@ export const authMiddleware = (
   }
 };
 
+export const optionalAuthMiddleware = (
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization ?? '';
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : '';
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const payload: any = verifyToken(token);
+    if (!payload.sub || !payload.role) {
+      return next();
+    }
+    req.user = {
+      id: String(payload.sub),
+      role: String(payload.role)
+    };
+    return next();
+  } catch {
+    // 修改原因：分享访客模式下，详情接口允许无效/过期登录态退化为匿名访问，再由业务层校验 shareToken。
+    return next();
+  }
+};
+
 export const createRequireTeacher =
   (options?: { message?: string; bizCode?: number }) =>
   (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {

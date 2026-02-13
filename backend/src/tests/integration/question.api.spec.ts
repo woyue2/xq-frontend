@@ -116,6 +116,8 @@ describe('Question API', () => {
             'q-count-1',
             'q-count-2',
             'q-count-3',
+            'q-share-1',
+            'q-share-2',
             'q-detail-1'
           ]
         }
@@ -618,6 +620,204 @@ describe('Question API', () => {
     expect(res.body.data.approved).toBe(1);
     expect(res.body.data.rejected).toBe(1);
     expect(res.body.data.banned).toBe(0);
+  });
+
+  // Q-API-010B 登录用户可生成 1 小时分享链接
+  it('should create question share link for authorized user (Q-API-010B)', async () => {
+    const q = await prisma.question.create({
+      data: {
+        id: 'q-share-1',
+        title: '可分享问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        difficulty: 'easy',
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const res = await request(app)
+      .post(`/api/questions/${q.id}/share-link`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(typeof res.body.data.shareToken).toBe('string');
+    expect(typeof res.body.data.expireAt).toBe('number');
+  });
+
+  // Q-API-010C 未登录用户可用有效分享 token 访问单题详情
+  it('should allow guest viewing question detail with valid share token (Q-API-010C)', async () => {
+    const q = await prisma.question.create({
+      data: {
+        id: 'q-share-1',
+        title: '可分享问题',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        difficulty: 'easy',
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const shareRes = await request(app)
+      .post(`/api/questions/${q.id}/share-link`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    const shareToken = shareRes.body.data.shareToken as string;
+    const res = await request(app).get(
+      `/api/questions/${q.id}?shareToken=${encodeURIComponent(shareToken)}`
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.id).toBe(q.id);
+    expect(res.body.data.isSharedView).toBe(true);
+  });
+
+  // Q-API-010D 分享 token 只能访问绑定的问题
+  it('should reject guest when share token is used for another question (Q-API-010D)', async () => {
+    const [q1, q2] = await Promise.all([
+      prisma.question.create({
+        data: {
+          id: 'q-share-1',
+          title: '分享问题1',
+          content: '内容1',
+          subject: 'math',
+          tags: [],
+          difficulty: 'easy',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        }
+      }),
+      prisma.question.create({
+        data: {
+          id: 'q-share-2',
+          title: '分享问题2',
+          content: '内容2',
+          subject: 'math',
+          tags: [],
+          difficulty: 'easy',
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: 'student_001',
+          authorName: '测试学生'
+        }
+      })
+    ]);
+
+    const shareRes = await request(app)
+      .post(`/api/questions/${q1.id}/share-link`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const shareToken = shareRes.body.data.shareToken as string;
+
+    const res = await request(app).get(
+      `/api/questions/${q2.id}?shareToken=${encodeURIComponent(shareToken)}`
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('SHARE_TOKEN_SCOPE_MISMATCH');
+  });
+
+  // Q-API-010E 未登录用户可用有效分享 token 查看该问题的回答与评论列表
+  it('should allow guest listing answers/comments with valid share token (Q-API-010E)', async () => {
+    const q = await prisma.question.create({
+      data: {
+        id: 'q-share-1',
+        title: '分享问题含回答评论',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        difficulty: 'easy',
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 1,
+        answers: 1,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    await prisma.answer.create({
+      data: {
+        questionId: q.id,
+        content: '已通过回答',
+        images: [],
+        audioUrl: null,
+        authorId: 'teacher_001',
+        authorName: '李老师',
+        likes: 0,
+        status: 'approved'
+      }
+    });
+
+    await prisma.comment.create({
+      data: {
+        questionId: q.id,
+        content: '已通过评论',
+        image: null,
+        authorId: 'teacher_001',
+        authorName: '李老师',
+        status: 'approved'
+      }
+    });
+
+    const shareRes = await request(app)
+      .post(`/api/questions/${q.id}/share-link`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    const shareToken = shareRes.body.data.shareToken as string;
+
+    const [answersRes, commentsRes] = await Promise.all([
+      request(app).get(
+        `/api/questions/${q.id}/answers?shareToken=${encodeURIComponent(
+          shareToken
+        )}`
+      ),
+      request(app).get(
+        `/api/questions/${q.id}/comments?shareToken=${encodeURIComponent(
+          shareToken
+        )}`
+      )
+    ]);
+
+    expect(answersRes.status).toBe(200);
+    expect(answersRes.body.code).toBe(200);
+    expect(Array.isArray(answersRes.body.data.list)).toBe(true);
+
+    expect(commentsRes.status).toBe(200);
+    expect(commentsRes.body.code).toBe(200);
+    expect(Array.isArray(commentsRes.body.data.list)).toBe(true);
   });
 
   // Q-API-008 查询问题详情

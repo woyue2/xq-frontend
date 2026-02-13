@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {
   authMiddleware,
+  optionalAuthMiddleware,
   type AuthenticatedRequest
 } from '../middlewares/auth.middleware';
 import { requireActiveMembership } from '../middlewares/membership.middleware';
@@ -295,10 +296,26 @@ questionRouter.get(
  */
 questionRouter.get(
   '/:questionId/answers',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { questionId } = req.params;
+      const shareToken =
+        typeof req.query.shareToken === 'string'
+          ? req.query.shareToken
+          : undefined;
+
+      if (!req.user) {
+        if (!shareToken) {
+          throw new AppError(401, 'UNAUTHORIZED', '未登录');
+        }
+        // 修改原因：允许访客通过有效分享链接只读访问该问题回答列表。
+        await questionService.assertShareTokenAccess({
+          questionId,
+          shareToken
+        });
+      }
+
       const result = await answerService.list({
         questionId,
         userId: req.user?.id
@@ -338,10 +355,25 @@ questionRouter.get(
  */
 questionRouter.get(
   '/:questionId/comments',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { questionId } = req.params;
+      const shareToken =
+        typeof req.query.shareToken === 'string'
+          ? req.query.shareToken
+          : undefined;
+
+      if (!req.user) {
+        if (!shareToken) {
+          throw new AppError(401, 'UNAUTHORIZED', '未登录');
+        }
+        // 修改原因：允许访客通过有效分享链接只读访问该问题评论列表。
+        await questionService.assertShareTokenAccess({
+          questionId,
+          shareToken
+        });
+      }
       const result = await commentService.list({ questionId });
       return res.json({
         code: 200,
@@ -826,14 +858,32 @@ questionRouter.delete(
  */
 questionRouter.get(
   '/:id',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id;
-      const data = await questionService.getById(id, {
-        userId: req.user!.id,
-        role: req.user!.role
-      });
+      const shareToken =
+        typeof req.query.shareToken === 'string'
+          ? req.query.shareToken
+          : undefined;
+
+      let data: any;
+      if (req.user) {
+        data = await questionService.getById(id, {
+          userId: req.user.id,
+          role: req.user.role
+        });
+      } else {
+        if (!shareToken) {
+          throw new AppError(401, 'UNAUTHORIZED', '未登录');
+        }
+        // 修改原因：允许未登录访客携带分享 token 访问单题详情。
+        await questionService.assertShareTokenAccess({
+          questionId: id,
+          shareToken
+        });
+        data = await questionService.getById(id);
+      }
 
       // 修改原因：将详情页互动状态查询下沉到 Service，减少 Route 对数据访问细节的耦合（P0-3）。
       const interactionState = await questionService.getInteractionState({
@@ -850,8 +900,34 @@ questionRouter.get(
           isFavorited: interactionState.isFavorited,
           understandingStatus: interactionState.understandingStatus,
           understoodCount: (data as any).understoodCount ?? undefined,
-          notUnderstoodCount: (data as any).notUnderstoodCount ?? undefined
+          notUnderstoodCount: (data as any).notUnderstoodCount ?? undefined,
+          // 修改原因：前端据此识别“分享访客只读态”，避免误显示可互动入口。
+          isSharedView: !req.user
         },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+questionRouter.post(
+  '/:id/share-link',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const result = await questionService.createShareLink({
+        questionId: id,
+        userId: req.user!.id,
+        role: req.user!.role
+      });
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: result,
         timestamp: Date.now()
       });
     } catch (err) {
