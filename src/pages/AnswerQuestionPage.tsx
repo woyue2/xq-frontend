@@ -18,6 +18,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { Question } from '@/types';
 import { questionService, answerService } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { ImageCropDialog } from '@/components/ImageCropDialog';
+import { ImageCarousel } from '@/components/ui/image-carousel';
 
 export function AnswerQuestionPage() {
   const navigate = useNavigate();
@@ -37,13 +39,18 @@ export function AnswerQuestionPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   const [question, setQuestion] = useState<Question | null>(null);
+  // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // 修改原因：补齐图片上传过程态，避免只有结果提示、缺少等待反馈。
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   // 修改原因：显示顺序上传进度，降低用户重复点击“上传图片”的概率。
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  // 修改原因：支持点击缩略图查看大图，覆盖“上传后（表单内预览阶段）”查看诉求。
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const MAX_RECORDING_SECONDS = 60;
   // 修改原因：在进入录音流程前先做能力探测，避免用户点击后才报错。
   const getAudioCapability = () => {
@@ -146,6 +153,11 @@ export function AnswerQuestionPage() {
     }
 
     const filesToUpload = Array.from(files).slice(0, remainingSlots);
+    const requestCrop = (file: File) =>
+      new Promise<File | null>((resolve) => {
+        cropResolveRef.current = resolve;
+        setPendingCropFile(file);
+      });
 
     try {
       setIsUploadingImages(true);
@@ -153,10 +165,17 @@ export function AnswerQuestionPage() {
       const uploaded: string[] = [];
       for (let i = 0; i < filesToUpload.length; i += 1) {
         const file = filesToUpload[i];
+        // 修改原因：上传前先裁剪，再进入现有压缩+上传链路，兼顾清晰度与体积控制。
+        // ⚠️ 不确定因素：若用户取消裁剪，当前策略为“跳过该文件继续后续文件”。
+        // eslint-disable-next-line no-await-in-loop
+        const croppedFile = await requestCrop(file);
+        if (!croppedFile) {
+          continue;
+        }
         // ⚠️ 不确定因素：当前按顺序上传；若后续改并发上传，此进度应切换为“完成数/总数”。
         setUploadProgress({ current: i + 1, total: filesToUpload.length });
         // eslint-disable-next-line no-await-in-loop
-        const { imageUrl } = await questionService.uploadImage(file, {
+        const { imageUrl } = await questionService.uploadImage(croppedFile, {
           purpose: '回答问题',
           senderName: user?.nickname ?? user?.name ?? '老师',
           receiverName: question?.authorName ?? '学生'
@@ -176,6 +195,22 @@ export function AnswerQuestionPage() {
       setUploadProgress(null);
       event.target.value = '';
     }
+  };
+
+  const handleCropCancel = () => {
+    if (cropResolveRef.current) {
+      cropResolveRef.current(null);
+      cropResolveRef.current = null;
+    }
+    setPendingCropFile(null);
+  };
+
+  const handleCropConfirm = (file: File) => {
+    if (cropResolveRef.current) {
+      cropResolveRef.current(file);
+      cropResolveRef.current = null;
+    }
+    setPendingCropFile(null);
   };
 
   const handleRemoveImage = (index: number) => {
@@ -438,7 +473,8 @@ export function AnswerQuestionPage() {
                   <img
                     src={image}
                     alt={`上传图片${index + 1}`}
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full object-cover rounded-lg cursor-pointer"
+                    onClick={() => setSelectedImage(image)}
                   />
                   <button
                     onClick={() => handleRemoveImage(index)}
@@ -570,6 +606,21 @@ export function AnswerQuestionPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImageCropDialog
+        open={!!pendingCropFile}
+        file={pendingCropFile}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+      />
+
+      <ImageCarousel
+        images={images}
+        // 修改原因：当前页预览源就是 images，按当前点击图片定位初始索引。
+        initialIndex={Math.max(0, images.indexOf(selectedImage || ''))}
+        open={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
     </div>
   );
 }
