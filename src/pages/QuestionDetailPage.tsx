@@ -1069,7 +1069,8 @@ export function QuestionDetailPage() {
               <button
                 data-testid="like-btn"
                 onClick={handleLike}
-                className={cn("flex items-center gap-1 transition-colors", liked ? "text-pink-500" : "text-gray-400")}
+                // 修改原因：详情页点赞颜色与列表卡片统一，避免视觉口径不一致。
+                className={cn("flex items-center gap-1 transition-colors", liked ? "text-red-500" : "text-gray-500")}
               >
                 <Heart className={cn("w-6 h-6", liked && "fill-current")} />
                 <span className="text-xs">{question.stats.likes}</span>
@@ -1078,18 +1079,19 @@ export function QuestionDetailPage() {
               <button
                 data-testid="favorite-btn"
                 onClick={handleFavorite}
-                className={cn("flex items-center gap-1 transition-colors", favorited ? "text-amber-400" : "text-gray-400")}
+                // 修改原因：详情页收藏颜色与列表卡片统一，避免视觉口径不一致。
+                className={cn("flex items-center gap-1 transition-colors", favorited ? "text-yellow-500" : "text-gray-500")}
               >
                 <Star className={cn("w-6 h-6", favorited && "fill-current")} />
                 <span className="text-xs">{question.stats.favorites}</span>
               </button>
 
-              <button className="flex items-center gap-1 text-gray-400">
+              <button className="flex items-center gap-1 text-gray-500">
                 <ChatCentered className="w-6 h-6" />
                 <span className="text-xs">{question.stats.comments}</span>
               </button>
 
-              <button onClick={handleShare} className="text-gray-400">
+              <button onClick={handleShare} className="text-gray-500">
                 <ShareNetwork className="w-6 h-6" />
               </button>
             </div>
