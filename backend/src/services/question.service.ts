@@ -321,6 +321,7 @@ export class QuestionService {
     tags?: string[];
     authorId?: string;
     search?: string;
+    userId?: string;
   }) {
     const {
       page = 1,
@@ -330,7 +331,8 @@ export class QuestionService {
       isGoodQuestion,
       tags,
       authorId,
-      search
+      search,
+      userId
     } = params;
 
     const rawPage = Number(page || 1);
@@ -426,6 +428,33 @@ export class QuestionService {
     }
     const authorRoleMap = new Map(authors.map(a => [a.id, a.role]));
 
+    // 修改原因：首页刷新后需要保留点赞/收藏实心态，列表接口补齐当前用户互动状态。
+    let likedQuestionIds = new Set<string>();
+    let favoritedQuestionIds = new Set<string>();
+    if (userId && list.length > 0) {
+      const questionIds = list.map((q) => q.id);
+      const [likes, favorites] = await Promise.all([
+        prisma.like.findMany({
+          where: {
+            userId,
+            targetType: 'question',
+            targetId: { in: questionIds }
+          },
+          select: { targetId: true }
+        }),
+        prisma.favorite.findMany({
+          where: {
+            userId,
+            questionId: { in: questionIds }
+          },
+          select: { questionId: true }
+        })
+      ]);
+
+      likedQuestionIds = new Set(likes.map((item) => item.targetId));
+      favoritedQuestionIds = new Set(favorites.map((item) => item.questionId));
+    }
+
     return {
       list: list.map((q) => ({
         id: q.id,
@@ -448,6 +477,8 @@ export class QuestionService {
         favorites: q.favorites,
         comments: q.comments,
         answers: q.answers,
+        isLiked: likedQuestionIds.has(q.id),
+        isFavorited: favoritedQuestionIds.has(q.id),
         status: q.status,
         createdAt: q.createdAt,
         // 补充 aiAudit（从 aiResult 解析）

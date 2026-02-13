@@ -114,8 +114,10 @@ export function QuestionList({
               <QuestionCard
                 question={question}
                 // onClick prop removed as it is not part of QuestionCardProps
-                isLiked={likedQuestions.has(question.id)}
-                isFavorited={favoritedQuestions.has(question.id)}
+                // 修改原因：优先保留后端返回的互动状态，避免列表卡片与详情页出现“实心/空心不一致”。
+                isLiked={likedQuestions.has(question.id) || !!question.isLiked}
+                // 修改原因：收藏态同上，保证跨页面展示一致。
+                isFavorited={favoritedQuestions.has(question.id) || !!question.isFavorited}
                 isPinned={getEffectivePinned(question)}
                 onLike={onLike ? (e: React.MouseEvent) => onLike(question.id, e) : undefined}
                 onFavorite={onFavorite ? (e: React.MouseEvent) => onFavorite(question.id, e) : undefined}

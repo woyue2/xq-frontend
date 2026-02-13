@@ -206,7 +206,9 @@ questionRouter.get(
             : undefined,
         tags: typeof tags === 'string' ? (tags as string).split(',') : undefined,
         authorId: typeof authorId === 'string' ? authorId : undefined,
-        search: typeof search === 'string' ? search : undefined
+        search: typeof search === 'string' ? search : undefined,
+        // 修改原因：将当前用户透传给列表服务，以返回 isLiked/isFavorited，解决刷新后实心态丢失。
+        userId: req.user?.id
       });
 
       // 修改原因：将“理解状态”查询下沉到 Service，避免 Route 直接访问数据层（P0-3）。
