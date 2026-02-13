@@ -238,6 +238,71 @@ questionRouter.get(
 
 /**
  * @swagger
+ * /questions/good:
+ *   get:
+ *     summary: 获取好问题列表
+ *     description: 分页获取已通过审核的好问题列表
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: 页码，从1开始
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *         description: 每页数量
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ */
+questionRouter.get(
+  '/good',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { page, pageSize } = req.query as any;
+
+      // 修改原因：提供“好问题”专用查询入口，避免前端二次过滤导致空态误判。
+      const result = await questionService.list({
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+        status: 'approved',
+        isGoodQuestion: true,
+        userId: req.user?.id
+      });
+
+      // 修改原因：保持与通用列表一致，返回当前用户的理解状态字段，避免页面分支处理。
+      let listWithUnderstanding = result.list;
+      if (req.user && result.list.length > 0) {
+        listWithUnderstanding = await questionService.appendUnderstandingStatusToList({
+          list: result.list,
+          userId: req.user.id
+        });
+      }
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          ...result,
+          list: listWithUnderstanding
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * @swagger
  * /questions/my-status-counts:
  *   get:
  *     summary: 获取当前用户提问状态统计
