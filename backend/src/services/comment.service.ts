@@ -197,6 +197,8 @@ export class CommentService {
 
     // 批量查询关联的问题标题
     const questionIds = [...new Set(comments.map(c => c.questionId))];
+    // 修改原因：前端需要识别“老师评论真棒”并渲染按钮，评论列表需返回作者角色。
+    const authorIds = [...new Set(comments.map(c => c.authorId))];
     const questions = await prisma.question.findMany({
       where: {
         id: { in: questionIds }
@@ -206,7 +208,17 @@ export class CommentService {
         title: true
       }
     });
+    const authors = await prisma.user.findMany({
+      where: {
+        id: { in: authorIds }
+      },
+      select: {
+        id: true,
+        role: true
+      }
+    });
     const questionMap = new Map(questions.map(q => [q.id, q.title]));
+    const authorRoleMap = new Map(authors.map(a => [a.id, a.role]));
 
     return {
       list: comments.map((c) => ({
@@ -218,7 +230,8 @@ export class CommentService {
         authorId: c.authorId,
         authorName: c.authorName,
         authorAvatar: c.authorAvatar ?? undefined,
-        // authorRole 暂不返回，需要 schema 支持
+        authorRole: authorRoleMap.get(c.authorId) ?? 'student',
+        // ⚠️ 不确定因素：极端数据异常（作者记录缺失）时先回退为 student，避免前端空值崩溃。
         status: c.status,
         aiResult: c.aiResult ?? undefined,
         createdAt: c.createdAt,
