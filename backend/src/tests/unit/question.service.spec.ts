@@ -8,7 +8,7 @@ describe('QuestionService unit tests', () => {
     await prisma.user.deleteMany({
       where: {
         phone: {
-          in: ['13900008888', '13900009999']
+          in: ['13900008888', '13900009999', '13900007777']
         }
       }
     });
@@ -101,6 +101,44 @@ describe('QuestionService unit tests', () => {
         where: { id: result.id }
       });
       expect(stored?.tags).toEqual(expect.arrayContaining(['tag-a', '初二']));
+    });
+
+    it('should persist subject as math even when request subject is missing or non-math', async () => {
+      const student = await prisma.user.create({
+        data: {
+          id: 'stu-subject-1',
+          phone: '13900007777',
+          nickname: '学生科目',
+          role: 'student',
+          isActive: true,
+          isBanned: false
+        }
+      });
+
+      const createdWithoutSubject = await questionService.create({
+        title: '未传科目',
+        content: '测试',
+        authorId: student.id,
+        authorName: student.nickname
+      });
+
+      const createdWithOtherSubject = await questionService.create({
+        title: '传入非数学科目',
+        content: '测试',
+        subject: 'physics',
+        authorId: student.id,
+        authorName: student.nickname
+      });
+
+      const storedWithoutSubject = await prisma.question.findUnique({
+        where: { id: createdWithoutSubject.id }
+      });
+      const storedWithOtherSubject = await prisma.question.findUnique({
+        where: { id: createdWithOtherSubject.id }
+      });
+
+      expect(storedWithoutSubject?.subject).toBe('math');
+      expect(storedWithOtherSubject?.subject).toBe('math');
     });
   });
 

@@ -22,12 +22,15 @@ export class QuestionService {
       images,
       tags,
       difficulty,
-      subject,
       authorId,
       authorName,
       authorAvatar,
       authorRole
     } = params;
+
+    // 修改原因：产品现阶段仅支持数学问答，后端在写入前统一兜底为 math，避免历史客户端传入其他科目。
+    // ⚠️ 不确定因素：若后续恢复多学科，这里应改回“按白名单校验后落库”而非强制覆盖。
+    const normalizedSubject = 'math';
 
     if (!title || title.length > 100) {
       throw new AppError(
@@ -188,7 +191,7 @@ export class QuestionService {
       data: {
         title,
         content: content ?? '',
-        subject: subject ?? null,
+        subject: normalizedSubject,
         tags: effectiveTags,
         images: images ?? [],
         difficulty: difficulty ?? null,
@@ -476,6 +479,17 @@ export class QuestionService {
         403,
         'PERMISSION_DENIED',
         '无权删除该问题',
+        undefined,
+        3003
+      );
+    }
+
+    // 修改原因：业务要求“学生提问一旦通过审核（approved）即不可删除”，避免已发布内容被作者撤回。
+    if (role !== 'teacher' && question.status === 'approved') {
+      throw new AppError(
+        403,
+        'PERMISSION_DENIED',
+        '已通过审核的问题不能删除',
         undefined,
         3003
       );
