@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function StatusListPage() {
     const navigate = useNavigate();
@@ -145,7 +146,13 @@ export function StatusListPage() {
                                         <span>{new Date(question.createdAt).toLocaleDateString()}</span>
                                         <span>•</span>
                                         <span className="flex items-center gap-1">
-                                            <Heart className="w-3 h-3" /> {question.stats.likes}
+                                            {/* 修改原因：状态列表中的心形图标与详情/首页保持一致，已点赞时展示实心态。 */}
+                                            <Heart
+                                                className={cn(
+                                                    'w-3 h-3',
+                                                    question.isLiked ? 'text-red-500 fill-red-500' : ''
+                                                )}
+                                            /> {question.stats.likes}
                                         </span>
                                         <span className="flex items-center gap-1">
                                             <ChatCentered className="w-3 h-3" /> {question.stats.comments}

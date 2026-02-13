@@ -9,6 +9,7 @@ import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { toast } from 'sonner';
 import { questionService } from '@/services/api';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export function MyQuestionsPage() {
     const navigate = useNavigate();
@@ -207,12 +208,23 @@ export function MyQuestionsPage() {
                                         <span>{answers as number} 回答</span>
                                     </div>
                                     <div className="flex items-center gap-3">
+                                        {/* 修改原因：与 QuestionCard 语义保持一致，当前用户已点赞/收藏时显示实心态。 */}
                                         <div className="flex items-center gap-1">
-                                            <Star className="w-3 h-3" />
+                                            <Star
+                                                className={cn(
+                                                    'w-3 h-3',
+                                                    question.isFavorited ? 'text-yellow-500 fill-yellow-500' : ''
+                                                )}
+                                            />
                                             <span>{question.collectionCount || 0}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <Heart className="w-3 h-3" />
+                                            <Heart
+                                                className={cn(
+                                                    'w-3 h-3',
+                                                    question.isLiked ? 'text-red-500 fill-red-500' : ''
+                                                )}
+                                            />
                                             <span>{question.likeCount || 0}</span>
                                         </div>
                                         {canDeleteQuestion(question) && (
