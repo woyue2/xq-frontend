@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
-import { questionService } from '@/services/api';
+import { interactionService, questionService } from '@/services/api';
 import { TOAST_MESSAGES } from '@/config/app-constants';
 import type { Question } from '@/types';
 import { QuestionList } from '@/components/QuestionList';
@@ -25,7 +25,8 @@ export function HomePage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading
+    isLoading,
+    refetch
   } = useQuestions({
     subject: selectedSubject,
     topic: selectedTopic,
@@ -35,35 +36,122 @@ export function HomePage() {
   // Local Interaction States (Optimistic UI handled locally for demo)
   const [likedQuestions, setLikedQuestions] = useState(new Set<string>());
   const [favoritedQuestions, setFavoritedQuestions] = useState(new Set<string>());
+  const [interactionStats, setInteractionStats] = useState<
+    Record<string, { likes?: number; favorites?: number }>
+  >({});
   const [pinnedStates, setPinnedStates] = useState<Record<string, boolean>>({});
   const [understandingStates, setUnderstandingStates] = useState<
     Record<string, 'understood' | 'not_understood' | null>
   >({});
 
-  const handleLike = (questionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newLikes = new Set(likedQuestions);
-    if (newLikes.has(questionId)) {
-      newLikes.delete(questionId);
-      toast.success(TOAST_MESSAGES.unliked);
-    } else {
-      newLikes.add(questionId);
-      toast.success(TOAST_MESSAGES.liked);
+  useEffect(() => {
+    try {
+      const needRefresh = window.sessionStorage.getItem('questions_need_refresh');
+      if (needRefresh === '1') {
+        window.sessionStorage.removeItem('questions_need_refresh');
+        // 修改原因：详情页点赞/收藏后返回首页时，主动刷新问题列表，避免 staleTime 缓存导致计数延迟更新。
+        void refetch();
+      }
+    } catch {
+      // ⚠️ 不确定因素：极少数环境 sessionStorage 不可用，降级为不主动刷新，仍可依赖下次自然刷新。
     }
-    setLikedQuestions(newLikes);
+  }, [refetch]);
+
+  const handleLike = async (questionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
+    }
+
+    const nextLiked = !likedQuestions.has(questionId);
+
+    try {
+      // 修改原因：首页点赞改为真实调用后端，避免仅本地状态切换导致刷新后归零。
+      const result = await interactionService.like({
+        targetType: 'question',
+        targetId: questionId,
+        action: nextLiked ? 'like' : 'unlike'
+      });
+
+      setLikedQuestions((prev) => {
+        const next = new Set(prev);
+        if (result.liked) {
+          next.add(questionId);
+        } else {
+          next.delete(questionId);
+        }
+        return next;
+      });
+
+      setInteractionStats((prev) => ({
+        ...prev,
+        [questionId]: {
+          ...(prev[questionId] ?? {}),
+          likes: result.likesCount
+        }
+      }));
+
+      toast.success(result.liked ? TOAST_MESSAGES.liked : TOAST_MESSAGES.unliked);
+      try {
+        window.sessionStorage.setItem('questions_need_refresh', '1');
+      } catch {
+        // ignore
+      }
+    } catch {
+      toast.error('点赞操作失败，请稍后重试');
+    }
   };
 
-  const handleFavorite = (questionId: string, e: React.MouseEvent) => {
+  const handleFavorite = async (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const newFavorites = new Set(favoritedQuestions);
-    if (newFavorites.has(questionId)) {
-      newFavorites.delete(questionId);
-      toast.success(TOAST_MESSAGES.unfavorited);
-    } else {
-      newFavorites.add(questionId);
-      toast.success(TOAST_MESSAGES.favorited);
+
+    if (!user) {
+      toast.error('请先登录');
+      navigate('/login');
+      return;
     }
-    setFavoritedQuestions(newFavorites);
+
+    const nextFavorited = !favoritedQuestions.has(questionId);
+
+    try {
+      // 修改原因：首页收藏改为真实调用后端，避免仅本地状态切换导致刷新后归零。
+      const result = await interactionService.favorite({
+        questionId,
+        action: nextFavorited ? 'favorite' : 'unfavorite'
+      });
+
+      setFavoritedQuestions((prev) => {
+        const next = new Set(prev);
+        if (result.favorited) {
+          next.add(questionId);
+        } else {
+          next.delete(questionId);
+        }
+        return next;
+      });
+
+      setInteractionStats((prev) => ({
+        ...prev,
+        [questionId]: {
+          ...(prev[questionId] ?? {}),
+          favorites: result.favoritesCount
+        }
+      }));
+
+      toast.success(
+        result.favorited ? TOAST_MESSAGES.favorited : TOAST_MESSAGES.unfavorited
+      );
+      try {
+        window.sessionStorage.setItem('questions_need_refresh', '1');
+      } catch {
+        // ignore
+      }
+    } catch {
+      toast.error('收藏操作失败，请稍后重试');
+    }
   };
 
   const handleTogglePin = (question: Question, e: React.MouseEvent) => {
@@ -121,6 +209,28 @@ export function HomePage() {
 
   // Flatten pages
   const allQuestions = data?.pages.flatMap(p => p.list) || [];
+  const mergedQuestions = allQuestions.map((q) => {
+    const localStats = interactionStats[q.id];
+    if (!localStats) return q;
+
+    // 修改原因：点赞/收藏成功后在首页就地回写计数，避免等待下一次列表请求才看到变化。
+    return {
+      ...q,
+      stats: {
+        ...(q.stats ?? {}),
+        likes:
+          typeof localStats.likes === 'number'
+            ? localStats.likes
+            : q.stats?.likes ?? 0,
+        favorites:
+          typeof localStats.favorites === 'number'
+            ? localStats.favorites
+            : q.stats?.favorites ?? 0,
+        comments: q.stats?.comments ?? 0,
+        answers: q.stats?.answers ?? 0
+      }
+    };
+  });
 
   const handleAuthorClick = (question: Question, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -153,7 +263,7 @@ export function HomePage() {
 
       {/* 2. Question List */}
       <QuestionList
-        questions={allQuestions}
+        questions={mergedQuestions}
         isLoading={isLoading}
         hasNextPage={!!hasNextPage}
         isFetchingNextPage={isFetchingNextPage}

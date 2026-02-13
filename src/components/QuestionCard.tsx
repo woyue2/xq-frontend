@@ -68,8 +68,9 @@ export function QuestionCard({
             ? question.stats.comments
             : 0;
 
-    const likesDisplay = baseLikes + (isLiked ? 1 : 0);
-    const favoritesDisplay = baseFavorites + (isFavorited ? 1 : 0);
+    // 修改原因：点赞/收藏计数以服务端返回值为准，避免本地高亮状态再叠加一次导致显示与真实计数不一致。
+    const likesDisplay = baseLikes;
+    const favoritesDisplay = baseFavorites;
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -128,7 +129,8 @@ export function QuestionCard({
             </div>
 
             {/* Subject Badge */}
-            {showSubject && (
+            {/* 修改原因：产品当前仅支持数学场景，隐藏固定的 math 标签，避免挤占空间导致换行。 */}
+            {showSubject && question.subject !== 'math' && (
                 <Badge variant="outline" className="border-morandi-2 text-morandi-5 h-5 text-[10px] px-1.5 capitalize mb-2 inline-flex">
                     {question.subject}
                 </Badge>
