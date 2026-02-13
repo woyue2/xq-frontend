@@ -33,6 +33,16 @@ import type { QuestionDimensionDto } from '@/types/api';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { ImageCarousel } from '@/components/ui/image-carousel';
 
+const METHOD_PROGRESS_OPTIONS = [
+  { value: '读不懂题', label: '读不懂题', order: 10 },
+  { value: '完全不会', label: '完全不会', order: 20 },
+  { value: '试过但卡住', label: '试过但卡住', order: 30 },
+  { value: '做了一半', label: '做了一半', order: 40 },
+  { value: '就差一点点', label: '就差一点点', order: 50 },
+] as const;
+
+const TOPIC_UNKNOWN_OPTION = '不知道';
+
 export function CreateQuestionPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -66,7 +76,7 @@ export function CreateQuestionPage() {
   const [methodDimension, setMethodDimension] = useState<QuestionDimensionDto | null>(null);
   const [methodOptions, setMethodOptions] = useState<
     { value: string; label: string; order: number }[]
-  >([]);
+  >(METHOD_PROGRESS_OPTIONS.map((item) => ({ ...item })));
   const [methodConfigLoaded, setMethodConfigLoaded] = useState(false);
 
   const [similarQuestions, setSimilarQuestions] = useState<Question[]>([]);
@@ -125,25 +135,18 @@ export function CreateQuestionPage() {
         setMethodConfigLoaded(true);
 
         if (methodDim && methodDim.enabled) {
-          const sortedOptions = [...(methodDim.options ?? [])]
-            .filter((opt) => opt && opt.value && opt.label)
-            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-            .map((opt) => ({
-              value: opt.value,
-              label: opt.label,
-              order: opt.order ?? 0
-            }));
-
+          // 修改原因：按产品文案统一“做到哪一步了？”固定选项，避免后台历史配置与当前引导不一致。
           setMethodDimension(methodDim);
-          setMethodOptions(sortedOptions);
+          setMethodOptions(METHOD_PROGRESS_OPTIONS.map((item) => ({ ...item })));
         } else {
           setMethodDimension(null);
-          setMethodOptions([]);
+          setMethodOptions(METHOD_PROGRESS_OPTIONS.map((item) => ({ ...item })));
         }
       } catch {
         // 静默失败：维度配置失败时继续使用内置 TAXONOMY 配置
         setMethodDimension(null);
-        setMethodOptions([]);
+        // 修改原因：即使维度配置请求失败，也要保证“做到哪一步了”选项可用。
+        setMethodOptions(METHOD_PROGRESS_OPTIONS.map((item) => ({ ...item })));
         setMethodConfigLoaded(false);
       }
     };
@@ -411,49 +414,35 @@ export function CreateQuestionPage() {
                 } gap-4 animate-in fade-in slide-in-from-top-2`}
             >
               <div className="space-y-2">
-                <Label className="text-gray-500">核心考点 (Topic)</Label>
+                {/* 修改原因：字段名改为“知识点”，降低术语门槛。 */}
+                <Label className="text-gray-500">知识点</Label>
                 <Select value={selectedTopic} onValueChange={setSelectedTopic}>
                   <SelectTrigger>
-                    <SelectValue placeholder="请选择考点" />
+                    <SelectValue placeholder="请选择知识点" />
                   </SelectTrigger>
                   <SelectContent>
                     {currentSubjectConfig.topics.map(t => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
+                    {/* 修改原因：在保留原有知识点选项基础上新增“不知道”，降低填写阻力。 */}
+                    <SelectItem value={TOPIC_UNKNOWN_OPTION}>{TOPIC_UNKNOWN_OPTION}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {showMethodField && (
                 <div className="space-y-2">
-                  <Label className="text-gray-500">
-                    {(methodDimension?.name ?? '解题方法')} (Method)
-                  </Label>
+                  {/* 修改原因：字段名改为“做到哪一步了？”，更贴近学生当前状态表达。 */}
+                  <Label className="text-gray-500">做到哪一步了？</Label>
                   <Select
                     value={selectedMethod}
                     onValueChange={setSelectedMethod}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="尝试了什么方法？" />
+                      <SelectValue placeholder="请选择你的当前进度" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(methodOptions.length > 0
-                        ? methodOptions
-                        : currentSubjectConfig.methods.map((m) => {
-                          if (m === '暂不确定') {
-                            return {
-                              value: 'unknown',
-                              label: m,
-                              order: 999
-                            };
-                          }
-                          return {
-                            value: m,
-                            label: m,
-                            order: 0
-                          };
-                        })
-                      ).map((opt) => (
+                      {(methodOptions.length > 0 ? methodOptions : METHOD_PROGRESS_OPTIONS).map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
@@ -472,7 +461,7 @@ export function CreateQuestionPage() {
             </Label>
             <Textarea
               id="title"
-              placeholder="一句话描述你的问题（必填，最多100字）"
+              placeholder="用一句话说说你卡住的点（培养总结能力）"
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 100))}
               className="min-h-[60px] resize-none text-base"
@@ -510,7 +499,7 @@ export function CreateQuestionPage() {
             <Label htmlFor="content" className="text-base font-bold">问题详情</Label>
             <Textarea
               id="content"
-              placeholder="请输入详细描述，支持公式和符号...（可选，最多500字）"
+              placeholder="请输入问题详细描述（如果暂时无法描述，可以不写）"
               value={content}
               onChange={(e) => setContent(e.target.value.slice(0, 500))}
               className="min-h-[120px] resize-none"
@@ -586,7 +575,7 @@ export function CreateQuestionPage() {
           {/* 审核提示 */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
             <p className="text-sm text-indigo-800">
-              💡 AI 小贴士：准确选择 <b>考点</b> 和 <b>解题方法</b> 能让老师更快回答哦！
+              💡 AI 小贴士：准确选择 <b>知识点</b> 和 <b>做到哪一步了</b> 能让老师更快回答哦！
             </p>
           </div>
         </div>
