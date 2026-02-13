@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, type MouseEvent, type PointerEvent } from 'react';
-import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare, Trash2 } from 'lucide-react';
+import { ArrowLeft, ShareNetwork, ChatCircle, PaperPlaneTilt, Play, Pause, SpeakerHigh, Camera, X, ChatCentered, Trash } from '@phosphor-icons/react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，Heart/Star 回退到 lucide-react。
+import { Heart, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -24,7 +26,7 @@ import { ImageCarousel } from '@/components/ui/image-carousel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommentPraiseFloat, type PraiseFloatItem } from '@/components/CommentPraiseFloat';
 import { UI_CONFIG } from '@/config/ui-config';
-import { Pin } from 'lucide-react';
+import { PushPin } from '@phosphor-icons/react';
 import { interactionService, behaviorService, questionService, answerService, commentService } from '@/services/api';
 import { USE_MOCK } from '@/lib/mock-env';
 import { useQuestions } from '@/hooks/useQuestions';
@@ -323,7 +325,7 @@ export function QuestionDetailPage() {
             onClick={() => toast.error('当前无法分享该问题')}
             className="p-2 hover:bg-gray-100 rounded-full transition"
           >
-            <Share2 className="w-5 h-5 text-gray-600" />
+            <ShareNetwork className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
@@ -930,7 +932,7 @@ export function QuestionDetailPage() {
           onClick={handleShare}
           className="p-2 hover:bg-gray-100 rounded-full transition"
         >
-          <Share2 className="w-5 h-5 text-gray-600" />
+          <ShareNetwork className="w-5 h-5 text-gray-600" />
         </motion.button>
       </div>
 
@@ -1026,7 +1028,7 @@ export function QuestionDetailPage() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-morandi-5" />
+                      <SpeakerHigh className="w-4 h-4 text-morandi-5" />
                       <span className="text-xs font-medium text-morandi-5">语音说明</span>
                     </div>
                     {/* Speed Pop-up Trigger */}
@@ -1083,12 +1085,12 @@ export function QuestionDetailPage() {
               </button>
 
               <button className="flex items-center gap-1 text-gray-400">
-                <MessageSquare className="w-6 h-6" />
+                <ChatCentered className="w-6 h-6" />
                 <span className="text-xs">{question.stats.comments}</span>
               </button>
 
               <button onClick={handleShare} className="text-gray-400">
-                <Share2 className="w-6 h-6" />
+                <ShareNetwork className="w-6 h-6" />
               </button>
             </div>
             {canDelete && (
@@ -1097,7 +1099,7 @@ export function QuestionDetailPage() {
                 className="text-red-400 hover:text-red-500 transition-colors p-2"
                 title="删除问题"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash className="w-5 h-5" />
               </button>
             )}
             {canAnswer && (
@@ -1245,7 +1247,7 @@ export function QuestionDetailPage() {
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
               {comments.filter(c => c.status === 'approved').length === 0 ? (
                 <div className="text-center py-10">
-                  <MessageCircle className="w-12 h-12 text-gray-100 mx-auto mb-2" />
+                  <ChatCircle className="w-12 h-12 text-gray-100 mx-auto mb-2" />
                   <p className="text-xs text-gray-300">暂无评论，来聊聊吧</p>
                 </div>
               ) : (
@@ -1345,7 +1347,7 @@ export function QuestionDetailPage() {
                       onClick={handleSubmitComment}
                       className="absolute right-2 top-1.5 p-1.5 text-morandi-5 hover:text-morandi-5/80 transition active:scale-75"
                     >
-                      <Send className="w-4 h-4 fill-current" />
+                      <PaperPlaneTilt className="w-4 h-4 fill-current" />
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,6 @@
-import { MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
+import { ChatCentered, CaretRight } from '@phosphor-icons/react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，Heart/Star 回退到 lucide-react。
+import { Heart, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -132,11 +134,11 @@ export function MyLikesPage() {
                                             <span>{question.favorites}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <MessageSquare className="w-4 h-4" />
+                                            <ChatCentered className="w-4 h-4" />
                                             <span>{question.answers}</span>
                                         </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-gray-300" />
+                                    <CaretRight className="w-5 h-5 text-gray-300" />
                                 </div>
                             </div>
                         );

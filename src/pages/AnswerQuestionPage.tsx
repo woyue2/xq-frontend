@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Upload, X, Mic, Square, Play, Pause } from 'lucide-react';
+import { ArrowLeft, UploadSimple, X, Microphone, Square, Play, Pause } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Question } from '@/types';
+import type { Question, DifficultyLevel } from '@/types';
 import { questionService, answerService } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
@@ -44,6 +44,9 @@ export function AnswerQuestionPage() {
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   const [question, setQuestion] = useState<Question | null>(null);
+  // 修改原因：支持老师在回答前后二次调整难度，独立维护当前编辑值。
+  const [difficultyDraft, setDifficultyDraft] = useState<DifficultyLevel | ''>('');
+  const [isSavingDifficulty, setIsSavingDifficulty] = useState(false);
   // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,6 +117,7 @@ export function AnswerQuestionPage() {
       .then((q) => {
         if (!cancelled && q) {
           setQuestion(q);
+          setDifficultyDraft((q.difficulty as DifficultyLevel | undefined) ?? '');
         }
       })
       .catch(() => {
@@ -479,6 +483,28 @@ export function AnswerQuestionPage() {
     !isUploadingImages &&
     (content.trim().length > 0 || images.length > 0 || audioUrl !== null);
 
+  const handleUpdateDifficulty = async () => {
+    if (!questionId) {
+      toast.error('问题信息缺失，无法更新难度');
+      return;
+    }
+    if (!difficultyDraft) {
+      toast.error('请先选择难度');
+      return;
+    }
+
+    try {
+      setIsSavingDifficulty(true);
+      await questionService.updateQuestionDifficulty(questionId, difficultyDraft);
+      setQuestion((prev) => (prev ? { ...prev, difficulty: difficultyDraft } : prev));
+      toast.success('难度已更新');
+    } catch {
+      toast.error('更新难度失败，请稍后重试');
+    } finally {
+      setIsSavingDifficulty(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* 顶部导航栏 */}
@@ -509,6 +535,32 @@ export function AnswerQuestionPage() {
           <h3 className="line-clamp-2">
             {question?.title ?? '问题加载中...'}
           </h3>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Label htmlFor="question-difficulty" className="text-xs text-gray-500">难度</Label>
+            <select
+              id="question-difficulty"
+              value={difficultyDraft}
+              onChange={(e) => {
+                // 修改原因：老师可在回答流程中二次调整难度，保持操作入口就近可见。
+                setDifficultyDraft(e.target.value as DifficultyLevel | '');
+              }}
+              className="h-8 rounded-md border border-gray-200 px-2 text-sm bg-white"
+            >
+              <option value="">请选择难度</option>
+              <option value="easy">简单</option>
+              <option value="medium">中等</option>
+              <option value="hard">困难</option>
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleUpdateDifficulty}
+              disabled={isSavingDifficulty}
+            >
+              {isSavingDifficulty ? '保存中...' : '保存难度'}
+            </Button>
+          </div>
         </div>
 
         {/* 回答编辑区 */}
@@ -558,7 +610,7 @@ export function AnswerQuestionPage() {
                   disabled={isUploadingImages}
                   className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-teal-500 hover:bg-teal-50 transition"
                 >
-                  <Upload className="w-6 h-6 text-gray-400" />
+                  <UploadSimple className="w-6 h-6 text-gray-400" />
                   <span className="text-xs text-gray-500">
                     {isUploadingImages ? '上传中...' : '上传图片'}
                   </span>
@@ -593,7 +645,7 @@ export function AnswerQuestionPage() {
                       variant="outline"
                       className="flex items-center gap-2"
                     >
-                      <Mic className="w-4 h-4" />
+                      <Microphone className="w-4 h-4" />
                       开始录音
                     </Button>
                   ) : (

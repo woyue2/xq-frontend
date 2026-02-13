@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { SpinnerGap } from '@phosphor-icons/react';
 import { QuestionCard } from '@/components/QuestionCard';
 import type { Question } from '@/types';
 
@@ -99,7 +99,7 @@ export function QuestionList({
       ) : sortedQuestions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <Loader2 className="w-8 h-8 text-gray-300" />
+            <SpinnerGap className="w-8 h-8 text-gray-300" />
           </div>
           <p>暂无相关提问</p>
         </div>
@@ -152,7 +152,7 @@ export function QuestionList({
           
           {/* Loading Indicator for Infinite Scroll */}
           <div ref={observerTarget} className="h-10 flex items-center justify-center">
-            {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-gray-400" />}
+            {isFetchingNextPage && <SpinnerGap className="w-5 h-5 animate-spin text-gray-400" />}
             {!hasNextPage && sortedQuestions.length > 0 && (
               <p className="text-xs text-gray-400">没有更多了</p>
             )}

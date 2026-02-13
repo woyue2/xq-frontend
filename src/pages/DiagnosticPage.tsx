@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, RotateCcw, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { Play, ArrowCounterClockwise, CheckCircle, XCircle, WarningCircle, Clock } from '@phosphor-icons/react';
 import { runDiagnosticTests } from '@/lib/test-runner';
 import { toast } from 'sonner';
 
@@ -55,7 +55,7 @@ export function DiagnosticPage() {
       case 'success': return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'failure': return <XCircle className="w-5 h-5 text-red-500" />;
       case 'running': return <Clock className="w-5 h-5 text-blue-500 animate-spin" />;
-      default: return <AlertCircle className="w-5 h-5 text-gray-300" />;
+      default: return <WarningCircle className="w-5 h-5 text-gray-300" />;
     }
   };
 
@@ -88,7 +88,7 @@ export function DiagnosticPage() {
         </div>
         <div className="flex gap-3">
             <Button variant="outline" onClick={reset} disabled={isRunning}>
-                <RotateCcw className="w-4 h-4 mr-2" />
+                <ArrowCounterClockwise className="w-4 h-4 mr-2" />
                 重置
             </Button>
             <Button onClick={handleStart} disabled={isRunning} className="bg-morandi-5 hover:bg-morandi-5/90">

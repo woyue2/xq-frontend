@@ -1,20 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, 
-  Plus, 
-  Trash2, 
-  Search,
-  UserPlus,
-  Shield,
-  Phone,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Calendar,
-  Minus,
-  Edit
-} from 'lucide-react';
+import { CaretLeft, Plus, Trash, MagnifyingGlass, UserPlus, Shield, Phone, CheckCircle, XCircle, Clock, Calendar, Minus, Pencil } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -529,7 +515,7 @@ export function AdminManagementPage() {
             onClick={() => navigate('/profile')}
             className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
           >
-            <ChevronLeft className="w-6 h-6 text-gray-600" />
+            <CaretLeft className="w-6 h-6 text-gray-600" />
           </button>
           <div className="flex flex-col items-center flex-1">
             <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -606,7 +592,7 @@ export function AdminManagementPage() {
       <div className="max-w-7xl mx-auto w-full px-4 py-3 space-y-3">
         {/* 搜索框 */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             placeholder="搜索手机号或姓名..."
             value={searchTerm}
@@ -751,14 +737,14 @@ export function AdminManagementPage() {
                           className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition active:scale-90"
                           title="管理课时"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
                       )}
                       <button
                         onClick={() => handleDeleteUser(user)}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-full transition active:scale-90"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

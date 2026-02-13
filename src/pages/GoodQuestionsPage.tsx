@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ChatCentered } from '@phosphor-icons/react';
 import { Badge } from '@/components/ui/badge';
 import { useQuestions } from '@/hooks/useQuestions';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
@@ -41,7 +41,7 @@ export function GoodQuestionsPage() {
                 </div>
             ) : goodQuestions.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
-                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <ChatCentered className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">暂时没有好问题哦</p>
                 </div>
             ) : (

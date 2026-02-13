@@ -4,7 +4,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, X, Bell } from 'lucide-react';
+import { MagnifyingGlass, Plus, X, Bell } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, type PointerEvent } from 'react';
@@ -160,7 +160,7 @@ export function MainLayout() {
                                         className="rounded-full hover:bg-white/50 active:scale-95 transition-transform"
                                         onClick={() => setShowSearch(true)}
                                     >
-                                        <Search className="w-5 h-5 text-gray-600" />
+                                        <MagnifyingGlass className="w-5 h-5 text-gray-600" />
                                     </Button>
                                     <Button
                                         variant="ghost"
@@ -202,7 +202,7 @@ export function MainLayout() {
                                 className="flex items-center w-full gap-2"
                             >
                                 <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <Input
                                         autoFocus
                                         placeholder="搜索问题..."

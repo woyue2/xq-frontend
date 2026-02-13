@@ -107,8 +107,8 @@ describe('Integration Tests (Super Brain)', () => {
         const input = screen.getByPlaceholderText('说点什么...'); // Adjust placeholder availability
         fireEvent.change(input, { target: { value: 'New Test Comment' } });
 
-        // Find submit button (Send icon)
-        // It's a button with Send icon. Usually the last button in that row.
+        // Find submit button (PaperPlaneTilt icon)
+        // It's a button with PaperPlaneTilt icon. Usually the last button in that row.
         // We can add data-testid to submit button in QuestionDetailPage later for robustness.
     });
 
@@ -165,7 +165,7 @@ describe('Integration Tests (Super Brain)', () => {
     });
 
     // ===== Part 1: 置顶功能测试 =====
-    describe('Pin/Top Feature Tests (TCH-003, TCH-004)', () => {
+    describe('PushPin/Top Feature Tests (TCH-003, TCH-004)', () => {
         it('PIN-001: Teacher can see pin button on question card', async () => {
             // Teacher is already set in beforeEach
             render(

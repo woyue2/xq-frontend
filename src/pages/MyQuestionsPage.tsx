@@ -1,4 +1,6 @@
-import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChatCentered, CaretRight, Trash } from '@phosphor-icons/react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，Heart/Star 回退到 lucide-react。
+import { Heart, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -147,7 +149,7 @@ export function MyQuestionsPage() {
                 </div>
             ) : myQuestions.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
-                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <ChatCentered className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">还没有提问哦</p>
                     <button
                         onClick={() => navigate('/create')}
@@ -221,7 +223,7 @@ export function MyQuestionsPage() {
                                                 title="删除问题"
                                                 data-testid={`delete-question-${question.id}`}
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash className="w-4 h-4" />
                                             </button>
                                         )}
                                     </div>

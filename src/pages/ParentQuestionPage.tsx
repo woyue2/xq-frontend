@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@phosphor-icons/react';
 import { QuestionList } from '@/components/QuestionList';
 import { QuestionFilter } from '@/components/QuestionFilter';
 import { parentService } from '@/services/parentService';

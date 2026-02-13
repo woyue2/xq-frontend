@@ -15,7 +15,7 @@ export function HomePage() {
   const [searchParams] = useSearchParams();
   const searchKeyword = searchParams.get('search') || undefined;
 
-  // Filter States
+  // Funnel States
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedTopic, setSelectedTopic] = useState<string>('');
 

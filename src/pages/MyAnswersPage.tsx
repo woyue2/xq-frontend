@@ -1,4 +1,4 @@
-import { MessageSquare, ThumbsUp, ChevronRight } from 'lucide-react';
+import { ChatCentered, ThumbsUp, CaretRight } from '@phosphor-icons/react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -114,7 +114,7 @@ export function MyAnswersPage({ view = 'pending' }: MyAnswersPageProps) {
                 </div>
             ) : (view === 'answered' ? filteredAnswers.length === 0 : pendingQuestions.length === 0) ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
-                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <ChatCentered className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">
                         {view === 'answered' ? '还没有已回答记录哦' : '暂无待回答问题'}
                     </p>
@@ -165,7 +165,7 @@ export function MyAnswersPage({ view = 'pending' }: MyAnswersPageProps) {
                                           ) : (
                                               <Badge className="bg-yellow-100 text-yellow-700 border-0 px-2">审核中</Badge>
                                           )}
-                                          <ChevronRight className="w-4 h-4 ml-2" />
+                                          <CaretRight className="w-4 h-4 ml-2" />
                                       </div>
                                   </div>
                               </div>
@@ -200,7 +200,7 @@ export function MyAnswersPage({ view = 'pending' }: MyAnswersPageProps) {
                                       
                                       <div className="flex items-center text-xs text-gray-400">
                                           <Badge className="bg-blue-100 text-blue-700 border-0 px-2">待作答</Badge>
-                                          <ChevronRight className="w-4 h-4 ml-2" />
+                                          <CaretRight className="w-4 h-4 ml-2" />
                                       </div>
                                   </div>
                               </div>

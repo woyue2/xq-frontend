@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
-import { ArrowLeft, Upload, X } from 'lucide-react';
+import { ArrowLeft, UploadSimple, X } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -93,7 +93,7 @@ export function CreateQuestionPage() {
   // 修改原因：支持点击缩略图查看大图，覆盖“上传后（表单内预览阶段）”查看诉求。
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Smart Search Effect
+  // Smart MagnifyingGlass Effect
   useEffect(() => {
     setSimilarQuestions([]);
   }, [debouncedTitle]);
@@ -548,7 +548,7 @@ export function CreateQuestionPage() {
                   disabled={isUploadingImages}
                   className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-teal-500 hover:bg-teal-50 transition"
                 >
-                  <Upload className="w-6 h-6 text-gray-400" />
+                  <UploadSimple className="w-6 h-6 text-gray-400" />
                   <span className="text-xs text-gray-500">
                     {isUploadingImages ? '上传中...' : '上传图片'}
                   </span>

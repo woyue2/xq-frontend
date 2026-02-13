@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 
 interface ImageCarouselProps {
@@ -50,14 +50,14 @@ export function ImageCarousel({ images, initialIndex = 0, open, onClose }: Image
                 onClick={scrollPrev}
                 className="absolute left-4 p-3 hidden md:block text-white/50 hover:text-white transition z-50"
             >
-                <ChevronLeft className="w-8 h-8" />
+                <CaretLeft className="w-8 h-8" />
             </button>
 
             <button
                 onClick={scrollNext}
                 className="absolute right-4 p-3 hidden md:block text-white/50 hover:text-white transition z-50"
             >
-                <ChevronRight className="w-8 h-8" />
+                <CaretRight className="w-8 h-8" />
             </button>
 
             <div className="w-full max-w-4xl overflow-hidden" ref={emblaRef}>

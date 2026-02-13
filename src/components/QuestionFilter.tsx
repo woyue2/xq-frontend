@@ -1,4 +1,4 @@
-import { Filter } from 'lucide-react';
+import { Funnel } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
 
@@ -17,7 +17,7 @@ export function QuestionFilter({
 }: QuestionFilterProps) {
   return (
     <div className="sticky top-[3.5rem] z-40 bg-gray-50/95 backdrop-blur py-2 -mx-4 px-4 space-y-2 transition-all">
-      {/* Subject Filter (Capsules) */}
+      {/* Subject Funnel (Capsules) */}
       <div className="flex overflow-x-auto gap-2 scrollbar-hide pb-1">
         <button
           onClick={() => { setSelectedSubject(''); setSelectedTopic(''); }}
@@ -46,11 +46,11 @@ export function QuestionFilter({
         ))}
       </div>
 
-      {/* Topic Filter (Only if subject selected) */}
+      {/* Topic Funnel (Only if subject selected) */}
       {selectedSubject && TAXONOMY[selectedSubject] && (
         <div className="flex overflow-x-auto gap-2 scrollbar-hide animate-in slide-in-from-top-1 fade-in duration-300 border-t border-gray-200 pt-2">
           <div className="flex items-center text-xs text-gray-400 px-1">
-            <Filter className="w-3 h-3 mr-1" />
+            <Funnel className="w-3 h-3 mr-1" />
             考点:
           </div>
           {TAXONOMY[selectedSubject].topics.map((topic) => (

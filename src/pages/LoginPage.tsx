@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Eye, EyeOff, X, Users, Baby } from 'lucide-react';
+import { Eye, EyeSlash, X, Users, Baby } from '@phosphor-icons/react';
 import { validInviteCodes } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -348,7 +348,7 @@ export function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {(!isLogin || loginMode === 'code') && (
@@ -410,7 +410,7 @@ export function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               <p className="text-xs text-gray-500">密码至少 8 位，建议包含数字和字母</p>

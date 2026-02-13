@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  ChevronLeft,
-  Check,
-  X,
-  Star,
-  AlertCircle,
-  MessageSquare,
-  ThumbsUp
-} from 'lucide-react';
+import { CaretLeft, Check, X, WarningCircle, ChatCentered, ThumbsUp } from '@phosphor-icons/react';
+// 修改原因：按需求保持收藏图标为原始样式，Star 回退到 lucide-react。
+import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import type { Question, Comment, AuditStatus } from '@/types';
+import type { Question, Comment, AuditStatus, DifficultyLevel } from '@/types';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useNavigate } from 'react-router-dom';
 import { aiTextConfig } from '@/config/ai-text';
@@ -56,6 +50,8 @@ export const AuditPage = () => {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [loadingAnswers, setLoadingAnswers] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
+  // 修改原因：审核通过前需要独立保存每个问题的难度选择，满足“必选后再通过”。
+  const [difficultyDrafts, setDifficultyDrafts] = useState<Record<string, DifficultyLevel | ''>>({});
 
   // 驳回相关状态
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -101,10 +97,15 @@ export const AuditPage = () => {
           status: item.status as AuditStatus,
           stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
           subject: 'math',
-          difficulty: 'medium',
+          // 修改原因：使用后端真实难度，避免前端默认值掩盖“未选择难度”。
+          difficulty: (item.difficulty as DifficultyLevel | null) ?? undefined,
           aiResult: item.aiResult ?? undefined
         } as Question));
         setQuestions(items);
+        const initialDrafts = Object.fromEntries(
+          res.list.map((item) => [item.id, (item.difficulty as DifficultyLevel | null) ?? ''])
+        ) as Record<string, DifficultyLevel | ''>;
+        setDifficultyDrafts(initialDrafts);
       } catch (error) {
         if (isTestEnv) {
           const demoQuestions: Question[] = [
@@ -118,13 +119,17 @@ export const AuditPage = () => {
               status: 'pending',
               stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
               subject: 'math',
-              difficulty: 'medium'
+              difficulty: undefined
             } as Question
           ];
           setQuestions(demoQuestions);
+          setDifficultyDrafts({
+            'audit-demo-q1': ''
+          });
         } else {
           // 静默失败，保留空态，由老师通过系统配置中心/日志排查
           setQuestions([]);
+          setDifficultyDrafts({});
         }
       } finally {
         setLoadingQuestions(false);
@@ -285,12 +290,22 @@ export const AuditPage = () => {
 
   const confirmScore = () => {
     if (!currentAuditItem) return;
+    const selectedDifficulty = difficultyDrafts[currentAuditItem.id] ?? '';
+    if (!selectedDifficulty) {
+      toast.error('请先选择难度再打分通过');
+      return;
+    }
     auditService
-      .approveQuestion(currentAuditItem.id, { score: currentScore })
+      .approveQuestion(currentAuditItem.id, { score: currentScore, difficulty: selectedDifficulty })
       .then(() => {
         setQuestions(prev => prev.map(q => {
           if (q.id === currentAuditItem.id) {
-            return { ...q, score: currentScore, status: 'approved' as AuditStatus };
+            return {
+              ...q,
+              score: currentScore,
+              status: 'approved' as AuditStatus,
+              difficulty: selectedDifficulty
+            };
           }
           return q;
         }));
@@ -303,12 +318,17 @@ export const AuditPage = () => {
   };
 
   const toggleGoodQuestion = (id: string, checked: boolean) => {
+    const selectedDifficulty = difficultyDrafts[id] ?? '';
+    if (!selectedDifficulty) {
+      toast.error('请先选择难度再设置好问题');
+      return;
+    }
     auditService
-      .approveQuestion(id, { isGoodQuestion: checked })
+      .approveQuestion(id, { isGoodQuestion: checked, difficulty: selectedDifficulty })
       .then(() => {
         setQuestions(prev => prev.map(q => {
           if (q.id === id) {
-            return { ...q, isGoodQuestion: checked };
+            return { ...q, isGoodQuestion: checked, difficulty: selectedDifficulty };
           }
           return q;
         }));
@@ -326,7 +346,7 @@ export const AuditPage = () => {
           onClick={() => navigate('/profile')}
           className="p-2 -ml-2 active:scale-90 transition-transform"
         >
-          <ChevronLeft className="w-6 h-6 text-gray-600" />
+          <CaretLeft className="w-6 h-6 text-gray-600" />
         </button>
         <h1 className="text-lg font-bold text-gray-800 flex items-center">
           审核管理
@@ -405,7 +425,7 @@ export const AuditPage = () => {
                     </div>
                     {q.aiResult && (
                       <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
-                        <AlertCircle className="w-3 h-3" />
+                        <WarningCircle className="w-3 h-3" />
                         AI初筛：{q.aiResult}
                       </div>
                     )}
@@ -430,6 +450,27 @@ export const AuditPage = () => {
 
                 <div className="text-sm text-gray-600 line-clamp-3">
                   {q.content}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">难度</span>
+                  <select
+                    value={difficultyDrafts[q.id] ?? ''}
+                    onChange={(e) => {
+                      // 修改原因：审核台通过动作前，先明确选择难度，避免空值通过。
+                      const value = e.target.value as DifficultyLevel | '';
+                      setDifficultyDrafts((prev) => ({
+                        ...prev,
+                        [q.id]: value
+                      }));
+                    }}
+                    className="h-8 rounded-md border border-gray-200 px-2 text-xs bg-white"
+                  >
+                    <option value="">请选择难度</option>
+                    <option value="easy">简单</option>
+                    <option value="medium">中等</option>
+                    <option value="hard">困难</option>
+                  </select>
                 </div>
 
                 {q.images && q.images.length > 0 && (
@@ -472,15 +513,22 @@ export const AuditPage = () => {
                   </div>
                   <button
                     onClick={() => {
+                      const selectedDifficulty = difficultyDrafts[q.id] ?? '';
+                      if (!selectedDifficulty) {
+                        toast.error('请先选择难度再通过审核');
+                        return;
+                      }
                       auditService
                         .approveQuestion(q.id, {
                           isGoodQuestion: q.isGoodQuestion,
                           score: q.score,
                           tags: q.tags,
-                          difficulty: q.difficulty
+                          difficulty: selectedDifficulty
                         })
                         .then(() => {
-                          handleAudit(q.id, 'question', 'approved');
+                          handleAudit(q.id, 'question', 'approved', {
+                            difficulty: selectedDifficulty
+                          });
                         })
                         .catch(() => {
                           toast.error('审核通过失败，请稍后重试');
@@ -495,7 +543,7 @@ export const AuditPage = () => {
             ))
           ) : (
             <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-              <MessageSquare className="w-10 h-10 mb-2 opacity-20" />
+              <ChatCentered className="w-10 h-10 mb-2 opacity-20" />
               <p className="text-sm">暂无待审核内容</p>
             </div>
           )
@@ -527,7 +575,7 @@ export const AuditPage = () => {
                   </div>
                   {a.aiResult && (
                     <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
-                      <AlertCircle className="w-3 h-3" />
+                      <WarningCircle className="w-3 h-3" />
                       AI初筛：{a.aiResult}
                     </div>
                   )}
@@ -584,7 +632,7 @@ export const AuditPage = () => {
             ))
           ) : (
             <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-              <MessageSquare className="w-10 h-10 mb-2 opacity-20" />
+              <ChatCentered className="w-10 h-10 mb-2 opacity-20" />
               <p className="text-sm">暂无待审核内容</p>
             </div>
           )
@@ -613,7 +661,7 @@ export const AuditPage = () => {
                   {c.aiResult && (
                     <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded w-fit ${c.aiResult.includes('违规') ? 'text-red-500 bg-red-50' : 'text-orange-500 bg-orange-50'
                       }`}>
-                      <AlertCircle className="w-3 h-3" />
+                      <WarningCircle className="w-3 h-3" />
                       AI初筛：{c.aiResult}
                     </div>
                   )}
@@ -665,7 +713,7 @@ export const AuditPage = () => {
             ))
           ) : (
             <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-              <MessageSquare className="w-10 h-10 mb-2 opacity-20" />
+              <ChatCentered className="w-10 h-10 mb-2 opacity-20" />
               <p className="text-sm">暂无待审核内容</p>
             </div>
           )

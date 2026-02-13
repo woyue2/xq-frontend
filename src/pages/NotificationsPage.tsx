@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
+import { Bell, CheckCircle, WarningCircle, CaretRight } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { notificationService } from '@/services/api';
 import type { Notification } from '@/types/api';
@@ -145,7 +145,7 @@ export function NotificationsPage() {
             const icon = isAudit ? (
               <CheckCircle className="w-5 h-5 text-emerald-500" />
             ) : (
-              <AlertCircle
+              <WarningCircle
                 className={`w-5 h-5 ${isNewAnswer ? 'text-amber-500' : 'text-blue-500'}`}
               />
             );
@@ -178,7 +178,7 @@ export function NotificationsPage() {
                     </p>
                   )}
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300" />
+                <CaretRight className="w-4 h-4 text-gray-300" />
               </button>
             );
           })

@@ -1,4 +1,7 @@
-import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2, Baby, Phone, Plus, KeyRound } from 'lucide-react';
+import { ArrowLeft, ChatCentered, PencilSimple, CaretRight, SignOut, ShieldCheck, Camera, Check, Users, Pencil, SpinnerGap, Baby, Phone, Plus, Key } from '@phosphor-icons/react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，并为“我的提问”使用更直观的问题图标。
+// ⚠️ 不确定因素：这里将“原来的图标”解释为 lucide-react 的视觉样式。
+import { Heart, Star, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -450,7 +453,7 @@ const handleGetBindCode = async () => {
       onClick: () => navigate('/audit'),
     },
     {
-      icon: MessageSquare,
+      icon: ChatCentered,
       label: '待回答',
       color: 'text-green-500',
       visible: currentUser.role === 'teacher',
@@ -458,7 +461,7 @@ const handleGetBindCode = async () => {
       onClick: () => navigate('/my-answers/pending'),
     },
     {
-      icon: Edit3,
+      icon: PencilSimple,
       label: '已回答',
       color: 'text-emerald-600',
       visible: currentUser.role === 'teacher',
@@ -494,6 +497,7 @@ const handleGetBindCode = async () => {
       onClick: () => navigate('/my-favorites'),
     },
     {
+      // 修改原因：为“我的提问”分配独立问题语义图标，避免与“待回答”入口图标重复。
       icon: MessageSquare,
       label: '我的提问',
       color: 'text-blue-500',
@@ -651,7 +655,7 @@ const handleGetBindCode = async () => {
                       {item.badgeCount > 99 ? '99+' : item.badgeCount}
                     </span>
                   )}
-                  <ChevronRight className="w-5 h-5 text-gray-300" />
+                  <CaretRight className="w-5 h-5 text-gray-300" />
                 </button>
               ))}
           </div>
@@ -664,10 +668,10 @@ const handleGetBindCode = async () => {
               className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
             >
               <div className="p-2 rounded-2xl bg-blue-50">
-                <KeyRound className="w-5 h-5 text-blue-500" />
+                <Key className="w-5 h-5 text-blue-500" />
               </div>
               <span className="flex-1 text-left font-medium text-gray-700">修改密码</span>
-              <ChevronRight className="w-5 h-5 text-gray-300" />
+              <CaretRight className="w-5 h-5 text-gray-300" />
             </button>
 
             <button
@@ -675,10 +679,10 @@ const handleGetBindCode = async () => {
               className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition active:scale-[0.98]"
             >
               <div className="p-2 rounded-2xl bg-red-50">
-                <LogOut className="w-5 h-5 text-red-500" />
+                <SignOut className="w-5 h-5 text-red-500" />
               </div>
               <span className="flex-1 text-left font-medium text-red-500">退出登录</span>
-              <ChevronRight className="w-5 h-5 text-gray-300" />
+              <CaretRight className="w-5 h-5 text-gray-300" />
             </button>
           </div>
         </div>
@@ -717,7 +721,7 @@ const handleGetBindCode = async () => {
             >
               {isSubmittingNickname ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <SpinnerGap className="w-4 h-4 mr-2 animate-spin" />
                   审核中...
                 </>
               ) : (
@@ -769,7 +773,7 @@ const handleGetBindCode = async () => {
                   }`}
               >
                 {isUploadingAvatar ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <SpinnerGap className="w-5 h-5 animate-spin" />
                 ) : (
                   <Camera className="w-5 h-5" />
                 )}
@@ -893,7 +897,7 @@ const handleGetBindCode = async () => {
             >
               {isSubmittingPassword ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <SpinnerGap className="w-4 h-4 mr-2 animate-spin" />
                   保存中...
                 </>
               ) : (

@@ -1,5 +1,7 @@
 import React from 'react';
-import { Heart, Star, Pin, PinOff, MessageCircle, Share2 } from 'lucide-react';
+import { PushPin, PushPinSlash, ChatCircle, ShareNetwork } from '@phosphor-icons/react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，Heart/Star 回退到 lucide-react。
+import { Heart, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
@@ -93,7 +95,7 @@ export function QuestionCard({
                     images={question.images}
                     overlay={isPinned && (
                         <Badge className="bg-blue-600 text-white border-none flex items-center gap-1 min-h-[1.25rem] text-[10px] px-1.5 shadow-sm">
-                            <Pin className="w-2.5 h-2.5 fill-white" />
+                            <PushPin className="w-2.5 h-2.5 fill-white" />
                         </Badge>
                     )}
                 />
@@ -101,10 +103,10 @@ export function QuestionCard({
 
             {/* Badges & Topics */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
-                {/* Fallback Pin Badge if no images */}
+                {/* Fallback PushPin Badge if no images */}
                 {isPinned && (!question.images || question.images.length === 0) && (
                     <Badge className="bg-blue-600 text-white border-none flex items-center gap-1 min-h-[1.25rem] text-[10px] px-1.5">
-                        <Pin className="w-2.5 h-2.5 fill-white" />
+                        <PushPin className="w-2.5 h-2.5 fill-white" />
                     </Badge>
                 )}
                 
@@ -244,7 +246,7 @@ export function QuestionCard({
                     }}
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-blue-500 transition-colors"
                 >
-                    <MessageCircle className="w-3.5 h-3.5" />
+                    <ChatCircle className="w-3.5 h-3.5" />
                     <span>{baseComments}</span>
                 </button>
 
@@ -272,7 +274,7 @@ export function QuestionCard({
                     }}
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-800 transition ml-auto"
                 >
-                    <Share2 className="w-3.5 h-3.5" />
+                    <ShareNetwork className="w-3.5 h-3.5" />
                 </button>
 
                 {showPin && handlePin && (
@@ -285,12 +287,12 @@ export function QuestionCard({
                     >
                         {isPinned ? (
                             <>
-                                <PinOff className="w-3.5 h-3.5" />
+                                <PushPinSlash className="w-3.5 h-3.5" />
                                 <span>取消置顶</span>
                             </>
                         ) : (
                             <>
-                                <Pin className="w-3.5 h-3.5" />
+                                <PushPin className="w-3.5 h-3.5" />
                                 <span>置顶</span>
                             </>
                         )}

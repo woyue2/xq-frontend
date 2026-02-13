@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 
 export interface SwipeableImageCarouselProps {
@@ -63,7 +63,7 @@ export function SwipeableImageCarousel({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            {/* Overlay Element (e.g. Pin Icon) - Absolute Positioned Top-Left */}
+            {/* Overlay Element (e.g. PushPin Icon) - Absolute Positioned Top-Left */}
             {overlay && (
                 <div className="absolute top-2 left-2 z-10">
                     {overlay}
@@ -96,7 +96,7 @@ export function SwipeableImageCarousel({
                         )}
                         disabled={currentIndex === 0}
                     >
-                        <ChevronLeft className="w-4 h-4" />
+                        <CaretLeft className="w-4 h-4" />
                     </button>
                     <button
                         onClick={goToNext}
@@ -106,7 +106,7 @@ export function SwipeableImageCarousel({
                         )}
                         disabled={currentIndex === images.length - 1}
                     >
-                        <ChevronRight className="w-4 h-4" />
+                        <CaretRight className="w-4 h-4" />
                     </button>
                 </>
             )}

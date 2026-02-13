@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
-import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChatCentered, CaretRight } from '@phosphor-icons/react';
+// 修改原因：按需求保持点赞/收藏图标为原始样式，Heart/Star 回退到 lucide-react。
+import { Heart, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -87,7 +89,7 @@ export function StatusListPage() {
                 </div>
             ) : questions.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center shadow-sm">
-                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <ChatCentered className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-400">暂无{getPageTitle().replace('提问', '')}的内容</p>
                 </div>
             ) : (
@@ -146,10 +148,10 @@ export function StatusListPage() {
                                             <Heart className="w-3 h-3" /> {question.stats.likes}
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <MessageSquare className="w-3 h-3" /> {question.stats.comments}
+                                            <ChatCentered className="w-3 h-3" /> {question.stats.comments}
                                         </span>
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                                    <CaretRight className="w-4 h-4 text-gray-300" />
                                 </div>
                             </div>
                         );
