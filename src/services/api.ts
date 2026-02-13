@@ -603,6 +603,8 @@ type BackendQuestionListItem = {
     understoodCount?: number | null;
     notUnderstoodCount?: number | null;
     understandingStatus?: 'understood' | 'not_understood' | null;
+    isLiked?: boolean | null;
+    isFavorited?: boolean | null;
 };
 
 type UploadImageContext = {
@@ -729,8 +731,10 @@ export const questionService = {
                 authorAvatar: q.authorAvatar ?? undefined,
                 authorRole: undefined,
                 createdAt: q.createdAt,
-                isLiked: false,
-                isFavorited: false
+                // 修改原因：列表卡片的实心/空心态应以后端返回互动状态为准，避免被前端固定 false 覆盖。
+                // ⚠️ 不确定因素：旧后端可能不返回这两个字段；缺失时回退 false，保持向后兼容。
+                isLiked: !!q.isLiked,
+                isFavorited: !!q.isFavorited
             };
         });
 
@@ -759,6 +763,19 @@ export const questionService = {
     },
     getQuestionById: async (id: string) => {
         const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`);
+        return data.data;
+    },
+    updateQuestionDifficulty: async (
+        id: string,
+        difficulty: DifficultyLevel
+    ) => {
+        // 修改原因：提供老师“回答后可二次调整难度”的最小 API 封装，避免页面直写请求细节。
+        const { data } = await api.patch<
+            ApiResponse<{
+                id: string;
+                difficulty: DifficultyLevel;
+            }>
+        >(`/questions/${id}/difficulty`, { difficulty });
         return data.data;
     },
     createShareLink: async (id: string) => {
