@@ -42,6 +42,8 @@ const METHOD_PROGRESS_OPTIONS = [
 ] as const;
 
 const TOPIC_UNKNOWN_OPTION = '不知道';
+// 修改原因：方案A要求“每次仅上传一道题图片”，收敛上传数量到单图，降低后续打印版面失控风险。
+const MAX_QUESTION_IMAGES = 1;
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
@@ -165,8 +167,8 @@ export function CreateQuestionPage() {
       return;
     }
 
-    if (images.length >= 3) {
-      toast.error('最多只能上传3张图片');
+    if (images.length >= MAX_QUESTION_IMAGES) {
+      toast.error('每次仅可上传1张题目图片，如需更换请先删除当前图片');
       return;
     }
 
@@ -180,9 +182,14 @@ export function CreateQuestionPage() {
       return;
     }
 
-    const remainingSlots = 3 - images.length;
+    // ⚠️ 不确定因素：部分系统文件选择器在特定手势/多选模式下仍可能返回多文件，这里统一兜底为仅取首张。
+    if (files.length > 1) {
+      toast.error('一次只能选择1张题目图片');
+    }
+
+    const remainingSlots = MAX_QUESTION_IMAGES - images.length;
     if (remainingSlots <= 0) {
-      toast.error('最多只能上传3张图片');
+      toast.error('每次仅可上传1张题目图片，如需更换请先删除当前图片');
       event.target.value = '';
       return;
     }
@@ -511,13 +518,13 @@ export function CreateQuestionPage() {
 
           {/* 4. 图片上传区 */}
           <div className="space-y-2">
-            <Label className="font-bold">上传图片（最多3张）</Label>
+            {/* 修改原因：显性提示“单题单图”规则，减少误操作与预期偏差。 */}
+            <Label className="font-bold">上传图片（每次仅1张）</Label>
             <div className="flex flex-wrap gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                multiple
                 onChange={handleImageChange}
                 className="hidden"
                 data-testid="create-question-image-input"
@@ -542,7 +549,7 @@ export function CreateQuestionPage() {
               ))}
 
               {/* 上传按钮 */}
-              {images.length < 3 && (
+              {images.length < MAX_QUESTION_IMAGES && (
                 <button
                   onClick={handleImageUpload}
                   disabled={isUploadingImages}
@@ -560,6 +567,9 @@ export function CreateQuestionPage() {
                 正在上传图片 {uploadProgress.current}/{uploadProgress.total}...
               </p>
             )}
+            <p className="text-xs text-gray-500">
+              每次仅上传1道题的图片；如需替换，请先删除当前图片后重新上传。
+            </p>
             <div className="pt-3">
               <Button
                 onClick={handleSubmit}
