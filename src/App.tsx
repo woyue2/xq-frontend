@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { HomePage } from '@/pages/HomePage';
@@ -23,6 +24,8 @@ import { StudentHistoryPage } from '@/pages/StudentHistoryPage';
 import { TestApiPage } from '@/pages/TestApiPage';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Toaster } from "@/components/ui/sonner";
+import { useAuthStore } from '@/stores/useAuthStore';
+import { userService } from '@/services/api';
 
 // Initialize QueryClient
 const queryClient = new QueryClient({
@@ -35,6 +38,30 @@ const queryClient = new QueryClient({
 });
 
 export function App() {
+  const { isAuthenticated, token, updateUser } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+
+    let cancelled = false;
+
+    // 修改原因：应用启动时同步 /users/me（含 classHours），避免登录快照与服务端课时状态不一致。
+    userService
+      .getUserInfo()
+      .then((latestUser) => {
+        if (!cancelled) {
+          updateUser(latestUser);
+        }
+      })
+      .catch(() => {
+        // ⚠️ 不确定因素：网络抖动或后端短暂异常时可能拉取失败；此处保持静默降级，不阻断页面渲染。
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, token, updateUser]);
+
   return (
     <ErrorBoundary fallback={<div className="flex items-center justify-center min-h-screen text-red-500">应用加载失败，请刷新页面</div>}>
       <QueryClientProvider client={queryClient}>

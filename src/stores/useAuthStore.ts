@@ -17,6 +17,7 @@ interface AuthState {
     login: (user: User, token: string) => void;
     logout: () => void;
     updateUser: (updates: Partial<User>) => void;
+    recomputeDerivedState: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -76,6 +77,15 @@ export const useAuthStore = create<AuthState>()(
                     permissions: getUserPermissions(newUser),
                 });
             },
+
+            recomputeDerivedState: () => {
+                const { user } = get();
+                // 修改原因：用于 persist hydrate 后重算派生状态，避免刷新后 isActiveMember 残留旧值。
+                set({
+                    isActiveMember: isMemberActive(user),
+                    permissions: getUserPermissions(user),
+                });
+            },
         }),
         {
             name: 'auth-storage', // name of the item in the storage (must be unique)
@@ -87,6 +97,10 @@ export const useAuthStore = create<AuthState>()(
                 // isActiveMember 和 permissions 不持久化，每次初始化或 hydrate 时应该重算（为了简单先持久化，实际项目可以在 onRehydrate 中算）
                 // 实际上 Zustand persist 会恢复所有字段。这里简单处理。
             }),
+            onRehydrateStorage: () => (state) => {
+                // 修改原因：页面刷新后立即重算会员状态与权限，避免提问按钮误隐藏。
+                state?.recomputeDerivedState?.();
+            },
         }
     )
 );
