@@ -667,7 +667,7 @@ const handleGetBindCode = async () => {
               onClick={() => setShowPasswordDialog(true)}
               className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
             >
-              <div className="p-2 rounded-2xl bg-blue-50">
+              <div className="p-2 rounded-2xl">
                 <Key className="w-5 h-5 text-blue-500" />
               </div>
               <span className="flex-1 text-left font-medium text-gray-700">修改密码</span>
@@ -678,7 +678,7 @@ const handleGetBindCode = async () => {
               onClick={() => setShowLogoutDialog(true)}
               className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition active:scale-[0.98]"
             >
-              <div className="p-2 rounded-2xl bg-red-50">
+              <div className="p-2 rounded-2xl">
                 <SignOut className="w-5 h-5 text-red-500" />
               </div>
               <span className="flex-1 text-left font-medium text-red-500">退出登录</span>
