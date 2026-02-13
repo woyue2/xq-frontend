@@ -169,6 +169,11 @@ describe('CommentService unit tests', () => {
           safe: true,
           quality: { clear: true }
         });
+      const imageAuditSpy = jest
+        .spyOn(aiAuditService, 'auditImage')
+        .mockResolvedValue({
+          safe: true
+        });
 
       const result = await commentService.create({
         questionId: question.id,
@@ -184,6 +189,8 @@ describe('CommentService unit tests', () => {
       // 教师评论应直接标记为 approved
       // 修改原因：老师评论也走 AI 审核，测试需明确校验调用行为。
       expect(auditSpy).toHaveBeenCalledWith('这是评论内容', 'comment');
+      // 修改原因：补齐评论图片审核后，含图评论必须触发图片审核调用。
+      expect(imageAuditSpy).toHaveBeenCalledWith('https://cdn.example.com/comment.png');
       expect(result.status).toBe('approved');
 
       const updatedQuestion = await prisma.question.findUnique({
@@ -254,6 +261,72 @@ describe('CommentService unit tests', () => {
       // 修改原因：确保老师评论也经过 AI 审核，不再走“教师跳过审核”路径。
       expect(auditSpy).toHaveBeenCalledWith('老师评论内容', 'comment');
       expect(result.status).toBe('approved');
+    });
+
+    it('should set pending when image-only comment requires manual review', async () => {
+      const phone = nextPhone();
+
+      const student = await prisma.user.upsert({
+        where: { phone },
+        update: {},
+        create: {
+          phone,
+          nickname: '提问学生',
+          role: 'student',
+          isActive: true,
+          isBanned: false
+        }
+      });
+
+      const question = await prisma.question.create({
+        data: {
+          title: '仅图片评论转人工',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: student.id,
+          authorName: student.nickname
+        }
+      });
+
+      const teacherPhone = nextPhone();
+      const teacher = await prisma.user.upsert({
+        where: { phone: teacherPhone },
+        update: {},
+        create: {
+          phone: teacherPhone,
+          nickname: '评论老师',
+          role: 'teacher',
+          isActive: true,
+          isBanned: false
+        }
+      });
+
+      const imageAuditSpy = jest
+        .spyOn(aiAuditService, 'auditImage')
+        .mockResolvedValue({
+          safe: false,
+          requiresManualReview: true,
+          reason: '图片审核结果解析异常，已转人工复核'
+        });
+
+      const result = await commentService.create({
+        questionId: question.id,
+        authorId: teacher.id,
+        image: 'https://cdn.example.com/comment-only-image.png'
+      });
+
+      // 修改原因：验证“仅图片评论”也走图片审核，且异常时进入 pending 人工复核。
+      expect(imageAuditSpy).toHaveBeenCalledWith('https://cdn.example.com/comment-only-image.png');
+      expect(result.status).toBe('pending');
+      expect(result.aiAudit?.reason).toContain('图片审核');
     });
   });
 

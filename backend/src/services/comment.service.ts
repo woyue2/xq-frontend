@@ -92,6 +92,36 @@ export class CommentService {
       }
     }
 
+    if (hasImage && !auditResult.requiresManualReview) {
+      // 修改原因：补齐评论图片审核，避免“仅图片评论”绕过 AI 图片审核。
+      const imageResult = await aiAuditService.auditImage(image!);
+
+      if (!imageResult.safe) {
+        auditResult.safe = false;
+        auditResult.reason = `图片违规：${imageResult.reason || '包含不适合未成年人的内容'}`;
+        auditResult.category = imageResult.category || 'image_violation';
+        initialStatus = 'rejected';
+        aiResultText = JSON.stringify({
+          safe: false,
+          reason: auditResult.reason,
+          category: auditResult.category
+        });
+      }
+
+      if (imageResult.requiresManualReview) {
+        // 修改原因：图片审核结果不可判定时，统一转人工复核，避免默认放行。
+        // ⚠️ 不确定因素：当文本已判违规且图片又返回需人工复核时，当前策略优先落 pending，便于人工统一复核。
+        auditResult.requiresManualReview = true;
+        initialStatus = 'pending';
+        aiResultText = JSON.stringify({
+          safe: auditResult.safe,
+          reason: auditResult.reason || '图片审核服务异常，需人工复核',
+          category: auditResult.category,
+          requiresManualReview: true
+        });
+      }
+    }
+
     const [created] = await prisma.$transaction([
       prisma.comment.create({
         data: {
