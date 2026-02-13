@@ -37,18 +37,28 @@ import type { ChildInfo } from '@/types/parent';
 import { Label } from '@/components/ui/label';
 
 const PREDEFINED_AVATARS = [
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Max',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Milo',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Luna',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=teacher',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=parent',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=shiyan',
+  // 修改原因：按需求将原有在线 dicebear 头像库替换为本地静态头像库 static/avators（不做兜底）。
+  '/avators/notionists-1771014027111.png',
+  '/avators/notionists-1771014089130.png',
+  '/avators/notionists-1771014089350.png',
+  '/avators/notionists-1771014137113.png',
+  '/avators/notionists-1771014137573.png',
+  '/avators/notionists-1771014137633.png',
+  '/avators/notionists-1771014141476.png',
+  '/avators/notionists-1771014149388.png',
+  '/avators/notionists-1771014149586.png',
+  '/avators/notionists-1771014149624.png',
+  '/avators/notionists-1771014151440.png',
+  '/avators/notionists-1771014154427.png',
+  '/avators/notionists-1771014156462.png',
+  '/avators/notionists-1771014160192.png',
+  '/avators/notionists-1771014162379.png',
+  '/avators/notionists-1771014166621.png',
+  '/avators/notionists-1771014171488.png',
+  '/avators/notionists-1771014181034.png',
+  '/avators/notionists-1771014181107.png',
+  '/avators/notionists-1771014181485.png',
+  // ⚠️ 不确定因素：当前使用硬编码文件名；若 static/avators 目录文件后续变更，需同步更新此列表。
 ];
 
 export function ProfilePage() {
