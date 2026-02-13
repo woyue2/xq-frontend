@@ -56,6 +56,8 @@ services:
     # 挂载本地 backend 目录，方便直接使用当前代码
     volumes:
       - ../backend:/app
+      # 修改原因：为音频文件提供独立持久卷，容器重建后仍可读取历史录音。
+      - audio_data:/data/audio
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -63,6 +65,8 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: "please-change-this-in-production"
       JWT_EXPIRES_IN: "7d"
+      # 修改原因：显式固定音频目录到持久卷挂载点，避免依赖工作目录造成路径偏移。
+      AUDIO_BASE_DIR: /data/audio
       # 可选：如启用 AI 自动审核回调，请在生产环境中为内部回调接口配置独立令牌
       # 建议将实际值放入独立的 .env.production 文件中，通过 docker compose 引用
       # AI_INTERNAL_TOKEN: "please-set-strong-random-token-in-real-env"
@@ -91,3 +95,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  # 修改原因：给 backend 音频文件单独持久化，降低实例重建导致文件丢失风险。
+  # ⚠️ 不确定因素：多节点部署时，named volume 默认不跨主机共享，需外部共享存储。
+  audio_data:
