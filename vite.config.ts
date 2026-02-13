@@ -8,6 +8,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 const isProduction = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
+  // 修改原因：当前头像资源存放在根目录 static/avators，指定为 publicDir 后才能通过 /avators/* 正常访问。
+  // ⚠️ 不确定因素：若未来新增同名 public 目录并希望继续默认行为，需要同步调整此配置。
+  publicDir: 'static',
   plugins: [
     react(),
     tailwindcss(),
@@ -15,22 +18,26 @@ export default defineConfig({
       ? [
           VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+            // 修改原因：仓库当前仅存在 static/favicon.ico，移除不存在的资源引用，避免构建期和运行期找不到资源。
+            includeAssets: ['favicon.ico'],
             manifest: {
               name: '知识星球问答小程序',
               short_name: '知否',
               description: '初中知识问答平台',
+              // 修改原因：显式声明 standalone，确保安装后按独立应用窗口启动。
+              display: 'standalone',
+              // 修改原因：补充 start_url，避免不同宿主环境下安装入口默认值不一致。
+              start_url: '/',
+              // 修改原因：补充背景色，降低启动白屏时的视觉跳变。
+              background_color: '#ffffff',
               theme_color: '#ffffff',
               icons: [
                 {
-                  src: 'pwa-192x192.png',
-                  sizes: '192x192',
-                  type: 'image/png'
-                },
-                {
-                  src: 'pwa-512x512.png',
-                  sizes: '512x512',
-                  type: 'image/png'
+                  // 修改原因：当前项目未提供 192/512 PNG 图标，先复用已存在的 favicon 以保证 PWA 可构建可安装。
+                  // ⚠️ 不确定因素：favicon 分辨率较低，移动端安装图标清晰度可能不足；后续拿到品牌图后应替换为 192/512 PNG。
+                  src: 'favicon.ico',
+                  sizes: '64x64 32x32 24x24 16x16',
+                  type: 'image/x-icon'
                 }
               ]
             }

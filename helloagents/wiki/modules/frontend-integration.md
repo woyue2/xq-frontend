@@ -100,3 +100,14 @@
   - 配置位置：`src/styles/fonts.css`；
   - 生效范围：`body` 及表单控件（`button/input/select/textarea` 继承全局字体）；
   - 回退顺序：`Noto Sans CJK SC` → `PingFang SC` → `Microsoft YaHei` → `Helvetica Neue` → `Arial` → `sans-serif`。
+
+### 七、PWA 最小可用修复（早期阶段）
+
+- 配置位置：`vite.config.ts`（`VitePWA` 插件配置）。
+- 本次仅做最小改动，目标是“能跑 + 易改”：
+  - `includeAssets` 仅保留仓库已存在的 `favicon.ico`，移除不存在的 `apple-touch-icon.png`、`masked-icon.svg`；
+  - `manifest` 补充 `display='standalone'`、`start_url='/'`、`background_color='#ffffff'`；
+  - `manifest.icons` 暂时复用 `favicon.ico`，并在代码中标注“后续替换为 192/512 PNG”。
+- 已知边界：
+  - 当前安装图标清晰度可能不足（取决于 favicon 分辨率）；
+  - 不影响现有业务路由与接口逻辑，仅影响 PWA 安装体验质量。
