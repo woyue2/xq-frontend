@@ -11,7 +11,13 @@ export function StatusListPage() {
     const navigate = useNavigate();
     const { status } = useParams<{ status: string }>();
     const { user } = useAuthStore();
+    const normalizedStatus =
+      status === 'pending' || status === 'approved' || status === 'rejected' || status === 'banned'
+        ? status
+        : undefined;
     const { data, isLoading } = useQuestions({
+        // 修改原因：状态页应由后端按状态过滤，避免仅在首屏分页数据里前端过滤导致 pending 漏显示。
+        status: normalizedStatus,
         authorId: user && user.role !== 'parent' ? user.id : undefined
     });
 
@@ -29,9 +35,8 @@ export function StatusListPage() {
         }
     }, [user, navigate]);
 
-     // Filter questions based on route param status
-     const allQuestions = (data?.pages.flatMap(p => p.list) || []).filter(q => q && q.id);
-     const questions = allQuestions.filter(q => q.status === status);
+     // 修改原因：后端已按 status 过滤，这里只做空值兜底，避免重复过滤造成边界数据丢失。
+     const questions = (data?.pages.flatMap(p => p.list) || []).filter(q => q && q.id);
 
     const getPageTitle = () => {
         switch (status) {
