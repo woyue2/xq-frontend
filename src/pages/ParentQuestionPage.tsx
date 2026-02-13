@@ -40,7 +40,8 @@ export function ParentQuestionPage() {
        }
        const res = await parentService.getChildQuestions(childId, {
          page: pageParam,
-         limit: 10,
+         // 修改原因：后端接口使用 pageSize 语义；与其他列表页参数保持一致，避免筛选链路歧义。
+         pageSize: 10,
          subject: selectedSubject,
          topic: selectedTopic
        });

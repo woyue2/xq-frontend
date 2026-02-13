@@ -191,13 +191,17 @@ parentRouter.get(
             }
 
             const { childId } = req.params;
-            const { page, pageSize } = req.query as any;
+            const { page, pageSize, limit, subject, topic } = req.query as any;
+            // 修改原因：前端历史上混用 pageSize/limit；为兼容现网请求，这里统一兜底到 pageSize。
+            const rawPageSize = pageSize ?? limit;
 
             const result = await parentService.getChildQuestions(
                 req.user!.id,
                 childId,
                 page ? Number(page) : 1,
-                pageSize ? Number(pageSize) : 10
+                rawPageSize ? Number(rawPageSize) : 10,
+                typeof subject === 'string' ? subject : undefined,
+                typeof topic === 'string' ? topic : undefined
             );
 
             res.json({

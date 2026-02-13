@@ -189,7 +189,14 @@ export class ParentService {
   /**
    * 获取孩子的问题列表
    */
-  async getChildQuestions(parentId: string, childId: string, page: number = 1, pageSize: number = 10) {
+  async getChildQuestions(
+    parentId: string,
+    childId: string,
+    page: number = 1,
+    pageSize: number = 10,
+    subject?: string,
+    topic?: string
+  ) {
     // 验证绑定关系
     const relation = await prisma.parentChild.findUnique({
       where: {
@@ -217,10 +224,21 @@ export class ParentService {
 
     const safePageSize = Math.min(pageSize, 100);
 
-    const where = {
+    const where: any = {
       authorId: childId,
       status: 'approved'
     };
+
+    if (subject) {
+      // 修改原因：家长“孩子提问列表”与首页筛选能力对齐，支持按科目过滤。
+      where.subject = subject;
+    }
+
+    if (topic) {
+      // 修改原因：支持家长按考点（tags）过滤。
+      // ⚠️ 不确定因素：当前约定是 topic 与 question.tags 文本直接匹配；若后续有别名/标准化字典，需要在此处统一映射。
+      where.tags = { hasSome: [topic] };
+    }
 
     const [total, items] = await Promise.all([
       prisma.question.count({ where }),

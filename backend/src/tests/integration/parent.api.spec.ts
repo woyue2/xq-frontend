@@ -235,4 +235,78 @@ describe('Parent API', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('INVALID_PAGINATION');
   });
+
+  it('should filter child questions by subject and topic when parent views questions', async () => {
+    const token = signAccessToken({
+      sub: PARENT_ID,
+      role: 'parent'
+    });
+
+    await prisma.question.createMany({
+      data: [
+        {
+          id: 'q-child-math-topic',
+          title: '数学-函数问题',
+          content: '目标命中数据',
+          subject: 'math',
+          tags: ['函数'],
+          images: [],
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: CHILD_ID,
+          authorName: '孩子用户'
+        },
+        {
+          id: 'q-child-math-other-topic',
+          title: '数学-几何问题',
+          content: '同科目不同考点',
+          subject: 'math',
+          tags: ['几何'],
+          images: [],
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: CHILD_ID,
+          authorName: '孩子用户'
+        },
+        {
+          id: 'q-child-physics-topic',
+          title: '物理-函数同名标签',
+          content: '不同科目',
+          subject: 'physics',
+          tags: ['函数'],
+          images: [],
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: CHILD_ID,
+          authorName: '孩子用户'
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .get(`/api/parent/questions/${CHILD_ID}?page=1&pageSize=10&subject=math&topic=函数`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    const ids = (res.body.data.list || []).map((q: any) => q.id);
+    expect(ids).toContain('q-child-math-topic');
+    expect(ids).not.toContain('q-child-math-other-topic');
+    expect(ids).not.toContain('q-child-physics-topic');
+  });
 });
