@@ -717,12 +717,12 @@ describe('Question API', () => {
     expect(res.body.data.status).toBe('rejected');
   });
 
-  // Q-API-011 学生只能删除自己且尚无回答的问题
-  it('should allow student to delete own question without answers but forbid when answers > 0 (Q-API-011)', async () => {
-    // 学生自己的无回答问题
-    const noAnswerQuestion = await prisma.question.create({
+  // Q-API-011 学生不能删除已通过问题；仅可删除未通过且无回答的问题
+  it('should forbid student deleting approved question, allow pending without answers, and forbid when answers > 0 (Q-API-011)', async () => {
+    // 学生自己的已通过且无回答问题（应禁止删除）
+    const approvedNoAnswerQuestion = await prisma.question.create({
       data: {
-        title: '可删除问题',
+        title: '已通过且无回答问题',
         content: '还没有回答',
         subject: 'math',
         tags: [],
@@ -738,15 +738,46 @@ describe('Question API', () => {
       }
     });
 
+    const approvedForbiddenRes = await request(app)
+      .delete(`/api/questions/${approvedNoAnswerQuestion.id}`)
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(approvedForbiddenRes.status).toBe(403);
+    expect(approvedForbiddenRes.body.error).toBe('PERMISSION_DENIED');
+
+    const approvedStillThere = await prisma.question.findUnique({
+      where: { id: approvedNoAnswerQuestion.id }
+    });
+    expect(approvedStillThere).not.toBeNull();
+
+    // 学生自己的待审核且无回答问题（允许删除）
+    const pendingNoAnswerQuestion = await prisma.question.create({
+      data: {
+        title: '待审核可删除问题',
+        content: '还没有回答',
+        subject: 'math',
+        tags: [],
+        status: 'pending',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
     const okRes = await request(app)
-      .delete(`/api/questions/${noAnswerQuestion.id}`)
+      .delete(`/api/questions/${pendingNoAnswerQuestion.id}`)
       .set('Authorization', `Bearer ${studentToken}`);
 
     expect(okRes.status).toBe(200);
     expect(okRes.body.code).toBe(200);
 
     const deleted = await prisma.question.findUnique({
-      where: { id: noAnswerQuestion.id }
+      where: { id: pendingNoAnswerQuestion.id }
     });
     expect(deleted).toBeNull();
 
