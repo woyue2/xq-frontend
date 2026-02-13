@@ -440,6 +440,22 @@ const handleGetBindCode = async () => {
       onClick: () => navigate('/audit'),
     },
     {
+      icon: MessageSquare,
+      label: '待回答',
+      color: 'text-green-500',
+      visible: currentUser.role === 'teacher',
+      // 修改原因：按需求提升“待回答”优先级，放在审核管理下方作为第二入口。
+      onClick: () => navigate('/my-answers/pending'),
+    },
+    {
+      icon: Edit3,
+      label: '已回答',
+      color: 'text-emerald-600',
+      visible: currentUser.role === 'teacher',
+      // 修改原因：将“我的回答”拆分为独立路由页面之一（已回答）。
+      onClick: () => navigate('/my-answers/answered'),
+    },
+    {
       icon: Users,
       label: '用户白名单',
       color: 'text-cyan-600',
@@ -473,13 +489,6 @@ const handleGetBindCode = async () => {
       color: 'text-blue-500',
       visible: currentUser.role === 'student' || currentUser.role === 'teacher',
       onClick: () => navigate('/my-questions'),
-    },
-    {
-      icon: Edit3,
-      label: '我的回答',
-      color: 'text-green-500',
-      visible: currentUser.role === 'teacher',
-      onClick: () => navigate('/my-answers'),
     },
   ];
 
