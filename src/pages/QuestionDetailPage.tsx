@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type PointerEvent } from 'react';
 import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
@@ -60,7 +60,7 @@ export function QuestionDetailPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user: currentUser } = useAuthStore();
-  const { getQuestionById } = useQuestions();
+  const { getQuestionById, data: questionsData } = useQuestions();
   const safeQuestionId = questionId || '';
   const shareToken = searchParams.get('shareToken') || undefined;
   const isSharedVisitor = !currentUser && !!shareToken;
@@ -157,6 +157,17 @@ export function QuestionDetailPage() {
   const questionAudioRef = useRef<HTMLAudioElement | null>(null);
   const answerAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const answerCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const swipeRef = useRef<{
+    active: boolean;
+    pointerId: number | null;
+    startX: number;
+    startY: number;
+  }>({
+    active: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+  });
   const [targetAnswerId, setTargetAnswerId] = useState<string | null>(() => {
     const fromQuery = searchParams.get('answerId');
     const fromState = (location.state as any)?.answerId as string | undefined;
@@ -663,6 +674,87 @@ export function QuestionDetailPage() {
     }
   };
 
+  const allQuestionsInMemory = (questionsData?.pages ?? [])
+    .flatMap((page) => page.list ?? []);
+  const currentQuestionIndex = allQuestionsInMemory.findIndex((q) => q.id === question.id);
+
+  const isSwipeBlockedTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return !!target.closest('button,a,input,textarea,select,label,[data-no-swipe="true"]');
+  };
+
+  const goNextQuestion = () => {
+    const nextQuestion = currentQuestionIndex >= 0 ? allQuestionsInMemory[currentQuestionIndex + 1] : undefined;
+
+    if (nextQuestion?.id) {
+      navigate(`/question/${nextQuestion.id}`);
+      return;
+    }
+
+    // 修改原因：无下一题时给出明确反馈，避免手势触发后“无响应”造成误判。
+    toast.info('已经是最后一题');
+  };
+
+  const goPrevQuestion = () => {
+    const prevQuestion = currentQuestionIndex > 0 ? allQuestionsInMemory[currentQuestionIndex - 1] : undefined;
+
+    if (prevQuestion?.id) {
+      navigate(`/question/${prevQuestion.id}`);
+      return;
+    }
+
+    // 修改原因：左滑改为“上一题”后，首题时提供清晰反馈，避免误以为手势失效。
+    toast.info('已经是第一题');
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (isSwipeBlockedTarget(event.target)) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    swipeRef.current = {
+      active: true,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const swipe = swipeRef.current;
+    if (!swipe.active) return;
+    if (swipe.pointerId !== event.pointerId) return;
+
+    swipeRef.current.active = false;
+    swipeRef.current.pointerId = null;
+
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // 修改原因：避免纵向滚动被误判为横向滑动，优先保证常规滚动可用。
+    // ⚠️ 不确定因素：阈值基于当前页面交互经验值（80/1.2）；若真机误触仍多，需再按设备调参。
+    if (absX < 80) return;
+    if (absX <= absY * 1.2) return;
+
+    if (deltaX < 0) {
+      // 修改原因：按最新需求，左滑切换到上一题。
+      goPrevQuestion();
+      return;
+    }
+
+    // 右滑：下一题
+    goNextQuestion();
+  };
+
+  const handlePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
+    const swipe = swipeRef.current;
+    if (swipe.pointerId === event.pointerId) {
+      swipeRef.current.active = false;
+      swipeRef.current.pointerId = null;
+    }
+  };
+
 
 
   return (
@@ -671,6 +763,9 @@ export function QuestionDetailPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       className="flex flex-col gap-4"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
     >
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
