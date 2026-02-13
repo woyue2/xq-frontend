@@ -69,6 +69,10 @@ export function CreateQuestionPage() {
   const debouncedTitle = useDebounce(title, 500);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 修改原因：为图片上传提供“进行中”可视反馈，避免用户等待时无感知。
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  // 修改原因：展示顺序上传进度（第几张/总张数），减少重复点击与误判。
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Smart Search Effect
   useEffect(() => {
@@ -121,6 +125,10 @@ export function CreateQuestionPage() {
   const showMethodField = !!currentSubjectConfig;
 
   const handleImageUpload = () => {
+    if (isUploadingImages) {
+      return;
+    }
+
     if (images.length >= 3) {
       toast.error('最多只能上传3张图片');
       return;
@@ -146,8 +154,13 @@ export function CreateQuestionPage() {
     const filesToUpload = Array.from(files).slice(0, remainingSlots);
 
     try {
+      setIsUploadingImages(true);
+      setUploadProgress({ current: 0, total: filesToUpload.length });
       const uploadedUrls: string[] = [];
-      for (const file of filesToUpload) {
+      for (let i = 0; i < filesToUpload.length; i += 1) {
+        const file = filesToUpload[i];
+        // ⚠️ 不确定因素：当前按顺序上传；若未来改为并发上传，这里的 current/total 语义需改为“已完成数”。
+        setUploadProgress({ current: i + 1, total: filesToUpload.length });
         // 顺序上传，便于控制错误与提示
         // eslint-disable-next-line no-await-in-loop
         const { imageUrl } = await questionService.uploadImage(file, {
@@ -164,6 +177,8 @@ export function CreateQuestionPage() {
     } catch {
       toast.error('图片上传失败，请稍后重试');
     } finally {
+      setIsUploadingImages(false);
+      setUploadProgress(null);
       // 允许用户重复选择同一文件
       event.target.value = '';
     }
@@ -251,7 +266,7 @@ export function CreateQuestionPage() {
     }
   };
 
-  const canSubmit = !submitting && title.trim().length > 0 && Boolean(selectedSubject);
+  const canSubmit = !submitting && !isUploadingImages && title.trim().length > 0 && Boolean(selectedSubject);
 
   if (!user) return null; // Should be handled by layout but safe guard
 
@@ -421,6 +436,7 @@ export function CreateQuestionPage() {
                   />
                   <button
                     onClick={() => handleRemoveImage(index)}
+                    disabled={isUploadingImages}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition"
                   >
                     <X className="w-4 h-4" />
@@ -432,13 +448,21 @@ export function CreateQuestionPage() {
               {images.length < 3 && (
                 <button
                   onClick={handleImageUpload}
+                  disabled={isUploadingImages}
                   className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-teal-500 hover:bg-teal-50 transition"
                 >
                   <Upload className="w-6 h-6 text-gray-400" />
-                  <span className="text-xs text-gray-500">上传图片</span>
+                  <span className="text-xs text-gray-500">
+                    {isUploadingImages ? '上传中...' : '上传图片'}
+                  </span>
                 </button>
               )}
             </div>
+            {isUploadingImages && uploadProgress && (
+              <p className="text-xs text-teal-600">
+                正在上传图片 {uploadProgress.current}/{uploadProgress.total}...
+              </p>
+            )}
             <div className="pt-3">
               <Button
                 onClick={handleSubmit}
