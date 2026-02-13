@@ -8,7 +8,9 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
  * - 后端通过 /api/internal/test-token 创建学生/老师身份，并直接用 API 创建问题与回答；
  * - 前端仅负责展示与交互: 学生在首页题目卡片的日期旁看到理解状态，并可在“弄懂了/没弄懂”之间切换。
  */
-test.describe('学生理解状态标记(弄懂了/没懂)端到端链路', () => {
+// 修改原因：产品已确认下线首页“弄懂了/没弄懂/未标记”展示入口，
+// 该用例依赖旧交互路径，现阶段不再作为必测项，先跳过避免阻塞主流程验收。
+test.describe.skip('学生理解状态标记(弄懂了/没懂)端到端链路', () => {
   test('学生: 提问 → 老师回答 → 首页标记弄懂/没懂', async ({ page }) => {
     const backendBase =
       process.env.BACKEND_BASE_URL || 'http://localhost:4000';

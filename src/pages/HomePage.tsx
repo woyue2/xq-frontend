@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
-import { interactionService, questionService } from '@/services/api';
+import { interactionService } from '@/services/api';
 import { TOAST_MESSAGES } from '@/config/app-constants';
 import type { Question } from '@/types';
 import { QuestionList } from '@/components/QuestionList';
@@ -40,9 +40,6 @@ export function HomePage() {
     Record<string, { likes?: number; favorites?: number }>
   >({});
   const [pinnedStates, setPinnedStates] = useState<Record<string, boolean>>({});
-  const [understandingStates, setUnderstandingStates] = useState<
-    Record<string, 'understood' | 'not_understood' | null>
-  >({});
 
   useEffect(() => {
     try {
@@ -180,33 +177,6 @@ export function HomePage() {
     }));
   };
 
-  const handleToggleUnderstanding = async (
-    question: Question,
-    e: React.MouseEvent
-  ) => {
-    e.stopPropagation();
-
-    // 仅提问学生本人可以标记理解状态
-    if (!user || user.id !== question.authorId) {
-      return;
-    }
-
-    const current =
-      understandingStates[question.id] ?? question.understandingStatus ?? null;
-    const next: 'understood' | 'not_understood' =
-      current === 'understood' ? 'not_understood' : 'understood';
-
-    try {
-      await questionService.setUnderstandingStatus(question.id, next);
-      setUnderstandingStates((prev) => ({
-        ...prev,
-        [question.id]: next
-      }));
-    } catch {
-      toast.error('更新理解状态失败，请稍后重试');
-    }
-  };
-
   // Flatten pages
   const allQuestions = data?.pages.flatMap(p => p.list) || [];
   const mergedQuestions = allQuestions.map((q) => {
@@ -274,8 +244,8 @@ export function HomePage() {
         pinnedStates={pinnedStates}
         likedQuestions={likedQuestions}
         favoritedQuestions={favoritedQuestions}
-        understandingStates={understandingStates}
-        onToggleUnderstanding={handleToggleUnderstanding}
+        // 修改原因：按方案一仅隐藏卡片上的“理解状态（弄懂了/没弄懂/未标记）”显示，不调整后端字段与接口。
+        // ⚠️ 不确定因素：若其它页面未来继续传入 onToggleUnderstanding，QuestionCard 仍会显示该区域。
         onAuthorClick={handleAuthorClick}
       />
     </div>
