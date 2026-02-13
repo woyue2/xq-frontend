@@ -26,6 +26,8 @@ export function AnswerQuestionPage() {
   const { id: questionIdParam } = useParams();
   const questionId = questionIdParam ?? '';
   const { user } = useAuthStore();
+  // 修改原因：回答草稿需按“题目+用户”隔离，避免老师切题时互相覆盖。
+  const draftKey = user?.id && questionId ? `draft:answer:${questionId}:${user.id}` : '';
 
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -125,6 +127,26 @@ export function AnswerQuestionPage() {
     // 仅依赖 questionId，避免 setQuestion 后因 question 引用变化触发重复请求。
     questionId
   ]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const rawDraft = window.localStorage.getItem(draftKey);
+      if (!rawDraft) return;
+      const parsed = JSON.parse(rawDraft) as {
+        content?: string;
+        images?: string[];
+        audioUrl?: string | null;
+      };
+      // 修改原因：回到同题回答页自动恢复草稿，减少误返回后的重复编辑。
+      setContent(parsed.content ?? '');
+      setImages(Array.isArray(parsed.images) ? parsed.images : []);
+      setAudioUrl(parsed.audioUrl ?? null);
+      toast.success('已恢复上次未提交的回答草稿');
+    } catch {
+      // ⚠️ 不确定因素：本地缓存可能被非预期值污染，当前仅忽略异常并保留空编辑态。
+    }
+  }, [draftKey]);
 
   const handleImageUpload = () => {
     if (isUploadingImages) {
@@ -368,6 +390,47 @@ export function AnswerQuestionPage() {
     }
   };
 
+  const saveDraft = () => {
+    if (!draftKey) return;
+    try {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          content,
+          images,
+          audioUrl,
+          updatedAt: Date.now()
+        })
+      );
+    } catch {
+      // ⚠️ 不确定因素：部分浏览器可能禁用或限制 localStorage 写入；这里仅提示，不阻断退出流程。
+      toast.error('草稿保存失败，请检查浏览器存储权限');
+    }
+  };
+
+  const clearDraft = () => {
+    if (!draftKey) return;
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSaveDraftAndExit = () => {
+    saveDraft();
+    setShowExitDialog(false);
+    toast.success('草稿已保存');
+    navigate(`/question/${questionId}`);
+  };
+
+  const handleDiscardAndExit = () => {
+    // 修改原因：用户明确选择“放弃”时应清理历史草稿，避免下次进入同题时误恢复。
+    clearDraft();
+    setShowExitDialog(false);
+    navigate(`/question/${questionId}`);
+  };
+
   const handleSubmit = async () => {
     if (!content.trim() && images.length === 0 && !audioUrl) {
       toast.error('请至少填写文字回答、上传图片或录音');
@@ -401,6 +464,8 @@ export function AnswerQuestionPage() {
       }
 
       toast.success('回答已提交');
+      // 修改原因：回答提交成功后清理草稿，避免下次进入同题错误回填旧内容。
+      clearDraft();
       navigate(`/question/${questionId}`);
     } catch {
       toast.error('提交回答失败，请稍后重试');
@@ -600,7 +665,13 @@ export function AnswerQuestionPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate(`/question/${questionId}`)}>
+            <Button
+              variant="outline"
+              onClick={handleSaveDraftAndExit}
+            >
+              保存草稿并退出
+            </Button>
+            <AlertDialogAction onClick={handleDiscardAndExit}>
               确认放弃
             </AlertDialogAction>
           </AlertDialogFooter>

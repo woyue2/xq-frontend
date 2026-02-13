@@ -36,6 +36,8 @@ import { ImageCarousel } from '@/components/ui/image-carousel';
 export function CreateQuestionPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  // 修改原因：方案A需要按“用户维度”隔离提问草稿，避免不同账号串草稿。
+  const draftKey = user?.id ? `draft:create-question:${user.id}` : '';
 
   // Permission Check
   useEffect(() => {
@@ -85,6 +87,30 @@ export function CreateQuestionPage() {
   useEffect(() => {
     setSimilarQuestions([]);
   }, [debouncedTitle]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const rawDraft = window.localStorage.getItem(draftKey);
+      if (!rawDraft) return;
+      const parsed = JSON.parse(rawDraft) as {
+        title?: string;
+        content?: string;
+        images?: string[];
+        selectedTopic?: string;
+        selectedMethod?: string;
+      };
+      // 修改原因：进入页面自动恢复同账号草稿，减少误退出后的重复输入。
+      setTitle(parsed.title ?? '');
+      setContent(parsed.content ?? '');
+      setImages(Array.isArray(parsed.images) ? parsed.images : []);
+      setSelectedTopic(parsed.selectedTopic ?? '');
+      setSelectedMethod(parsed.selectedMethod ?? '');
+      toast.success('已恢复上次未提交的提问草稿');
+    } catch {
+      // ⚠️ 不确定因素：localStorage 可能被外部手动篡改为非 JSON，这里仅做静默兜底不阻断页面。
+    }
+  }, [draftKey]);
 
   // 题目维度配置加载：当前仅使用 method 维度
   useEffect(() => {
@@ -233,6 +259,49 @@ export function CreateQuestionPage() {
     }
   };
 
+  const saveDraft = () => {
+    if (!draftKey) return;
+    try {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          title,
+          content,
+          images,
+          selectedTopic,
+          selectedMethod,
+          updatedAt: Date.now()
+        })
+      );
+    } catch {
+      // ⚠️ 不确定因素：Safari 隐私模式或存储空间不足时 setItem 可能失败，此处仅提示用户。
+      toast.error('草稿保存失败，请检查浏览器存储权限');
+    }
+  };
+
+  const clearDraft = () => {
+    if (!draftKey) return;
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSaveDraftAndExit = () => {
+    saveDraft();
+    setShowExitDialog(false);
+    toast.success('草稿已保存');
+    navigate('/');
+  };
+
+  const handleDiscardAndExit = () => {
+    // 修改原因：用户明确选择“放弃”时应清理历史草稿，避免下次进入时误恢复。
+    clearDraft();
+    setShowExitDialog(false);
+    navigate('/');
+  };
+
   const handleSubmit = async () => {
     // Double check permission on submit
     if (user && !isMemberActive(user)) {
@@ -288,6 +357,8 @@ export function CreateQuestionPage() {
       }
 
       toast.success('问题已提交，已跳转到详情页');
+      // 修改原因：提交成功后草稿已失效，及时清理避免下次误恢复旧内容。
+      clearDraft();
       // 提交成功后跳转到该问题详情页，便于学生继续查看与分享
       if (created && (created as Question).id) {
         navigate(`/question/${(created as Question).id}`);
@@ -532,7 +603,13 @@ export function CreateQuestionPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate('/')}>
+            <Button
+              variant="outline"
+              onClick={handleSaveDraftAndExit}
+            >
+              保存草稿并退出
+            </Button>
+            <AlertDialogAction onClick={handleDiscardAndExit}>
               确认放弃
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef, type PointerEvent } from 'react';
 import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -64,6 +74,9 @@ export function QuestionDetailPage() {
   const safeQuestionId = questionId || '';
   const shareToken = searchParams.get('shareToken') || undefined;
   const isSharedVisitor = !currentUser && !!shareToken;
+  // 修改原因：评论草稿需按“题目+用户”隔离，避免跨题或跨账号串数据。
+  const commentDraftKey =
+    currentUser?.id && safeQuestionId ? `draft:comment:${safeQuestionId}:${currentUser.id}` : '';
   const commentImageInputRef = useRef<HTMLInputElement | null>(null);
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
@@ -142,6 +155,7 @@ export function QuestionDetailPage() {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
+  const [showCommentExitDialog, setShowCommentExitDialog] = useState(false);
   // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   // 修改原因：详情页点赞/收藏状态改为以后端返回为准，避免刷新后被本地 mock 状态重置。
@@ -209,6 +223,24 @@ export function QuestionDetailPage() {
     };
   }, [safeQuestionId, shareToken]);
 
+  useEffect(() => {
+    if (!commentDraftKey) return;
+    try {
+      const rawDraft = window.localStorage.getItem(commentDraftKey);
+      if (!rawDraft) return;
+      const parsed = JSON.parse(rawDraft) as {
+        newComment?: string;
+        commentImage?: string | null;
+      };
+      // 修改原因：返回同题详情页时自动恢复评论输入态，减少误退出带来的重复编辑。
+      setNewComment(parsed.newComment ?? '');
+      setCommentImage(parsed.commentImage ?? null);
+      toast.success('已恢复上次未提交的评论草稿');
+    } catch {
+      // ⚠️ 不确定因素：本地缓存可能被手工修改为无效 JSON，当前仅忽略异常并保持空输入。
+    }
+  }, [commentDraftKey]);
+
   // 当回答列表加载完成并且存在目标 answerId 时，自动滚动并高亮目标回答卡片
   useEffect(() => {
     if (!targetAnswerId) return;
@@ -229,12 +261,13 @@ export function QuestionDetailPage() {
 
   if (!question) {
     // 统一在“加载中 / 未找到”状态下也提供返回按钮，
-    // 便于测试与实际用户都可以轻松返回上一页。
+    // 便于测试与实际用户都可以轻松返回问题页。
     return (
       <div className="flex flex-col gap-4">
         <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
           <button
-            onClick={() => navigate(-1)}
+            // 修改原因：按最新需求，左上角返回箭头固定返回问题页，不跟随历史栈。
+            onClick={() => navigate('/')}
             className="p-2 hover:bg-gray-100 rounded-full transition"
             data-testid="back-button"
           >
@@ -537,6 +570,14 @@ export function QuestionDetailPage() {
       setComments((prev) => [...prev, comment]);
       setNewComment('');
       setCommentImage(null);
+      if (commentDraftKey) {
+        try {
+          // 修改原因：评论提交成功（mock 路径）后清理草稿，避免重复回填。
+          window.localStorage.removeItem(commentDraftKey);
+        } catch {
+          // ignore
+        }
+      }
       toast.success('评论已提交，等待审核');
       return;
     }
@@ -569,6 +610,14 @@ export function QuestionDetailPage() {
 
       setNewComment('');
       setCommentImage(null);
+      if (commentDraftKey) {
+        try {
+          // 修改原因：评论提交成功（真实接口路径）后清理草稿，避免重复回填。
+          window.localStorage.removeItem(commentDraftKey);
+        } catch {
+          // ignore
+        }
+      }
       toast.success(
         created.status === 'approved'
           ? '评论已发布'
@@ -755,6 +804,58 @@ export function QuestionDetailPage() {
     }
   };
 
+  const hasCommentDraftChanges = newComment.trim().length > 0 || !!commentImage;
+
+  const handleBackFromDetail = () => {
+    if (!hasCommentDraftChanges) {
+      // 修改原因：按最新需求，左上角返回箭头固定返回问题页，不使用 history back。
+      navigate('/');
+      return;
+    }
+    setShowCommentExitDialog(true);
+  };
+
+  const saveCommentDraft = () => {
+    if (!commentDraftKey) return;
+    try {
+      window.localStorage.setItem(
+        commentDraftKey,
+        JSON.stringify({
+          newComment,
+          commentImage,
+          updatedAt: Date.now()
+        })
+      );
+    } catch {
+      // ⚠️ 不确定因素：localStorage 受浏览器策略/空间限制可能写失败，此时仅提示用户。
+      toast.error('评论草稿保存失败，请检查浏览器存储权限');
+    }
+  };
+
+  const handleSaveCommentDraftAndExit = () => {
+    saveCommentDraft();
+    setShowCommentExitDialog(false);
+    toast.success('评论草稿已保存');
+    // 修改原因：该分支由左上角返回箭头触发，保持与箭头目标一致（问题页）。
+    navigate('/');
+  };
+
+  const handleDiscardCommentDraftAndExit = () => {
+    if (commentDraftKey) {
+      try {
+        // 修改原因：用户显式选择“放弃草稿”时立即删除本地草稿，避免再次自动恢复。
+        window.localStorage.removeItem(commentDraftKey);
+      } catch {
+        // ignore
+      }
+    }
+    setShowCommentExitDialog(false);
+    setNewComment('');
+    setCommentImage(null);
+    // 修改原因：该分支由左上角返回箭头触发，保持与箭头目标一致（问题页）。
+    navigate('/');
+  };
+
 
 
   return (
@@ -771,7 +872,8 @@ export function QuestionDetailPage() {
       <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
         <motion.button
           whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(-1)}
+          // 修改原因：详情页返回前补充“是否保存评论草稿”确认，避免误触返回导致输入丢失。
+          onClick={handleBackFromDetail}
           className="p-2 hover:bg-gray-100 rounded-full transition"
           data-testid="back-button"
         >
@@ -1117,9 +1219,19 @@ export function QuestionDetailPage() {
                           <span className="text-xs font-bold text-gray-600">{comment.authorName}</span>
                           <span className="text-[10px] text-gray-300">{formatDate(comment.createdAt)}</span>
                         </div>
-                        <p className="text-xs text-gray-700 leading-relaxed font-medium">
-                          {comment.content}
-                        </p>
+                        {comment.authorRole === 'teacher' && comment.content.trim() === '真棒' ? (
+                          <button
+                            type="button"
+                            // 修改原因：按需求将“老师评论真棒”渲染为 button 形态，便于后续直接扩展点击交互。
+                            className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 active:scale-95 transition"
+                          >
+                            真棒
+                          </button>
+                        ) : (
+                          <p className="text-xs text-gray-700 leading-relaxed font-medium">
+                            {comment.content}
+                          </p>
+                        )}
                         {comment.image && (
                           <div className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 mt-2 active:scale-95 transition cursor-pointer" onClick={() => openImagePreview(comment.image!, [comment.image!])}>
                             <ImageWithFallback src={comment.image} alt="comment img" className="w-full h-full object-cover" />
@@ -1259,6 +1371,30 @@ export function QuestionDetailPage() {
         onCancel={handleCropCancel}
         onConfirm={handleCropConfirm}
       />
+
+      <AlertDialog open={showCommentExitDialog} onOpenChange={setShowCommentExitDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>是否离开当前页面？</AlertDialogTitle>
+            <AlertDialogDescription>
+              你有未提交的评论内容，可选择保存为草稿后再离开。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>继续编辑</AlertDialogCancel>
+            <button
+              type="button"
+              onClick={handleSaveCommentDraftAndExit}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              保存草稿并退出
+            </button>
+            <AlertDialogAction onClick={handleDiscardCommentDraftAndExit}>
+              确认放弃
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

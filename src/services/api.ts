@@ -518,8 +518,20 @@ api.interceptors.response.use(
         const { status, data } = error.response || {};
         switch (status) {
             case 401:
-                localStorage.removeItem('token');
-                window.location.href = '/login';
+                // 修改原因：分享访客（/question/:id?shareToken=...）允许匿名只读访问，
+                // 这里避免被全局 401 统一重定向到登录页而打断分享访问链路。
+                const isShareVisitorContext = (() => {
+                    if (typeof window === 'undefined') return false;
+                    const isQuestionDetailRoute = window.location.pathname.startsWith('/question/');
+                    const hasShareToken = new URLSearchParams(window.location.search).has('shareToken');
+                    return isQuestionDetailRoute && hasShareToken;
+                })();
+                // 不确定因素：此处按“当前页面上下文”判定，不区分触发 401 的具体接口。
+                // 若后续确认需更精细控制，可再补充按接口白名单判定（当前先保持最小改动）。
+                if (!isShareVisitorContext) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                }
                 break;
             case 403:
                 toast.error('无权限访问');
