@@ -18,12 +18,12 @@ const FONT_SCALE_STORAGE_KEY = 'ui-font-scale';
 const FONT_SIZE_BY_SCALE: Record<FontScale, string> = {
     // 修改原因：按最新需求将字号范围整体扩大到两倍，并从 5 档扩展为 6 档。
     // ⚠️ 不确定因素：“两倍”按当前档位像素值直接翻倍处理；若视觉仍偏小可继续微调。
-    small: '26px',
-    regular: '30px',
-    medium: '34px',
-    large: '38px',
-    xlarge: '42px',
-    xxlarge: '46px'
+    small: '15px',
+    regular: '17px',
+    medium: '18px',
+    large: '20px',
+    xlarge: '23px',
+    xxlarge: '25px'
 };
 
 export function MainLayout() {

@@ -49,7 +49,8 @@ export function QuestionFilter({
       {/* Topic Funnel (Only if subject selected) */}
       {selectedSubject && TAXONOMY[selectedSubject] && (
         <div className="flex overflow-x-auto gap-2 scrollbar-hide animate-in slide-in-from-top-1 fade-in duration-300 border-t border-gray-200 pt-2">
-          <div className="flex items-center text-xs text-gray-400 px-1">
+          {/* 修改原因：防止“考点”在窄屏被压缩换行导致变形，并提升可读性。 */}
+          <div className="flex shrink-0 whitespace-nowrap items-center text-sm font-medium leading-none text-gray-500 px-1">
             <Funnel className="w-3 h-3 mr-1" />
             考点:
           </div>
@@ -58,7 +59,8 @@ export function QuestionFilter({
               key={topic}
               onClick={() => setSelectedTopic(selectedTopic === topic ? '' : topic)}
               className={cn(
-                "px-3 py-1 rounded-md text-[10px] whitespace-nowrap transition-colors",
+                // 修改原因：在增大文字的同时收紧内边距，保持视觉紧凑。
+                "px-2.5 py-0.5 rounded-md text-xs leading-5 whitespace-nowrap transition-colors",
                 selectedTopic === topic
                   ? "bg-morandi-3 text-morandi-5 font-bold"
                   : "bg-white text-gray-500 hover:bg-gray-100"
