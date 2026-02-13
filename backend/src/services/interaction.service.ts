@@ -216,8 +216,9 @@ export class InteractionService {
       pagination: {
         page,
         pageSize: safePageSize,
-        total: filteredList.length,
-        totalPages: Math.ceil(filteredList.length / safePageSize)
+        // 修改原因：我的点赞列表总数应反映用户已点赞总量，不能使用“当前页过滤后长度”。
+        total,
+        totalPages: Math.ceil(total / safePageSize)
       }
     };
   }
@@ -285,8 +286,9 @@ export class InteractionService {
       pagination: {
         page,
         pageSize: safePageSize,
-        total: filteredList.length,
-        totalPages: Math.ceil(filteredList.length / safePageSize)
+        // 修改原因：我的收藏列表总数应反映用户已收藏总量，不能使用“当前页过滤后长度”。
+        total,
+        totalPages: Math.ceil(total / safePageSize)
       }
     };
   }

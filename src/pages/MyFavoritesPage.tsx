@@ -11,6 +11,7 @@ export function MyFavoritesPage() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const [myFavorites, setMyFavorites] = useState<MyFavoritedQuestion[]>([]);
+    const [totalFavorites, setTotalFavorites] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
     // 未登录用户访问时统一重定向到登录页，保持与 Profile 等个人中心页面一致的保护策略
@@ -27,6 +28,8 @@ export function MyFavoritesPage() {
             .getMyFavorites({ page: 1, pageSize: 50 })
             .then((data) => {
                 setMyFavorites(data.list);
+                // 修改原因：顶部计数应显示服务端总数，而非当前页列表长度。
+                setTotalFavorites(data.pagination?.total ?? data.list.length);
             })
             .catch((err) => {
                 // eslint-disable-next-line no-console
@@ -58,7 +61,7 @@ export function MyFavoritesPage() {
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-3 mb-2">
                         <Star className="w-8 h-8 text-yellow-500" />
-                        <div className="text-3xl font-bold text-gray-800">{myFavorites.length}</div>
+                        <div className="text-3xl font-bold text-gray-800">{totalFavorites}</div>
                     </div>
                     <div className="text-sm text-gray-500">收藏的问题</div>
                 </div>

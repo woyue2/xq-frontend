@@ -11,6 +11,7 @@ export function MyLikesPage() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const [myLikes, setMyLikes] = useState<MyLikedQuestion[]>([]);
+    const [totalLikes, setTotalLikes] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
     // 未登录用户访问时统一重定向到登录页，保持与 Profile 等个人中心页面一致的保护策略
@@ -27,6 +28,8 @@ export function MyLikesPage() {
             .getMyLikes({ page: 1, pageSize: 50 })
             .then((data) => {
                 setMyLikes(data.list);
+                // 修改原因：顶部计数应显示服务端总数，而非当前页列表长度。
+                setTotalLikes(data.pagination?.total ?? data.list.length);
             })
             .catch((err) => {
                 // eslint-disable-next-line no-console
@@ -58,7 +61,7 @@ export function MyLikesPage() {
                 <div className="text-center">
                     <div className="flex items-center justify-center gap-3 mb-2">
                         <Heart className="w-8 h-8 text-red-500" />
-                        <div className="text-3xl font-bold text-gray-800">{myLikes.length}</div>
+                        <div className="text-3xl font-bold text-gray-800">{totalLikes}</div>
                     </div>
                     <div className="text-sm text-gray-500">点赞的问题</div>
                 </div>
