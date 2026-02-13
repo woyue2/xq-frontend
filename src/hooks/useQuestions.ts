@@ -2,12 +2,25 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { questionService } from '@/services/api';
 import type { QuestionListParams } from '@/types/api';
 
-export function useQuestions(params: Omit<QuestionListParams, 'page' | 'pageSize'> = {}) {
+type UseQuestionsParams = Omit<QuestionListParams, 'page' | 'pageSize'> & {
+    topic?: string;
+};
+
+export function useQuestions(params: UseQuestionsParams = {}) {
     const query = useInfiniteQuery({
         queryKey: ['questions', params],
         queryFn: async ({ pageParam = 1 }) => {
+            const { topic, tags, ...rest } = params;
+            // 修改原因：前端筛选组件传的是 topic，而后端 /questions 仅按 tags 过滤；
+            // 在通用查询入口统一做映射，避免各页面重复拼接。
+            const mergedTags = topic
+                ? Array.from(new Set([...(tags ?? []), topic]))
+                : tags;
+            // ⚠️ 不确定因素：当前按“topic 文本 === question.tags 文本”做直接匹配；
+            // 若后续存在别名/标准化字典，需在此处或后端统一映射规则。
             return questionService.getQuestions({
-                ...params,
+                ...rest,
+                tags: mergedTags,
                 page: pageParam,
                 pageSize: 10,
             });
