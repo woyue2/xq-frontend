@@ -45,7 +45,8 @@ export function AnswerQuestionPage() {
 
   const [question, setQuestion] = useState<Question | null>(null);
   // 修改原因：支持老师在回答前后二次调整难度，独立维护当前编辑值。
-  const [difficultyDraft, setDifficultyDraft] = useState<DifficultyLevel | ''>('');
+  // 修改原因：按需求将老师端难度默认值设置为“中等”。
+  const [difficultyDraft, setDifficultyDraft] = useState<DifficultyLevel | ''>('medium');
   const [isSavingDifficulty, setIsSavingDifficulty] = useState(false);
   // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
@@ -117,7 +118,8 @@ export function AnswerQuestionPage() {
       .then((q) => {
         if (!cancelled && q) {
           setQuestion(q);
-          setDifficultyDraft((q.difficulty as DifficultyLevel | undefined) ?? '');
+          // 修改原因：题目本身无难度时，回答页默认回填“中等”。
+          setDifficultyDraft((q.difficulty as DifficultyLevel | undefined) ?? 'medium');
         }
       })
       .catch(() => {

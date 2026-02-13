@@ -3,6 +3,7 @@ import type { Response, NextFunction } from 'express';
 import {
   authMiddleware,
   optionalAuthMiddleware,
+  requireTeacher,
   type AuthenticatedRequest
 } from '../middlewares/auth.middleware';
 import { requireActiveMembership } from '../middlewares/membership.middleware';
@@ -785,6 +786,67 @@ questionRouter.post(
         code: 201,
         message,
         data: created,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /questions/{id}/difficulty:
+ *   patch:
+ *     summary: 老师二次调整问题难度
+ *     description: 仅老师可修改已通过审核问题的难度标签
+ *     tags:
+ *       - Question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: body
+ *         name: body
+ *         required: true
+ *         schema:
+ *           type: object
+ *           required: [difficulty]
+ *           properties:
+ *             difficulty:
+ *               type: string
+ *               enum: [easy, medium, hard]
+ */
+questionRouter.patch(
+  '/:id/difficulty',
+  authMiddleware,
+  requireTeacher,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { difficulty } = req.body as { difficulty?: string };
+
+      if (!difficulty) {
+        throw new AppError(400, 'VALIDATION_ERROR', '缺少 difficulty 参数');
+      }
+
+      const updated = await questionService.updateDifficultyByTeacher({
+        id,
+        teacherId: req.user!.id,
+        difficulty
+      });
+
+      return res.json({
+        code: 200,
+        message: '难度更新成功',
+        data: {
+          id: updated.id,
+          difficulty: updated.difficulty
+        },
         timestamp: Date.now()
       });
     } catch (err) {

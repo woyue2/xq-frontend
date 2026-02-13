@@ -9,6 +9,7 @@ import { auditService } from '../services/audit.service';
 import { AppError } from '../errors/AppError';
 
 export const adminAuditRouter = Router();
+const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 
 adminAuditRouter.use(
   authMiddleware,
@@ -149,6 +150,22 @@ adminAuditRouter.post(
       }
 
       if (type === 'question') {
+        // 修改原因：业务要求“审核页难度必选”，后端在通过动作上做强约束，防止漏传或绕过前端校验。
+        if (!difficulty) {
+          throw new AppError(
+            400,
+            'VALIDATION_ERROR',
+            '问题审核通过时必须选择难度'
+          );
+        }
+        if (!ALLOWED_DIFFICULTIES.includes(difficulty)) {
+          throw new AppError(
+            400,
+            'VALIDATION_ERROR',
+            '难度参数无效'
+          );
+        }
+
         const updated = await auditService.approveQuestion({
           id: contentId,
           auditorId: req.user!.id,

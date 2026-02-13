@@ -342,6 +342,8 @@ export interface PendingQuestion {
     title: string;
     content: string;
     images?: string[];  // 问题图片列表（可选，当前不存储图片）
+    // 修改原因：审核页“难度必选”依赖真实后端值，不再使用前端默认难度。
+    difficulty?: 'easy' | 'medium' | 'hard' | null;
     authorId: string;
     authorName: string;
     status: string;

@@ -6,6 +6,7 @@ import {
   signQuestionShareToken,
   verifyQuestionShareToken
 } from '../utils/jwt';
+const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 
 export class QuestionService {
   async createShareLink(params: {
@@ -787,6 +788,55 @@ export class QuestionService {
     await prisma.question.delete({
       where: { id }
     });
+  }
+
+  async updateDifficultyByTeacher(params: {
+    id: string;
+    teacherId: string;
+    difficulty: string;
+  }) {
+    const { id, teacherId, difficulty } = params;
+
+    // 修改原因：老师二次调整难度时，后端统一校验可选值，避免写入脏数据。
+    if (!ALLOWED_DIFFICULTIES.includes(difficulty as (typeof ALLOWED_DIFFICULTIES)[number])) {
+      throw new AppError(400, 'VALIDATION_ERROR', '难度参数无效');
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id }
+    });
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+    }
+
+    // 修改原因：仅允许已通过审核的问题被老师二次调整，避免干扰待审核流程。
+    if (question.status !== 'approved') {
+      throw new AppError(
+        400,
+        'QUESTION_STATUS_INVALID',
+        '仅已通过审核的问题支持调整难度'
+      );
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const res = await tx.question.update({
+        where: { id },
+        data: { difficulty }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          auditorId: teacherId,
+          targetType: 'question',
+          targetId: id,
+          action: 'update_difficulty'
+        }
+      });
+
+      return res;
+    });
+
+    return updated;
   }
 }
 

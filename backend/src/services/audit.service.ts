@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 
 type AuditContentType = 'question' | 'answer' | 'comment';
+const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 
 const PENDING_CACHE_TTL_MS = 15_000;
 
@@ -79,6 +80,8 @@ export class AuditService {
           authorId: q.authorId,
           authorName: q.authorName,
           status: q.status,
+          // 修改原因：审核页必须基于真实难度做“必选”校验，不能再由前端写死默认值。
+          difficulty: q.difficulty ?? null,
           aiResult: q.aiResult ?? null,
           createdAt: q.createdAt
         })),
@@ -225,6 +228,13 @@ export class AuditService {
     // 自审校验
     if (q.authorId === auditorId) {
       throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止角色内自我审核');
+    }
+
+    if (difficulty !== undefined && difficulty !== null) {
+      // 修改原因：服务层兜底校验难度枚举，防止非审核路由或异常调用写入非法值。
+      if (!ALLOWED_DIFFICULTIES.includes(difficulty as (typeof ALLOWED_DIFFICULTIES)[number])) {
+        throw new AppError(400, 'VALIDATION_ERROR', '难度参数无效');
+      }
     }
 
 

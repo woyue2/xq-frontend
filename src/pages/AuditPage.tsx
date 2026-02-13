@@ -103,7 +103,8 @@ export const AuditPage = () => {
         } as Question));
         setQuestions(items);
         const initialDrafts = Object.fromEntries(
-          res.list.map((item) => [item.id, (item.difficulty as DifficultyLevel | null) ?? ''])
+          // 修改原因：按需求将审核页难度默认值设置为“中等”，避免初始为空导致额外交互。
+          res.list.map((item) => [item.id, (item.difficulty as DifficultyLevel | null) ?? 'medium'])
         ) as Record<string, DifficultyLevel | ''>;
         setDifficultyDrafts(initialDrafts);
       } catch (error) {
@@ -123,8 +124,9 @@ export const AuditPage = () => {
             } as Question
           ];
           setQuestions(demoQuestions);
+          // 修改原因：测试环境演示数据与生产行为一致，默认难度同样设为“中等”。
           setDifficultyDrafts({
-            'audit-demo-q1': ''
+            'audit-demo-q1': 'medium'
           });
         } else {
           // 静默失败，保留空态，由老师通过系统配置中心/日志排查
@@ -290,7 +292,7 @@ export const AuditPage = () => {
 
   const confirmScore = () => {
     if (!currentAuditItem) return;
-    const selectedDifficulty = difficultyDrafts[currentAuditItem.id] ?? '';
+    const selectedDifficulty = difficultyDrafts[currentAuditItem.id] ?? 'medium';
     if (!selectedDifficulty) {
       toast.error('请先选择难度再打分通过');
       return;
@@ -318,7 +320,7 @@ export const AuditPage = () => {
   };
 
   const toggleGoodQuestion = (id: string, checked: boolean) => {
-    const selectedDifficulty = difficultyDrafts[id] ?? '';
+    const selectedDifficulty = difficultyDrafts[id] ?? 'medium';
     if (!selectedDifficulty) {
       toast.error('请先选择难度再设置好问题');
       return;
@@ -455,7 +457,7 @@ export const AuditPage = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">难度</span>
                   <select
-                    value={difficultyDrafts[q.id] ?? ''}
+                    value={difficultyDrafts[q.id] ?? 'medium'}
                     onChange={(e) => {
                       // 修改原因：审核台通过动作前，先明确选择难度，避免空值通过。
                       const value = e.target.value as DifficultyLevel | '';
@@ -513,7 +515,7 @@ export const AuditPage = () => {
                   </div>
                   <button
                     onClick={() => {
-                      const selectedDifficulty = difficultyDrafts[q.id] ?? '';
+                      const selectedDifficulty = difficultyDrafts[q.id] ?? 'medium';
                       if (!selectedDifficulty) {
                         toast.error('请先选择难度再通过审核');
                         return;
