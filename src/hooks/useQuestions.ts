@@ -1,14 +1,19 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { questionService } from '@/services/api';
 import type { QuestionListParams } from '@/types/api';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 type UseQuestionsParams = Omit<QuestionListParams, 'page' | 'pageSize'> & {
     topic?: string;
 };
 
 export function useQuestions(params: UseQuestionsParams = {}) {
+    const userId = useAuthStore((state) => state.user?.id ?? null);
+
     const query = useInfiniteQuery({
-        queryKey: ['questions', params],
+        // 修改原因：/questions 列表返回 isLiked/isFavorited 与当前用户相关，
+        // queryKey 增加 userId，避免切换账号后复用到上一位用户的互动状态缓存。
+        queryKey: ['questions', userId, params],
         queryFn: async ({ pageParam = 1 }) => {
             const { topic, tags, ...rest } = params;
             // 修改原因：前端筛选组件传的是 topic，而后端 /questions 仅按 tags 过滤；
