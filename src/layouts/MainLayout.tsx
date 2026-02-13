@@ -4,14 +4,27 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MagnifyingGlass, Plus, X, Bell } from '@phosphor-icons/react';
+import { MagnifyingGlass, Plus, X, Bell, SlidersHorizontal } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useState, useEffect, type PointerEvent } from 'react';
+import { useState, useEffect, useRef, type PointerEvent } from 'react';
 import { getCurrentSlogan } from '@/config/ai-text';
 import { notificationService } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+
+type FontScale = 'small' | 'regular' | 'medium' | 'large' | 'xlarge' | 'xxlarge';
+const FONT_SCALE_STORAGE_KEY = 'ui-font-scale';
+const FONT_SIZE_BY_SCALE: Record<FontScale, string> = {
+    // 修改原因：按最新需求将字号范围整体扩大到两倍，并从 5 档扩展为 6 档。
+    // ⚠️ 不确定因素：“两倍”按当前档位像素值直接翻倍处理；若视觉仍偏小可继续微调。
+    small: '26px',
+    regular: '30px',
+    medium: '34px',
+    large: '38px',
+    xlarge: '42px',
+    xxlarge: '46px'
+};
 
 export function MainLayout() {
     const { user, logout, isActiveMember } = useAuthStore();
@@ -23,6 +36,10 @@ export function MainLayout() {
     const [slogan, setSlogan] = useState(getCurrentSlogan());
     const [unreadCount, setUnreadCount] = useState(0);
     const [refreshTick, setRefreshTick] = useState(0);
+    const [showFontPanel, setShowFontPanel] = useState(false);
+    const [fontScale, setFontScale] = useState<FontScale>('medium');
+    const fontPanelRef = useRef<HTMLDivElement | null>(null);
+    const fontToggleButtonRef = useRef<HTMLButtonElement | null>(null);
     const [swipeStart, setSwipeStart] = useState<{
         x: number;
         y: number;
@@ -37,6 +54,54 @@ export function MainLayout() {
 
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+            if (
+                saved === 'small' ||
+                saved === 'regular' ||
+                saved === 'medium' ||
+                saved === 'large' ||
+                saved === 'xlarge' ||
+                saved === 'xxlarge'
+            ) {
+                // 修改原因：页面初始化时恢复用户字号偏好，保证刷新和重登后保持一致。
+                setFontScale(saved);
+            }
+        } catch {
+            // ⚠️ 不确定因素：极少数浏览器可能禁用 localStorage；此时回退为中号字体。
+            setFontScale('medium');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!showFontPanel) return;
+
+        // 修改原因：用户点击字号滑栏外部区域时，自动收起面板。
+        const handleOutsidePointerDown = (event: globalThis.PointerEvent) => {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (fontPanelRef.current?.contains(target)) return;
+            if (fontToggleButtonRef.current?.contains(target)) return;
+            setShowFontPanel(false);
+        };
+
+        document.addEventListener('pointerdown', handleOutsidePointerDown);
+        return () => {
+            document.removeEventListener('pointerdown', handleOutsidePointerDown);
+        };
+    }, [showFontPanel]);
+
+    useEffect(() => {
+        // 修改原因：使用根变量统一控制字号，确保“全页面”即时生效且改动最小。
+        document.documentElement.style.setProperty('--font-size', FONT_SIZE_BY_SCALE[fontScale]);
+        try {
+            window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale);
+        } catch {
+            // ignore
+        }
+    }, [fontScale]);
 
     useEffect(() => {
         let cancelled = false;
@@ -128,22 +193,41 @@ export function MainLayout() {
     };
 
     const isActive = (path: string) => location.pathname === path;
+    const fontScaleToSliderValue: Record<FontScale, number> = {
+        small: 0,
+        regular: 1,
+        medium: 2,
+        large: 3,
+        xlarge: 4,
+        xxlarge: 5
+    };
+
+    const sliderValueToFontScale = (value: number): FontScale => {
+        if (value <= 0) return 'small';
+        if (value >= 5) return 'xxlarge';
+        if (value <= 1) return 'regular';
+        if (value <= 2) return 'medium';
+        if (value <= 3) return 'large';
+        return 'xlarge';
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Glassmorphism Header */}
             <header className="sticky top-0 z-50 w-full border-b border-white/20 bg-white/70 backdrop-blur-md shadow-sm transition-all duration-300">
-                <div className="max-w-5xl mx-auto px-4 h-14 flex items-center relative overflow-hidden">
-                    <AnimatePresence mode="wait" initial={false}>
-                        {!showSearch ? (
-                            <motion.div
-                                key="default"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-center justify-between w-full"
-                            >
+                <div className="max-w-5xl mx-auto px-4 relative">
+                    {/* 修改原因：方案A改为同层内展开，避免绝对定位弹层被头部容器裁剪。 */}
+                    <div className="h-14 flex items-center">
+                        <AnimatePresence mode="wait" initial={false}>
+                            {!showSearch ? (
+                                <motion.div
+                                    key="default"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-center justify-between w-full"
+                                >
                                 <div className="flex flex-col cursor-pointer" onClick={() => navigate('/')}>
                                     <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
                                         知否
@@ -154,6 +238,19 @@ export function MainLayout() {
                                 </div>
 
                                 <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Button
+                                            ref={fontToggleButtonRef}
+                                            variant="ghost"
+                                            size="icon"
+                                            className="rounded-full hover:bg-white/50 active:scale-95 transition-transform"
+                                            onClick={() => setShowFontPanel((prev) => !prev)}
+                                            aria-label="font-size"
+                                            data-no-refresh="true"
+                                        >
+                                            <SlidersHorizontal className="w-5 h-5 text-gray-600" />
+                                        </Button>
+                                    </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -191,38 +288,126 @@ export function MainLayout() {
                                         </Avatar>
                                     </button>
                                 </div>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="search"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-center w-full gap-2"
-                            >
-                                <div className="relative flex-1">
-                                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        autoFocus
-                                        placeholder="搜索问题..."
-                                        value={searchQuery}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleSearch()}
-                                        className="w-full pl-9 h-9 bg-gray-100/50 border-transparent focus:bg-white focus:border-blue-300 focus:ring-blue-100 transition-all rounded-full"
-                                    />
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => { setShowSearch(false); setSearchQuery(''); }}
-                                    className="text-gray-500 hover:text-gray-900 shrink-0"
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="search"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-center w-full gap-2"
                                 >
-                                    取消
-                                </Button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                    <div className="relative flex-1">
+                                        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <Input
+                                            autoFocus
+                                            placeholder="搜索问题..."
+                                            value={searchQuery}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                                            onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleSearch()}
+                                            className="w-full pl-9 h-9 bg-gray-100/50 border-transparent focus:bg-white focus:border-blue-300 focus:ring-blue-100 transition-all rounded-full"
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => { setShowSearch(false); setSearchQuery(''); setShowFontPanel(false); }}
+                                        className="text-gray-500 hover:text-gray-900 shrink-0"
+                                    >
+                                        取消
+                                    </Button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                    {!showSearch && showFontPanel && (
+                        <div className="pb-3" data-no-refresh="true">
+                            {/* 修改原因：字号控制改为头部同层内展开条，点击后可见性更稳定。 */}
+                            <div
+                                ref={fontPanelRef}
+                                className="rounded-2xl border border-gray-100 bg-white/95 p-3 shadow-sm backdrop-blur-md"
+                            >
+                                <p className="text-xs text-gray-500 mb-2">字体大小</p>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    // 修改原因：滑块从 5 档继续扩展为 6 档。
+                                    max={5}
+                                    step={1}
+                                    value={fontScaleToSliderValue[fontScale]}
+                                    onChange={(e) =>
+                                        setFontScale(
+                                            sliderValueToFontScale(Number(e.target.value))
+                                        )
+                                    }
+                                    className="w-full accent-blue-500"
+                                />
+                                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            'px-2 py-0.5 rounded-full transition',
+                                            fontScale === 'small' ? 'bg-blue-50 text-blue-600' : ''
+                                        )}
+                                        onClick={() => setFontScale('small')}
+                                    >
+                                        最小
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            'px-2 py-0.5 rounded-full transition',
+                                            fontScale === 'regular' ? 'bg-blue-50 text-blue-600' : ''
+                                        )}
+                                        onClick={() => setFontScale('regular')}
+                                    >
+                                        偏小
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            'px-2 py-0.5 rounded-full transition',
+                                            fontScale === 'medium' ? 'bg-blue-50 text-blue-600' : ''
+                                        )}
+                                        onClick={() => setFontScale('medium')}
+                                    >
+                                        中
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            'px-2 py-0.5 rounded-full transition',
+                                            fontScale === 'large' ? 'bg-blue-50 text-blue-600' : ''
+                                        )}
+                                        onClick={() => setFontScale('large')}
+                                    >
+                                        偏大
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            'px-2 py-0.5 rounded-full transition',
+                                            fontScale === 'xlarge' ? 'bg-blue-50 text-blue-600' : ''
+                                        )}
+                                        onClick={() => setFontScale('xlarge')}
+                                    >
+                                        很大
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            'px-2 py-0.5 rounded-full transition',
+                                            fontScale === 'xxlarge' ? 'bg-blue-50 text-blue-600' : ''
+                                        )}
+                                        onClick={() => setFontScale('xxlarge')}
+                                    >
+                                        最大
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </header>
 
