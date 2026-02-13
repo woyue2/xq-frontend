@@ -65,7 +65,9 @@ describe('Interactions API (/api/interactions)', () => {
     expect(likeRes.status).toBe(200);
     expect(likeRes.body.code).toBe(200);
     expect(likeRes.body.data.liked).toBe(true);
+    expect(likeRes.body.data.isLiked).toBe(true);
     expect(typeof likeRes.body.data.likesCount).toBe('number');
+    expect(typeof likeRes.body.data.likes).toBe('number');
 
     // unlike
     const unlikeRes = await request(app)
@@ -80,6 +82,7 @@ describe('Interactions API (/api/interactions)', () => {
     expect(unlikeRes.status).toBe(200);
     expect(unlikeRes.body.code).toBe(200);
     expect(unlikeRes.body.data.liked).toBe(false);
+    expect(unlikeRes.body.data.isLiked).toBe(false);
   });
 
   it('should favorite and unfavorite question via /api/interactions/favorite', async () => {
@@ -114,7 +117,9 @@ describe('Interactions API (/api/interactions)', () => {
     expect(favRes.status).toBe(200);
     expect(favRes.body.code).toBe(200);
     expect(favRes.body.data.favorited).toBe(true);
+    expect(favRes.body.data.isFavorited).toBe(true);
     expect(typeof favRes.body.data.favoritesCount).toBe('number');
+    expect(typeof favRes.body.data.favorites).toBe('number');
 
     // unfavorite
     const unfavRes = await request(app)
@@ -128,6 +133,7 @@ describe('Interactions API (/api/interactions)', () => {
     expect(unfavRes.status).toBe(200);
     expect(unfavRes.body.code).toBe(200);
     expect(unfavRes.body.data.favorited).toBe(false);
+    expect(unfavRes.body.data.isFavorited).toBe(false);
   });
 
   it('should validate required fields for like endpoint', async () => {

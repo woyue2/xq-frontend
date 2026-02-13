@@ -234,6 +234,96 @@ describe('Like & Favorite API', () => {
     expect(updatedQuestion?.favorites).toBe(12);
   });
 
+  // L-API-003 旧入口支持显式 action=like（重复请求保持幂等）
+  it('should keep liked state when calling old like endpoint with action=like repeatedly (L-API-003)', async () => {
+    const question = await prisma.question.create({
+      data: {
+        id: 'q-like-003',
+        title: '显式点赞幂等测试',
+        content: '问题内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const first = await request(app)
+      .post(`/api/questions/${question.id}/like`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ action: 'like' });
+
+    expect(first.status).toBe(200);
+    expect(first.body.data.isLiked).toBe(true);
+    expect(first.body.data.liked).toBe(true);
+
+    const second = await request(app)
+      .post(`/api/questions/${question.id}/like`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ action: 'like' });
+
+    expect(second.status).toBe(200);
+    expect(second.body.data.isLiked).toBe(true);
+    expect(second.body.data.liked).toBe(true);
+
+    const updatedQuestion = await prisma.question.findUnique({
+      where: { id: question.id }
+    });
+    expect(updatedQuestion?.likes).toBe(1);
+  });
+
+  // F-API-003 旧入口支持显式 action=favorite（重复请求保持幂等）
+  it('should keep favorited state when calling old favorite endpoint with action=favorite repeatedly (F-API-003)', async () => {
+    const question = await prisma.question.create({
+      data: {
+        id: 'q-fav-003',
+        title: '显式收藏幂等测试',
+        content: '问题内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '测试学生'
+      }
+    });
+
+    const first = await request(app)
+      .post(`/api/questions/${question.id}/favorite`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ action: 'favorite' });
+
+    expect(first.status).toBe(200);
+    expect(first.body.data.isFavorited).toBe(true);
+    expect(first.body.data.favorited).toBe(true);
+
+    const second = await request(app)
+      .post(`/api/questions/${question.id}/favorite`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ action: 'favorite' });
+
+    expect(second.status).toBe(200);
+    expect(second.body.data.isFavorited).toBe(true);
+    expect(second.body.data.favorited).toBe(true);
+
+    const updatedQuestion = await prisma.question.findUnique({
+      where: { id: question.id }
+    });
+    expect(updatedQuestion?.favorites).toBe(1);
+  });
+
   // PERM-API-007 课时过期学生仍可点赞（权限降级为家长模式，只读 + 点赞/收藏）
   it('should allow expired student to like question (PERM-API-007)', async () => {
     // 为过期学生配置过期课时（与 Question API 中的 Q-API-004 逻辑保持一致）
