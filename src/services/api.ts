@@ -40,10 +40,13 @@ import type {
     // 审核管理相关类型
     PendingQuestion,
     PendingComment,
+    PendingAnswer,
     AuditStatistics,
     ApproveQuestionResponse,
     RejectQuestionResponse,
     ApproveCommentResponse,
+    ApproveAnswerResponse,
+    RejectAnswerResponse,
     BanCommentResponse,
     TogglePinQuestionResponse,
     // 用户行为日志相关类型
@@ -1095,6 +1098,25 @@ export const auditService = {
         return data.data;
     },
 
+    getPendingAnswers: async (params?: { page?: number; pageSize?: number }) => {
+        const { data } = await api.get<
+            ApiResponse<{
+                type: 'answer';
+                list: PendingAnswer[];
+                pagination?: {
+                    page: number;
+                    pageSize: number;
+                    total: number;
+                    totalPages: number;
+                };
+            }>
+        >('/admin/audit/pending', {
+            // 修改原因：审核页需要单独拉取待审核回答列表，避免回答 pending 丢失在后台视图之外。
+            params: { ...(params || {}), type: 'answer' }
+        });
+        return data.data;
+    },
+
     approveQuestion: async (
         contentId: string,
         payload: {
@@ -1131,6 +1153,30 @@ export const auditService = {
             ApiResponse<ApproveCommentResponse>
         >(`/admin/audit/${encodeURIComponent(contentId)}/approve`, {
             type: 'comment'
+        });
+        return data.data;
+    },
+
+    approveAnswer: async (contentId: string): Promise<ApproveAnswerResponse> => {
+        const { data } = await api.post<
+            ApiResponse<ApproveAnswerResponse>
+        >(`/admin/audit/${encodeURIComponent(contentId)}/approve`, {
+            // 修改原因：复用现有审核通过接口，新增 answer 类型分发。
+            type: 'answer'
+        });
+        return data.data;
+    },
+
+    rejectAnswer: async (
+        contentId: string,
+        reason: string
+    ): Promise<RejectAnswerResponse> => {
+        const { data } = await api.post<
+            ApiResponse<RejectAnswerResponse>
+        >(`/admin/audit/${encodeURIComponent(contentId)}/reject`, {
+            // 修改原因：回答待审需要驳回能力，与问题驳回保持统一入口。
+            type: 'answer',
+            reason
         });
         return data.data;
     },

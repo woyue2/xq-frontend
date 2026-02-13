@@ -30,20 +30,37 @@ import { aiTextConfig } from '@/config/ai-text';
 import { auditService } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 
+type PendingAnswerAuditItem = {
+  id: string;
+  questionId: string;
+  questionTitle: string;
+  content: string;
+  images: string[];
+  audioUrl: string | null;
+  authorId: string;
+  authorName: string;
+  status: AuditStatus;
+  aiResult?: string;
+  createdAt: string;
+};
+
 export const AuditPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'questions' | 'comments'>('questions');
+  // 修改原因：审核台需要覆盖“问题/回答/评论”三类待审数据，补齐回答入口。
+  const [activeTab, setActiveTab] = useState<'questions' | 'answers' | 'comments'>('questions');
   const [filter, setFilter] = useState<AuditStatus>('pending');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<PendingAnswerAuditItem[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [loadingAnswers, setLoadingAnswers] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
 
   // 驳回相关状态
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [currentAuditItem, setCurrentAuditItem] = useState<{ id: string; type: 'question' | 'comment' } | null>(null);
+  const [currentAuditItem, setCurrentAuditItem] = useState<{ id: string; type: 'question' | 'answer' | 'comment' } | null>(null);
 
   // 评分相关状态
   const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
@@ -138,26 +155,62 @@ export const AuditPage = () => {
       }
     };
 
+    const loadAnswers = async () => {
+      setLoadingAnswers(true);
+      try {
+        const res = await auditService.getPendingAnswers({ page: 1, pageSize: 20 });
+        const items = res.list.map((item) => ({
+          id: item.id,
+          questionId: item.questionId,
+          questionTitle: item.questionTitle,
+          content: item.content,
+          images: item.images ?? [],
+          audioUrl: item.audioUrl ?? null,
+          authorId: item.authorId,
+          authorName: item.authorName,
+          status: item.status as AuditStatus,
+          aiResult: item.aiResult ?? undefined,
+          createdAt: item.createdAt
+        } as PendingAnswerAuditItem));
+        setAnswers(items);
+      } catch {
+        setAnswers([]);
+      } finally {
+        setLoadingAnswers(false);
+      }
+    };
+
     if (activeTab === 'questions') {
       void loadQuestions();
+    } else if (activeTab === 'answers') {
+      void loadAnswers();
     } else {
       void loadComments();
     }
   }, [activeTab]);
 
   const filteredQuestions = questions.filter(q => q.status === filter);
+  const filteredAnswers = answers.filter(a => a.status === filter);
   const filteredComments = comments.filter(c => c.status === filter);
 
   const pendingQuestionsCount = questions.filter(q => q.status === 'pending').length;
+  const pendingAnswersCount = answers.filter(a => a.status === 'pending').length;
   const pendingCommentsCount = comments.filter(c => c.status === 'pending').length;
 
-  const handleAudit = (id: string, type: 'question' | 'comment', status: AuditStatus, extraData?: any) => {
+  const handleAudit = (id: string, type: 'question' | 'answer' | 'comment', status: AuditStatus, extraData?: any) => {
     if (type === 'question') {
       setQuestions(prev => prev.map(q => {
         if (q.id === id) {
           return { ...q, status, ...extraData };
         }
         return q;
+      }));
+    } else if (type === 'answer') {
+      setAnswers(prev => prev.map(a => {
+        if (a.id === id) {
+          return { ...a, status, ...extraData };
+        }
+        return a;
       }));
     } else {
       setComments(prev => prev.map(c => {
@@ -176,7 +229,7 @@ export const AuditPage = () => {
     toast.success(`${aiTextConfig.auditMessages.auditComplete}：${statusText}`);
   };
 
-  const openRejectDialog = (id: string, type: 'question' | 'comment') => {
+  const openRejectDialog = (id: string, type: 'question' | 'answer' | 'comment') => {
     setCurrentAuditItem({ id, type });
     setRejectReason('');
     setRejectDialogOpen(true);
@@ -194,6 +247,17 @@ export const AuditPage = () => {
         .rejectQuestion(currentAuditItem.id, rejectReason)
         .then(() => {
           handleAudit(currentAuditItem.id, 'question', 'rejected', { aiResult: rejectReason });
+          setRejectDialogOpen(false);
+        })
+        .catch(() => {
+          toast.error('驳回失败，请稍后重试');
+        });
+    } else if (currentAuditItem.type === 'answer') {
+      // 修改原因：回答审核新增驳回动作，复用现有驳回弹窗交互。
+      auditService
+        .rejectAnswer(currentAuditItem.id, rejectReason)
+        .then(() => {
+          handleAudit(currentAuditItem.id, 'answer', 'rejected', { aiResult: rejectReason });
           setRejectDialogOpen(false);
         })
         .catch(() => {
@@ -266,7 +330,7 @@ export const AuditPage = () => {
         </button>
         <h1 className="text-lg font-bold text-gray-800 flex items-center">
           审核管理
-          {(pendingQuestionsCount > 0 || pendingCommentsCount > 0) && (
+          {(pendingQuestionsCount > 0 || pendingAnswersCount > 0 || pendingCommentsCount > 0) && (
             <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
           )}
         </h1>
@@ -297,6 +361,13 @@ export const AuditPage = () => {
               }`}
           >
             评论审核 {pendingCommentsCount > 0 && `(${pendingCommentsCount})`}
+          </button>
+          <button
+            onClick={() => setActiveTab('answers')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'answers' ? 'bg-[#D5BDAF] text-white' : 'bg-gray-100 text-gray-500'
+              }`}
+          >
+            回答审核 {pendingAnswersCount > 0 && `(${pendingAnswersCount})`}
           </button>
         </div>
       </div>
@@ -428,6 +499,95 @@ export const AuditPage = () => {
               <p className="text-sm">暂无待审核内容</p>
             </div>
           )
+        ) : activeTab === 'answers' ? (
+          filteredAnswers.length > 0 ? (
+            filteredAnswers.map((a) => (
+              <motion.div
+                key={a.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-sm p-4 space-y-3"
+              >
+                <div className="space-y-1">
+                  <div className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded w-fit mb-1 font-medium truncate max-w-full">
+                    源自：{a.questionTitle || '未知问题'}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/student/${a.authorId}/questions`)}
+                      className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-gray-700 cursor-pointer"
+                    >
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-100 text-[8px] text-gray-500">
+                        {a.authorName?.[0] ?? '答'}
+                      </span>
+                      <span className="truncate max-w-[120px] font-medium">{a.authorName}</span>
+                    </button>
+                    <span className="text-[10px] text-gray-400">{new Date(a.createdAt).toLocaleString()}</span>
+                  </div>
+                  {a.aiResult && (
+                    <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
+                      <AlertCircle className="w-3 h-3" />
+                      AI初筛：{a.aiResult}
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  {a.content || '[图片/语音回答]'}
+                </div>
+
+                {a.images && a.images.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto py-1">
+                    {a.images.map((img, idx) => (
+                      <div
+                        key={idx}
+                        className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100 cursor-pointer active:scale-95 transition-transform"
+                        onClick={() => setSelectedImage(img)}
+                      >
+                        <ImageWithFallback src={img} alt="answer-image" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {a.audioUrl && (
+                  <div className="text-[11px] text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                    含语音回答
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2 border-t border-gray-50">
+                  <button
+                    onClick={() => openRejectDialog(a.id, 'answer')}
+                    className="flex-1 py-2 bg-red-50 text-red-500 rounded-xl text-xs font-medium active:scale-95 transition-transform"
+                  >
+                    驳回
+                  </button>
+                  <button
+                    onClick={() => {
+                      auditService
+                        .approveAnswer(a.id)
+                        .then(() => {
+                          handleAudit(a.id, 'answer', 'approved');
+                        })
+                        .catch(() => {
+                          toast.error('审核通过失败，请稍后重试');
+                        });
+                    }}
+                    className="flex-1 py-2 bg-[#BDE0FE] text-[#1D4ED8] rounded-xl text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"
+                  >
+                    <Check className="w-3 h-3" /> 通过
+                  </button>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+              <MessageSquare className="w-10 h-10 mb-2 opacity-20" />
+              <p className="text-sm">暂无待审核内容</p>
+            </div>
+          )
         ) : (
           filteredComments.length > 0 ? (
             filteredComments.map((c) => (
@@ -512,7 +672,7 @@ export const AuditPage = () => {
         )}
 
         <div className="text-center py-6">
-          <p className="text-[10px] text-gray-400">问题及评论需人工二次审核，AI初筛仅作参考</p>
+          <p className="text-[10px] text-gray-400">问题、回答及评论需人工二次审核，AI初筛仅作参考</p>
         </div>
       </div>
 

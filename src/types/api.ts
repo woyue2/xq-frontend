@@ -344,6 +344,22 @@ export interface PendingComment {
     createdAt: string;
 }
 
+// 待审核回答
+export interface PendingAnswer {
+    id: string;
+    type: 'answer';
+    questionId: string;
+    questionTitle: string;
+    content: string;
+    images: string[];
+    audioUrl: string | null;
+    authorId: string;
+    authorName: string;
+    status: string;
+    aiResult: string | null;
+    createdAt: string;
+}
+
 // 审核统计
 export interface AuditStatistics {
     pending: number;
@@ -379,6 +395,23 @@ export interface ApproveCommentResponse {
     status: string;
     approvedBy: string;
     approvedAt: string;
+}
+
+// 审核回答通过响应
+export interface ApproveAnswerResponse {
+    id: string;
+    status: string;
+    approvedBy: string;
+    approvedAt: string;
+}
+
+// 审核回答驳回响应
+export interface RejectAnswerResponse {
+    id: string;
+    status: string;
+    reason: string | null;
+    rejectedBy: string;
+    rejectedAt: string;
 }
 
 // 封禁评论响应

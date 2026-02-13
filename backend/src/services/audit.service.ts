@@ -143,17 +143,59 @@ export class AuditService {
       return result;
     }
 
-    // 目前暂不提供回答列表，但保留类型以便后续扩展
-    const result: PendingCacheValue = {
-      type,
-      list: []
-    };
+    if (type === 'answer') {
+      // 修改原因：回答可能进入 pending（如图片审核异常转人工），审核台需要可见这些待审回答。
+      const list = await prisma.answer.findMany({
+        where: { status: 'pending', deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take
+      });
 
-    pendingCache.set(cacheKey, {
-      expiresAt: now + PENDING_CACHE_TTL_MS,
-      value: result
-    });
+      const questionIds = Array.from(new Set(list.map((a) => a.questionId)));
+      const questions = await prisma.question.findMany({
+        where: { id: { in: questionIds } },
+        select: { id: true, title: true }
+      });
+      const questionMap = new Map(questions.map((q) => [q.id, q.title]));
 
+      const total = await prisma.answer.count({
+        where: { status: 'pending', deletedAt: null }
+      });
+
+      const result: PendingCacheValue = {
+        type: 'answer' as const,
+        list: list.map((a) => ({
+          id: a.id,
+          type: 'answer' as const,
+          questionId: a.questionId,
+          questionTitle: questionMap.get(a.questionId) ?? '',
+          content: a.content,
+          images: a.images ?? [],
+          audioUrl: a.audioUrl ?? null,
+          authorId: a.authorId,
+          authorName: a.authorName,
+          status: a.status,
+          aiResult: a.aiResult ?? null,
+          createdAt: a.createdAt
+        })),
+        pagination: {
+          page,
+          pageSize: safePageSize,
+          total,
+          totalPages: Math.ceil(total / safePageSize)
+        }
+      };
+
+      pendingCache.set(cacheKey, {
+        expiresAt: now + PENDING_CACHE_TTL_MS,
+        value: result
+      });
+
+      return result;
+    }
+
+    const result: PendingCacheValue = { type, list: [] };
     return result;
   }
 
@@ -299,6 +341,71 @@ export class AuditService {
     return updated;
   }
 
+  async approveAnswer(params: { id: string; auditorId: string }) {
+    const { id, auditorId } = params;
+
+    const answer = await prisma.answer.findUnique({
+      where: { id }
+    });
+
+    if (!answer) {
+      throw new AppError(404, 'ANSWER_NOT_FOUND', '回答不存在');
+    }
+
+    // 幂等性校验
+    if (answer.status !== 'pending') {
+      return answer;
+    }
+
+    // 自审校验
+    if (answer.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止审批自己发布的内容');
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const res = await tx.answer.update({
+        where: { id },
+        data: { status: 'approved' }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          auditorId,
+          targetType: 'answer',
+          targetId: id,
+          action: 'approve'
+        }
+      });
+
+      // 修改原因：回答从 pending 被人工通过后，也应补发“新回答”通知，保持与直通审核路径一致。
+      const question = await tx.question.findUnique({
+        where: { id: answer.questionId },
+        select: { id: true, title: true, authorId: true }
+      });
+      if (question && question.authorId !== answer.authorId) {
+        await tx.notification.create({
+          data: {
+            userId: question.authorId,
+            type: 'new_answer',
+            title: '你的问题有新的回答',
+            content: JSON.stringify({
+              answerId: answer.id,
+              questionTitle: question.title
+            }),
+            targetType: 'question',
+            targetId: question.id
+          }
+        });
+      }
+
+      return res;
+    });
+
+    pendingCache.clear();
+
+    return updated;
+  }
+
   async rejectQuestion(params: {
     id: string;
     auditorId: string;
@@ -355,6 +462,73 @@ export class AuditService {
           content: reason,
           targetType: 'question',
           targetId: q.id
+        }
+      });
+
+      return res;
+    });
+
+    pendingCache.clear();
+
+    return updated;
+  }
+
+  async rejectAnswer(params: {
+    id: string;
+    auditorId: string;
+    reason: string;
+  }) {
+    const { id, auditorId, reason } = params;
+
+    if (!reason || !reason.trim()) {
+      throw new AppError(400, 'REASON_REQUIRED', '请填写驳回原因');
+    }
+
+    const answer = await prisma.answer.findUnique({
+      where: { id }
+    });
+
+    if (!answer) {
+      throw new AppError(404, 'ANSWER_NOT_FOUND', '回答不存在');
+    }
+
+    // 幂等性校验
+    if (answer.status !== 'pending') {
+      return answer;
+    }
+
+    // 自审校验
+    if (answer.authorId === auditorId) {
+      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止控制自己发布的内容状态');
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const res = await tx.answer.update({
+        where: { id },
+        data: {
+          status: 'rejected',
+          aiResult: reason
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          auditorId,
+          targetType: 'answer',
+          targetId: id,
+          action: 'reject',
+          reason
+        }
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: answer.authorId,
+          type: 'audit_result',
+          title: '你的回答未通过审核',
+          content: reason,
+          targetType: 'answer',
+          targetId: answer.id
         }
       });
 

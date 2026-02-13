@@ -194,6 +194,26 @@ adminAuditRouter.post(
         });
       }
 
+      if (type === 'answer') {
+        // 修改原因：补齐回答人工审核通过入口，解决 pending answer 无法在后台处理的问题。
+        const updated = await auditService.approveAnswer({
+          id: contentId,
+          auditorId: req.user!.id
+        });
+
+        return res.json({
+          code: 200,
+          message: '审核完成：已通过',
+          data: {
+            id: updated.id,
+            status: updated.status,
+            approvedBy: req.user!.id,
+            approvedAt: updated.updatedAt
+          },
+          timestamp: Date.now()
+        });
+      }
+
       throw new AppError(
         400,
         'VALIDATION_ERROR',
@@ -232,7 +252,7 @@ adminAuditRouter.post(
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [question]
+ *                 enum: [question, answer]
  *                 description: 内容类型
  *               reason:
  *                 type: string
@@ -248,19 +268,27 @@ adminAuditRouter.post(
       const { contentId } = req.params;
       const { type, reason } = req.body as any;
 
-      if (type !== 'question') {
+      let updated: { id: string; status: string; aiResult: string | null; updatedAt: Date };
+      if (type === 'question') {
+        updated = await auditService.rejectQuestion({
+          id: contentId,
+          auditorId: req.user!.id,
+          reason
+        });
+      } else if (type === 'answer') {
+        // 修改原因：补齐回答人工驳回入口，避免待审回答只能“看见但无法处理”。
+        updated = await auditService.rejectAnswer({
+          id: contentId,
+          auditorId: req.user!.id,
+          reason
+        });
+      } else {
         throw new AppError(
           400,
           'VALIDATION_ERROR',
-          '仅支持驳回问题'
+          '仅支持驳回问题或回答'
         );
       }
-
-      const updated = await auditService.rejectQuestion({
-        id: contentId,
-        auditorId: req.user!.id,
-        reason
-      });
 
       return res.json({
         code: 200,

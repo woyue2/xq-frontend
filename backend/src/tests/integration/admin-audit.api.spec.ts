@@ -136,6 +136,52 @@ describe('Admin Audit API', () => {
     expect(item.aiResult).toContain('疑似违规');
   });
 
+  // AU-API-002A 查询待审核回答
+  it('should list pending answers (AU-API-002A)', async () => {
+    await prisma.question.create({
+      data: {
+        id: 'q-audit-answer-1',
+        title: '所属问题标题-回答',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'user-001',
+        authorName: '提问者'
+      }
+    });
+
+    await prisma.answer.create({
+      data: {
+        id: 'a-audit-pending-1',
+        questionId: 'q-audit-answer-1',
+        content: '回答内容...',
+        images: ['https://cdn.example.com/images/audit-answer.jpg'],
+        authorId: 'user-002',
+        authorName: '回答者',
+        status: 'pending',
+        aiResult: '图片审核服务网络异常，已转人工审核'
+      }
+    });
+
+    const res = await request(app)
+      .get('/api/admin/audit/pending?type=answer')
+      .set('Authorization', `Bearer ${teacherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.data.type).toBe('answer');
+    expect(res.body.data.list.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.list[0].id).toBe('a-audit-pending-1');
+    expect(res.body.data.list[0].questionId).toBe('q-audit-answer-1');
+  });
+
   // AU-API-001P 非法分页参数应返回 400
   it('should return 400 when pending list pagination params are invalid (AU-API-001P)', async () => {
     const res = await request(app)
@@ -269,6 +315,118 @@ describe('Admin Audit API', () => {
     });
     expect(logs.length).toBe(1);
     expect(logs[0].reason).toContain('问题描述不清晰');
+  });
+
+  // AU-API-006A 审核通过回答
+  it('should approve answer (AU-API-006A)', async () => {
+    await prisma.question.create({
+      data: {
+        id: 'q-audit-answer-approve-1',
+        title: '问题-回答通过',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '提问学生'
+      }
+    });
+
+    await prisma.answer.create({
+      data: {
+        id: 'a-audit-approve-1',
+        questionId: 'q-audit-answer-approve-1',
+        content: '待审核回答',
+        images: [],
+        authorId: 'teacher_other_001',
+        authorName: '待审老师',
+        status: 'pending'
+      }
+    });
+
+    const res = await request(app)
+      .post('/api/admin/audit/a-audit-approve-1/approve')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ type: 'answer' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.message).toBe('审核完成：已通过');
+    expect(res.body.data.status).toBe('approved');
+
+    const updated = await prisma.answer.findUnique({
+      where: { id: 'a-audit-approve-1' }
+    });
+    expect(updated?.status).toBe('approved');
+  });
+
+  // AU-API-006B 驳回答复
+  it('should reject answer (AU-API-006B)', async () => {
+    await prisma.question.create({
+      data: {
+        id: 'q-audit-answer-reject-1',
+        title: '问题-回答驳回',
+        content: '内容',
+        subject: 'math',
+        tags: [],
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'student_001',
+        authorName: '提问学生'
+      }
+    });
+
+    await prisma.answer.create({
+      data: {
+        id: 'a-audit-reject-1',
+        questionId: 'q-audit-answer-reject-1',
+        content: '待驳回回答',
+        images: [],
+        authorId: 'teacher_other_001',
+        authorName: '待审老师',
+        status: 'pending'
+      }
+    });
+
+    const bad = await request(app)
+      .post('/api/admin/audit/a-audit-reject-1/reject')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        type: 'answer',
+        reason: ''
+      });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toBe('REASON_REQUIRED');
+
+    const res = await request(app)
+      .post('/api/admin/audit/a-audit-reject-1/reject')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        type: 'answer',
+        reason: '回答包含不当图片，请修改后重试'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(res.body.message).toBe('审核完成：已驳回');
+    expect(res.body.data.status).toBe('rejected');
+
+    const rejected = await prisma.answer.findUnique({
+      where: { id: 'a-audit-reject-1' }
+    });
+    expect(rejected?.status).toBe('rejected');
+    expect(rejected?.aiResult).toContain('回答包含不当图片');
   });
 
   // AU-API-007 封禁评论
