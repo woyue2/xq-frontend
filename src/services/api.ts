@@ -946,33 +946,8 @@ export const questionService = {
                 throw new Error('图床未返回图片 URL，请联系管理员检查配置');
             }
 
-            // 修改原因：上传成功后立即执行图片审核；不通过的图片在提交前就拦截。
-            const auditResponse = await api.post<
-                ApiResponse<{
-                    safe: boolean;
-                    reason?: string;
-                    category?: string;
-                    requiresManualReview?: boolean;
-                }>
-            >('/upload/audit-image', { imageUrl });
-            const auditData = auditResponse.data.data;
-
-            if (!auditData.safe || auditData.requiresManualReview) {
-                // 修改原因：审核未通过（或需人工复核）时，立即删除已上传图片，避免违规图片继续留在图床。
-                const deleteResponse = await api.post<ApiResponse<{ removed: boolean }>>(
-                    '/upload/delete-image',
-                    { imageUrl }
-                );
-                // ⚠️ 不确定因素：部分第三方图床的删除协议与当前实现可能不一致，removed=false 时会有残留风险，需结合图床文档核对。
-                if (!deleteResponse.data.data.removed) {
-                    // eslint-disable-next-line no-console
-                    console.warn('[uploadImage] image audit failed but cleanup was not confirmed', {
-                        imageUrl,
-                        reason: auditData.reason
-                    });
-                }
-                throw new Error(auditData.reason || '图片审核未通过，已移除');
-            }
+            // 修改原因：恢复为“提交内容时再统一审核”的流程，避免上传阶段因第三方图片解析差异导致阻断。
+            // ⚠️ 不确定因素：上传成功后到最终提交前这段时间，违规图片 URL 仍可能暂时存在于图床。
 
             return { imageUrl };
         } finally {
