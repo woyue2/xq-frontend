@@ -996,62 +996,73 @@ export const questionService = {
             const formData = new FormData();
             formData.append('file', finalFile);
 
-            const response = await fetch(targetUrl, {
-                method: 'POST',
-                headers: authHeader ? { Authorization: authHeader } : undefined,
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('图片上传失败，请稍后重试');
-            }
-
-            // 4. 优先使用图床返回的真实 URL（兼容多种字段与结构）
             let imageUrl: string | undefined;
             try {
-                const json: any = await response.json();
-                if (json && typeof json === 'object') {
-                    // 常见字段约定：data.url 或顶层 url
-                    if (json.data && typeof json.data.url === 'string') {
-                        imageUrl = json.data.url;
-                    } else if (typeof json.url === 'string') {
-                        imageUrl = json.url;
-                    } else {
-                        // 兼容 ImgURL 等第三方：在响应体中递归查找第一个看起来像图片地址的字段
-                        const collectFirstUrl = (value: any): string | undefined => {
-                            if (!value) return undefined;
-                            if (typeof value === 'string') {
-                                const str = value.trim();
-                                if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str)) {
-                                    return str;
-                                }
-                                return undefined;
-                            }
-                            if (Array.isArray(value)) {
-                                for (const item of value) {
-                                    const found = collectFirstUrl(item);
-                                    if (found) return found;
-                                }
-                                return undefined;
-                            }
-                            if (typeof value === 'object') {
-                                for (const key of Object.keys(value)) {
-                                    const found = collectFirstUrl((value as any)[key]);
-                                    if (found) return found;
-                                }
-                            }
-                            return undefined;
-                        };
-                        imageUrl = collectFirstUrl(json);
-                    }
-                }
-            } catch {
-                // 忽略 JSON 解析失败，走后备方案
-            }
+                const response = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: authHeader ? { Authorization: authHeader } : undefined,
+                    body: formData,
+                });
 
-            // 5. 如果图床未返回任何可用 URL，则视为上传失败，避免构造错误地址
-            if (!imageUrl) {
-                throw new Error('图床未返回图片 URL，请联系管理员检查配置');
+                if (!response.ok) {
+                    throw new Error('图片上传失败，请稍后重试');
+                }
+
+                // 4. 优先使用图床返回的真实 URL（兼容多种字段与结构）
+                try {
+                    const json: any = await response.json();
+                    if (json && typeof json === 'object') {
+                        // 常见字段约定：data.url 或顶层 url
+                        if (json.data && typeof json.data.url === 'string') {
+                            imageUrl = json.data.url;
+                        } else if (typeof json.url === 'string') {
+                            imageUrl = json.url;
+                        } else {
+                            // 兼容 ImgURL 等第三方：在响应体中递归查找第一个看起来像图片地址的字段
+                            const collectFirstUrl = (value: any): string | undefined => {
+                                if (!value) return undefined;
+                                if (typeof value === 'string') {
+                                    const str = value.trim();
+                                    if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str)) {
+                                        return str;
+                                    }
+                                    return undefined;
+                                }
+                                if (Array.isArray(value)) {
+                                    for (const item of value) {
+                                        const found = collectFirstUrl(item);
+                                        if (found) return found;
+                                    }
+                                    return undefined;
+                                }
+                                if (typeof value === 'object') {
+                                    for (const key of Object.keys(value)) {
+                                        const found = collectFirstUrl((value as any)[key]);
+                                        if (found) return found;
+                                    }
+                                }
+                                return undefined;
+                            };
+                            imageUrl = collectFirstUrl(json);
+                        }
+                    }
+                } catch {
+                    // 忽略 JSON 解析失败，走后备方案
+                }
+
+                if (!imageUrl) {
+                    throw new Error('图床未返回图片 URL，请联系管理员检查配置');
+                }
+            } catch (externalUploadError) {
+                // 修改原因：图床上传偶发失败时自动回退本地存储，保证“上传成功可显示”的可用性。
+                // ⚠️ 不确定因素：本地兜底依赖后端磁盘可写；磁盘满或权限异常时仍会失败。
+                const localFormData = new FormData();
+                localFormData.append('file', finalFile);
+                const localRes = await api.post<ApiResponse<{ imageUrl: string }>>(
+                    '/upload/image-local',
+                    localFormData
+                );
+                imageUrl = localRes.data.data.imageUrl;
             }
 
             // 修改原因：恢复为“提交内容时再统一审核”的流程，避免上传阶段因第三方图片解析差异导致阻断。
