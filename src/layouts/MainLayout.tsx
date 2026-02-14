@@ -230,7 +230,7 @@ export function MainLayout() {
                                 >
                                 <div className="flex flex-col cursor-pointer" onClick={() => navigate('/')}>
                                     <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                                        知否
+                                        题题高
                                     </h1>
                                     <p className="text-[10px] text-gray-500 font-medium leading-none mt-0.5">
                                         {slogan}

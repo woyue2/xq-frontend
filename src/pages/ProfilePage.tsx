@@ -700,8 +700,8 @@ const handleGetBindCode = async () => {
 
         {/* 版本信息 */}
         <div className="text-center text-xs text-gray-400 py-6">
-          <p>知识星球问答小程序</p>
-          <p className="mt-1">v1.1.0</p>
+          <p>——————————————————————————</p>
+          <p className="mt-1">v1.0</p>
         </div>
       </div>
 
