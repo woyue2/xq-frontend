@@ -450,6 +450,7 @@ export function AdminManagementPage() {
   const handleSaveMethodMeta = async () => {
     if (!methodDimension) return;
     try {
+      // 修改原因：维度元数据（name/enabled）直接写入数据库配置，属于运行数据的一部分。
       setSavingMethodMeta(true);
       const updated = await adminService.updateQuestionDimension(methodDimension.key, {
         name: methodDimension.name,
@@ -467,6 +468,7 @@ export function AdminManagementPage() {
   const handleUpdateMethodOption = async (option: QuestionDimensionOptionDto) => {
     if (!methodDimension) return;
     try {
+      // 修改原因：选项的 label/order/enabled 会影响后台维度配置数据，应保留该保存链路。
       await adminService.updateQuestionDimensionOption(methodDimension.key, option.id, {
         label: option.label,
         order: option.order,
@@ -756,6 +758,7 @@ export function AdminManagementPage() {
       </div>
 
       {/* 题目维度配置（解题方法/办法） */}
+      {/* 修改原因：该区块对应后端 question-dimensions 数据管理能力，影响配置数据本身；当前不应删除。 */}
       <div className="max-w-7xl mx-auto w-full px-4 pb-6">
         <div className="bg-white rounded-2xl shadow-sm p-4 mt-2">
           <div className="flex items-center justify-between mb-3">

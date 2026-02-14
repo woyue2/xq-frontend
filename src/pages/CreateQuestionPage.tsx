@@ -219,6 +219,8 @@ export function CreateQuestionPage() {
   }, [draftKey, title, content, questionImages, processImages, selectedTopic, selectedMethod]);
 
   // 题目维度配置加载：当前仅使用 method 维度
+  // 修改原因：这里先保留与后端“问题维度”配置的读取链路；该配置仍会影响后台数据维护与管理端配置流转。
+  // 当前页面展示文案固定使用 METHOD_PROGRESS_OPTIONS，不直接跟随后台 label，避免历史配置导致学生端引导不一致。
   useEffect(() => {
     let cancelled = false;
 
