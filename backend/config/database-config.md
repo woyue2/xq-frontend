@@ -94,5 +94,11 @@
 ## 4. 使用与维护建议
 
 - 修改数据库连接信息时，优先在 `.env` 中更新 `DATABASE_URL`，无需改动业务代码。  
+- 如果你使用 `docker-compose` 启动 Postgres，并且对应的数据卷（如 `postgres_data`）已经存在：
+  - 修改 `docker-compose.yml` 里的 `POSTGRES_PASSWORD` 不会自动更新数据库里已有用户的真实密码（容器会跳过初始化）。
+  - 表现为：`Prisma` / `Prisma Studio` / `prisma db execute` 报 `P1000 Authentication failed`。
+  - 修复方式（二选一）：
+    - 保留数据：在容器内执行 `ALTER ROLE <user> WITH PASSWORD '...';` 同步密码。
+    - 丢弃数据重建：删除对应 volume 后重启容器（会清空数据库数据）。
 - 新增 Service 或路由时，统一从 `src/config/database.ts` 导入 `prisma`，保持数据库访问入口单一、便于连接池管理与故障排查。  
 - 如需在生产环境区分不同数据库实例，可以通过环境变量管理多套 `.env` 文件，并通过 `BACKEND_ENV_PATH` 指定加载路径。  

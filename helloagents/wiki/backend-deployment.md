@@ -33,6 +33,11 @@
   - `REDIS_URL=redis://localhost:6379`
   - `JWT_SECRET`、`JWT_EXPIRES_IN` 等安全相关变量。
 
+> 常见坑：如果你已经启动过一次 Postgres 并产生了数据卷（例如 `postgres_data`），后续即使修改了 `docker-compose.yml` 的 `POSTGRES_PASSWORD`，也不会自动重置数据库中已有用户的真实密码（容器会跳过初始化）。  
+> 典型表现是 Prisma/Prisma Studio 报 `P1000 Authentication failed`。此时应选择：
+> - 保留数据：在容器内执行 `ALTER ROLE <user> WITH PASSWORD '...';` 同步密码；或
+> - 重新初始化：删除对应 volume 后再启动（会清空数据库）。
+
 ### 2.4 初始化数据库与依赖
 
 - 手动方式（显式执行每一步）：
