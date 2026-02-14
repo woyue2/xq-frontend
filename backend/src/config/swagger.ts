@@ -44,7 +44,7 @@ Authorization: Bearer <your-jwt-token>
     },
     servers: [
       {
-        url: 'http://localhost:4000/api',
+        url: 'http://localhost:3000/api',
         description: '本地开发服务器'
       }
     ],

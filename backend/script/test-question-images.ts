@@ -22,8 +22,8 @@ async function testQuestionImages() {
 
     // 使用本地静态图片URL
     const testImages = [
-        'http://localhost:4000/static/image/test-image.jpg',
-        'http://localhost:4000/static/image/test-image2.jpg'
+        'http://localhost:3000/static/image/test-image.jpg',
+        'http://localhost:3000/static/image/test-image2.jpg'
     ];
 
     try {

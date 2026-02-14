@@ -21,7 +21,7 @@ const envSchema = z.object({
   // 内部 AI 回调接口的访问令牌（可选，配置后将强制校验 X-Internal-Token）
   AI_INTERNAL_TOKEN: z.string().optional(),
   // 后端服务地址，用于构建 AI 审核回调 URL
-  BACKEND_URL: z.string().url().default('http://localhost:4000'),
+  BACKEND_URL: z.string().url().default('http://localhost:3000'),
   // 本地音频文件基础目录（可配置为 /data/audio 或相对路径，如 static/audio）
   AUDIO_BASE_DIR: z.string().default('static/audio'),
   OSS_UPLOAD_BASE_URL: z.string().url().optional(),

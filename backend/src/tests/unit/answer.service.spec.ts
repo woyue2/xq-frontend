@@ -1,6 +1,7 @@
 import { answerService } from '../../services/answer.service';
 import { prisma } from '../../config/database';
 import { AppError } from '../../errors/AppError';
+import { aiAuditService } from '../../services/ai-audit.service';
 
 describe('AnswerService unit tests', () => {
   beforeEach(async () => {
@@ -186,6 +187,61 @@ describe('AnswerService unit tests', () => {
         where: { id: question.id }
       });
       expect(updatedQuestion?.answers).toBe(1);
+    });
+
+    it('should keep question.answers unchanged when student answer is pending', async () => {
+      const studentPhone = nextPhone();
+      const author = await prisma.user.upsert({
+        where: { phone: studentPhone },
+        update: {},
+        create: {
+          phone: studentPhone,
+          nickname: '学生回答者',
+          role: 'student',
+          isActive: true,
+          isBanned: false
+        }
+      });
+
+      const question = await prisma.question.create({
+        data: {
+          title: '待审核回答计数口径问题',
+          content: '问题内容',
+          subject: 'math',
+          tags: [],
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: author.id,
+          authorName: author.nickname
+        }
+      });
+
+      const auditSpy = jest
+        .spyOn(aiAuditService, 'auditContent')
+        .mockResolvedValue({
+          safe: true,
+          quality: { clear: true }
+        });
+
+      const result = await answerService.create({
+        questionId: question.id,
+        authorId: author.id,
+        content: '学生回答内容'
+      });
+
+      expect(result.status).toBe('pending');
+
+      const updatedQuestion = await prisma.question.findUnique({
+        where: { id: question.id }
+      });
+      // 修改原因：answers 计数统一按“可见回答（approved）”口径，pending 不计入。
+      expect(updatedQuestion?.answers).toBe(0);
+      auditSpy.mockRestore();
     });
   });
 

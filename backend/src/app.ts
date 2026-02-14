@@ -10,7 +10,7 @@ import { swaggerOptions } from './config/swagger';
 import { authRouter } from './routes/auth.routes';
 import { adminWhitelistRouter } from './routes/admin-whitelist.routes';
 import { adminClassHoursRouter } from './routes/admin-class-hours.routes';
-import { adminQuestionDimensionRouter } from './routes/admin-question-dimensions.routes';
+// import { adminQuestionDimensionRouter } from './routes/admin-question-dimensions.routes';
 import { questionRouter } from './routes/question.routes';
 import { commentRouter } from './routes/comment.routes';
 import { answerRouter } from './routes/answer.routes';
@@ -83,7 +83,9 @@ export const createApp = () => {
   app.use('/api/auth', authRouter);
   app.use('/api/admin/whitelist', adminWhitelistRouter);
   app.use('/api/admin/class-hours', adminClassHoursRouter);
-  app.use('/api/admin/question-dimensions', adminQuestionDimensionRouter);
+  // 修改原因：按当前产品决策临时停用“题目维度管理”后台入口，避免空库阶段出现可见但不可完成初始化的管理流程。
+  // ⚠️ 不确定因素：后续若恢复维度管理能力，需要同步恢复该路由挂载并补齐从 0 初始化维度的能力。
+  // app.use('/api/admin/question-dimensions', adminQuestionDimensionRouter);
   app.use('/api/admin/audit', adminAuditRouter);
   app.use('/api/questions', questionRouter);
   app.use('/api/comments', commentRouter);

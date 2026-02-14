@@ -132,8 +132,8 @@ export class AnswerService {
       }
     }
 
-    const [created] = await prisma.$transaction([
-      prisma.answer.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const createdAnswer = await tx.answer.create({
         data: {
           questionId,
           content: content ?? '',
@@ -148,16 +148,22 @@ export class AnswerService {
           status: initialStatus,
           aiResult: aiResultText
         }
-      }),
-      prisma.question.update({
-        where: { id: questionId },
-        data: {
-          answers: {
-            increment: 1
+      });
+
+      // 修改原因：问题卡片 answers 计数口径统一为“可见回答数”，仅回答处于 approved 时才计入。
+      if (createdAnswer.status === 'approved') {
+        await tx.question.update({
+          where: { id: questionId },
+          data: {
+            answers: {
+              increment: 1
+            }
           }
-        }
-      })
-    ]);
+        });
+      }
+
+      return createdAnswer;
+    });
 
     // 回答创建成功后，若已审核通过，则为提问者生成一条"有新回答"通知（new_answer）
     if (initialStatus === 'approved') {
@@ -310,23 +316,28 @@ export class AnswerService {
       );
     }
 
-    await prisma.$transaction([
-      prisma.answer.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.answer.update({
         where: { id: answerId },
         data: {
           deletedAt: new Date(),
           status: 'banned'
         }
-      }),
-      prisma.question.update({
-        where: { id: answer.questionId },
-        data: {
-          answers: {
-            decrement: 1
+      });
+
+      // 修改原因：删除回答时仅在“原回答可见（approved）”情况下回退计数，避免 pending/rejected 删除造成计数偏移。
+      // ⚠️ 不确定因素：历史数据若已存在计数漂移，本次仅保证新写入口径一致，不主动回填历史计数。
+      if (answer.status === 'approved') {
+        await tx.question.update({
+          where: { id: answer.questionId },
+          data: {
+            answers: {
+              decrement: 1
+            }
           }
-        }
-      })
-    ]);
+        });
+      }
+    });
   }
 }
 

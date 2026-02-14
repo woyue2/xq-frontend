@@ -310,6 +310,16 @@ export class AuditService {
         }
       });
 
+      // 修改原因：评论从 pending 审核通过后，问题卡片评论计数需要同步 +1，保持“可见评论数”口径一致。
+      await tx.question.update({
+        where: { id: comment.questionId },
+        data: {
+          comments: {
+            increment: 1
+          }
+        }
+      });
+
       await tx.auditLog.create({
         data: {
           auditorId,
@@ -379,6 +389,16 @@ export class AuditService {
       const res = await tx.answer.update({
         where: { id },
         data: { status: 'approved' }
+      });
+
+      // 修改原因：回答从 pending 审核通过后，问题卡片回答计数需要同步 +1，保持“可见回答数”口径一致。
+      await tx.question.update({
+        where: { id: answer.questionId },
+        data: {
+          answers: {
+            increment: 1
+          }
+        }
       });
 
       await tx.auditLog.create({

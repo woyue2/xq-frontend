@@ -8,9 +8,9 @@
   - `VITE_API_BASE=/api`
   - `VITE_USE_MOCK=false`
 - [ ] `vite.config.ts` 中代理已指向后端：
-  - `/api` → `http://localhost:4000`
+  - `/api` → `http://localhost:3000`
 - [ ] 后端健康检查：
-  - `curl http://localhost:4000/health` → HTTP 200
+  - `curl http://localhost:3000/health` → HTTP 200
   - `bash scripts/backend-api-smoke.sh` → 全部 ✅
 
 ## 二、账号与基础数据

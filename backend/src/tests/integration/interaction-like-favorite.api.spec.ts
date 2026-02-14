@@ -583,6 +583,8 @@ describe('Like & Favorite API', () => {
     const ids = res.body.data.list.map((q: any) => q.id);
     expect(ids).toContain(approved.id);
     expect(ids).not.toContain(pending.id);
+    // 修改原因：分页总数应与“可见列表口径（仅 approved 问题）”一致。
+    expect(res.body.data.pagination.total).toBe(1);
   });
 
   it('should not return favorites of non-approved questions in my favorites list', async () => {
@@ -646,5 +648,7 @@ describe('Like & Favorite API', () => {
     const ids = res.body.data.list.map((q: any) => q.id);
     expect(ids).toContain(approved.id);
     expect(ids).not.toContain(rejected.id);
+    // 修改原因：分页总数应与“可见列表口径（仅 approved 问题）”一致。
+    expect(res.body.data.pagination.total).toBe(1);
   });
 });

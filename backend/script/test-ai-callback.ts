@@ -54,7 +54,7 @@ async function testAiCallback() {
     // 3. 模拟 AI 回调
     console.log('🤖 模拟 AI 审核回调...');
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
     const callbackUrl = `${backendUrl}/api/internal/ai-check`;
 
     console.log(`  回调地址: ${callbackUrl}`);

@@ -137,7 +137,7 @@ async function checkSearchData(keyword: string) {
     console.log('5️⃣  测试API调用（后端直接调用）');
     console.log('----------------------------------------');
 
-    const testUrl = `http://localhost:4000/api/questions?search=${encodeURIComponent(keyword)}&page=1&pageSize=10`;
+    const testUrl = `http://localhost:3000/api/questions?search=${encodeURIComponent(keyword)}&page=1&pageSize=10`;
     console.log(`使用 curl 测试：\n`);
     console.log(`curl "${testUrl}"\n`);
 

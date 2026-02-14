@@ -122,8 +122,8 @@ export class CommentService {
       }
     }
 
-    const [created] = await prisma.$transaction([
-      prisma.comment.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const createdComment = await tx.comment.create({
         data: {
           questionId,
           content: content ?? '',
@@ -136,16 +136,22 @@ export class CommentService {
           status: initialStatus,
           aiResult: aiResultText
         }
-      }),
-      prisma.question.update({
-        where: { id: questionId },
-        data: {
-          comments: {
-            increment: 1
+      });
+
+      // 修改原因：问题卡片 comments 计数口径统一为“可见评论数”，仅评论处于 approved 时才计入。
+      if (createdComment.status === 'approved') {
+        await tx.question.update({
+          where: { id: questionId },
+          data: {
+            comments: {
+              increment: 1
+            }
           }
-        }
-      })
-    ]);
+        });
+      }
+
+      return createdComment;
+    });
 
     // 发送通知给问题作者 (仅当评论已自动通过且评论者不是作者本人)
     if (initialStatus === 'approved' && question.authorId !== authorId) {
@@ -273,23 +279,28 @@ export class CommentService {
       );
     }
 
-    await prisma.$transaction([
-      prisma.comment.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.comment.update({
         where: { id: commentId },
         data: {
           deletedAt: new Date(),
           status: 'banned'
         }
-      }),
-      prisma.question.update({
-        where: { id: comment.questionId },
-        data: {
-          comments: {
-            decrement: 1
+      });
+
+      // 修改原因：删除评论时仅在“原评论可见（approved）”情况下回退计数，避免 pending/rejected 删除造成计数偏移。
+      // ⚠️ 不确定因素：历史数据若已存在计数漂移，本次仅保证新写入口径一致，不主动回填历史计数。
+      if (comment.status === 'approved') {
+        await tx.question.update({
+          where: { id: comment.questionId },
+          data: {
+            comments: {
+              decrement: 1
+            }
           }
-        }
-      })
-    ]);
+        });
+      }
+    });
   }
 }
 

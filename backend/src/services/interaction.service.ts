@@ -297,34 +297,48 @@ export class InteractionService {
 
     const safePageSize = Math.min(pageSize, 100);
 
-    const [likes, total] = await Promise.all([
-      prisma.like.findMany({
-        where: {
-          userId,
-          targetType: 'question'
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * safePageSize,
-        take: safePageSize
-      }),
-      prisma.like.count({
-        where: {
-          userId,
-          targetType: 'question'
-        }
-      })
-    ]);
+    const likes = await prisma.like.findMany({
+      where: {
+        userId,
+        targetType: 'question'
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        targetId: true,
+        createdAt: true
+      }
+    });
 
-    const questionIds = likes.map((l) => l.targetId);
+    const likedQuestionIds = Array.from(new Set(likes.map((item) => item.targetId)));
+    if (likedQuestionIds.length === 0) {
+      return {
+        list: [],
+        pagination: {
+          page,
+          pageSize: safePageSize,
+          total: 0,
+          totalPages: 0
+        }
+      };
+    }
+
     const questions = await prisma.question.findMany({
       where: {
-        id: { in: questionIds },
+        id: { in: likedQuestionIds },
         status: 'approved'
       }
     });
     const map = new Map(questions.map((q) => [q.id, q]));
 
-    const filteredList = likes
+    // 修改原因：先按“问题可见口径（approved）”过滤，再分页，避免出现“总数正确但当前页空白”的体验问题。
+    // ⚠️ 不确定因素：当前在服务层以内存切片分页，若用户点赞量极大，后续可能需要改为数据库侧分页。
+    const visibleLikes = likes.filter((l) => map.has(l.targetId));
+    const approvedTotal = visibleLikes.length;
+    const pageStart = (page - 1) * safePageSize;
+    const pageEnd = pageStart + safePageSize;
+    const pagedLikes = visibleLikes.slice(pageStart, pageEnd);
+
+    const filteredList = pagedLikes
       .map((l) => {
         const q = map.get(l.targetId);
         if (!q) return null;
@@ -348,9 +362,10 @@ export class InteractionService {
       pagination: {
         page,
         pageSize: safePageSize,
-        // 修改原因：我的点赞列表总数应反映用户已点赞总量，不能使用“当前页过滤后长度”。
-        total,
-        totalPages: Math.ceil(total / safePageSize)
+        // 修改原因：我的点赞列表总数应与“可见列表口径（仅 approved 问题）”一致，避免总数与可见条目语义冲突。
+        // ⚠️ 不确定因素：当前按“本页点赞记录映射后去重”统计可见总数，若未来支持多态对象收藏需扩展计数逻辑。
+        total: approvedTotal,
+        totalPages: Math.ceil(approvedTotal / safePageSize)
       }
     };
   }
@@ -375,26 +390,45 @@ export class InteractionService {
 
     const safePageSize = Math.min(pageSize, 100);
 
-    const [favorites, total] = await Promise.all([
-      prisma.favorite.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * safePageSize,
-        take: safePageSize
-      }),
-      prisma.favorite.count({ where: { userId } })
-    ]);
+    const favorites = await prisma.favorite.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        questionId: true,
+        createdAt: true
+      }
+    });
 
-    const questionIds = favorites.map((f) => f.questionId);
+    const favoritedQuestionIds = Array.from(new Set(favorites.map((item) => item.questionId)));
+    if (favoritedQuestionIds.length === 0) {
+      return {
+        list: [],
+        pagination: {
+          page,
+          pageSize: safePageSize,
+          total: 0,
+          totalPages: 0
+        }
+      };
+    }
+
     const questions = await prisma.question.findMany({
       where: {
-        id: { in: questionIds },
+        id: { in: favoritedQuestionIds },
         status: 'approved'
       }
     });
     const map = new Map(questions.map((q) => [q.id, q]));
 
-    const filteredList = favorites
+    // 修改原因：先按“问题可见口径（approved）”过滤，再分页，避免出现“总数正确但当前页空白”的体验问题。
+    // ⚠️ 不确定因素：当前在服务层以内存切片分页，若用户收藏量极大，后续可能需要改为数据库侧分页。
+    const visibleFavorites = favorites.filter((f) => map.has(f.questionId));
+    const approvedTotal = visibleFavorites.length;
+    const pageStart = (page - 1) * safePageSize;
+    const pageEnd = pageStart + safePageSize;
+    const pagedFavorites = visibleFavorites.slice(pageStart, pageEnd);
+
+    const filteredList = pagedFavorites
       .map((f) => {
         const q = map.get(f.questionId);
         if (!q) return null;
@@ -418,9 +452,10 @@ export class InteractionService {
       pagination: {
         page,
         pageSize: safePageSize,
-        // 修改原因：我的收藏列表总数应反映用户已收藏总量，不能使用“当前页过滤后长度”。
-        total,
-        totalPages: Math.ceil(total / safePageSize)
+        // 修改原因：我的收藏列表总数应与“可见列表口径（仅 approved 问题）”一致，避免总数与可见条目语义冲突。
+        // ⚠️ 不确定因素：当前按“本页收藏记录映射后去重”统计可见总数，若后续引入跨实体收藏需扩展口径定义。
+        total: approvedTotal,
+        totalPages: Math.ceil(approvedTotal / safePageSize)
       }
     };
   }

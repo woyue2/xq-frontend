@@ -199,6 +199,62 @@ describe('CommentService unit tests', () => {
       expect(updatedQuestion?.comments).toBe(1);
     });
 
+    it('should keep question.comments unchanged when student comment is pending', async () => {
+      const phone = nextPhone();
+
+      const student = await prisma.user.upsert({
+        where: { phone },
+        update: {},
+        create: {
+          phone,
+          nickname: '评论学生',
+          role: 'student',
+          isActive: true,
+          isBanned: false
+        }
+      });
+
+      const question = await prisma.question.create({
+        data: {
+          title: '待审核评论计数口径问题',
+          content: '内容',
+          subject: 'math',
+          tags: [],
+          status: 'approved',
+          isGoodQuestion: false,
+          isPinned: false,
+          likes: 0,
+          favorites: 0,
+          comments: 0,
+          answers: 0,
+          authorId: student.id,
+          authorName: student.nickname
+        }
+      });
+
+      const auditSpy = jest
+        .spyOn(aiAuditService, 'auditContent')
+        .mockResolvedValue({
+          safe: true,
+          quality: { clear: true }
+        });
+
+      const result = await commentService.create({
+        questionId: question.id,
+        authorId: student.id,
+        content: '学生评论内容'
+      });
+
+      expect(result.status).toBe('pending');
+
+      const updatedQuestion = await prisma.question.findUnique({
+        where: { id: question.id }
+      });
+      // 修改原因：comments 计数统一按“可见评论（approved）”口径，pending 不计入。
+      expect(updatedQuestion?.comments).toBe(0);
+      auditSpy.mockRestore();
+    });
+
     it('should run AI audit for teacher comment text', async () => {
       const phone = nextPhone();
 
