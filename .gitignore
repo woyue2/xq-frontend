@@ -122,6 +122,12 @@ dist-ssr
 test-results/
 playwright-report/
 
+# Local runtime artifacts (do not commit)
+deploy/.env.prod
+backend/static/audio/answer-*.webm
+backend/static/image/image-*.jpg
+test-output.txt
+
 # Editor directories and files
 .idea
 .DS_Store
