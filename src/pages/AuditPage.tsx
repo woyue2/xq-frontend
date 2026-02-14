@@ -91,6 +91,9 @@ export const AuditPage = () => {
           id: item.id,
           title: item.title,
           content: item.content,
+          // 修改原因：接收后端返回的待审核问题图片，供审核卡片缩略图展示。
+          // ⚠️ 不确定因素：旧数据可能没有 images 字段，当前按空数组兜底。
+          images: item.images ?? [],
           authorId: item.authorId,
           authorName: item.authorName,
           createdAt: item.createdAt,

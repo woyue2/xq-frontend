@@ -43,6 +43,8 @@ describe('Admin Audit API', () => {
           content: '问题内容...',
           subject: 'math',
           tags: [],
+          // 修改原因：覆盖“待审核问题图片可见”链路，防止回归到审核页无图。
+          images: ['https://cdn.example.com/images/q-audit-pending-1.jpg'],
           status: 'pending',
           isGoodQuestion: false,
           isPinned: false,
@@ -59,6 +61,7 @@ describe('Admin Audit API', () => {
           content: '内容',
           subject: 'math',
           tags: [],
+          images: [],
           status: 'approved',
           isGoodQuestion: false,
           isPinned: false,
@@ -84,6 +87,9 @@ describe('Admin Audit API', () => {
         (item: any) => item.type === 'question' && item.status === 'pending'
       )
     ).toBe(true);
+    expect(res.body.data.list[0].images).toEqual(
+      expect.arrayContaining(['https://cdn.example.com/images/q-audit-pending-1.jpg'])
+    );
     expect(res.body.data.statistics.pending).toBeGreaterThanOrEqual(1);
   });
 

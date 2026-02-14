@@ -77,6 +77,9 @@ export class AuditService {
           type: 'question' as const,
           title: q.title,
           content: q.content ?? '',
+          // 修改原因：补齐待审核问题图片字段，供老师审核页直接查看题图。
+          // ⚠️ 不确定因素：历史脏数据可能出现 null/异常值，当前先做数组兜底，避免前端渲染报错。
+          images: q.images ?? [],
           authorId: q.authorId,
           authorName: q.authorName,
           status: q.status,
