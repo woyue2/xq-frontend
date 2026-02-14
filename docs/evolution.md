@@ -177,3 +177,7 @@ Profile 页面账户安全入口图标从“带底色块”调整为“无底色
 
 ### 影响
 部署初始化命令更收敛，运维侧不会再因执行该 seed 命令触发 `MODULE_NOT_FOUND` 类错误。
+
+## 变动 Prisma 本地开发数据库鉴权指引补充（P1000 场景）
+### 原因 Docker 数据卷已存在时，修改 `POSTGRES_PASSWORD` 不会回写已创建用户密码，易导致 Prisma/Prisma Studio 报 `P1000 Authentication failed`
+### 影响 文档新增“保留数据改密码（ALTER ROLE）/删卷重建”两种处置路径，降低本地联调与排障成本
