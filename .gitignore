@@ -118,6 +118,10 @@ dist
 dist-ssr
 *.local
 
+# Playwright test artifacts
+test-results/
+playwright-report/
+
 # Editor directories and files
 .idea
 .DS_Store
