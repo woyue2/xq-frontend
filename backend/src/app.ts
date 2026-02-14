@@ -69,6 +69,10 @@ export const createApp = () => {
     : path.join(process.cwd(), env.AUDIO_BASE_DIR);
   app.use('/static/audio', express.static(audioDir));
 
+  // 修改原因：支持图片本地兜底上传后的静态访问路径。
+  const imageDir = path.join(process.cwd(), 'static', 'image');
+  app.use('/static/image', express.static(imageDir));
+
   app.get('/health', (req, res) => {
     res.json({
       status: 'ok',

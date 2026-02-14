@@ -54,6 +54,64 @@ const audioStorage = multer.diskStorage({
 const MAX_AUDIO_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const ALLOWED_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.m4a', '.webm', '.ogg', '.aac'];
+const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const IMAGE_PROXY_TIMEOUT_MS = 8000;
+
+const getImageProxyAllowedHosts = () => {
+  const hosts = new Set<string>([
+    // 修改原因：当前线上已观察到该图床域名在前端直连时偶发 HTTP2 协议错误，需支持代理兜底。
+    's3.bmp.ovh',
+    // 修改原因：保留 ImgURL 主域名以兼容后续可能的返回地址变化。
+    'imgurl.org',
+    'www.imgurl.org'
+  ]);
+
+  if (env.OSS_UPLOAD_BASE_URL) {
+    try {
+      hosts.add(new URL(env.OSS_UPLOAD_BASE_URL).hostname.toLowerCase());
+    } catch {
+      // ⚠️ 不确定因素：若 OSS_UPLOAD_BASE_URL 非法，当前仅忽略该动态域名，不影响默认白名单生效。
+    }
+  }
+
+  return hosts;
+};
+
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(process.cwd(), 'static', 'image');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const rawExt = path.extname(file.originalname).toLowerCase();
+    const ext = ALLOWED_IMAGE_EXTENSIONS.includes(rawExt) ? rawExt : '.jpg';
+    const filename = `image-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    cb(null, filename);
+  }
+});
+
+const imageUploadLocal = multer({
+  storage: imageStorage,
+  limits: {
+    fileSize: MAX_IMAGE_FILE_SIZE
+  },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+      return cb(
+        new AppError(400, 'INVALID_FILE_TYPE', '仅支持图片文件上传')
+      );
+    }
+    if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+      return cb(
+        new AppError(400, 'INVALID_FILE_EXTENSION', `不支持的图片格式: ${ext}`)
+      );
+    }
+    cb(null, true);
+  }
+});
 
 const audioUpload = multer({
   storage: audioStorage,
@@ -266,6 +324,104 @@ uploadRouter.post(
         timestamp: Date.now()
       });
     } catch (err) {
+      next(err);
+    }
+  }
+);
+
+uploadRouter.post(
+  '/image-local',
+  authMiddleware,
+  imageUploadLocal.single('file'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        throw new AppError(400, 'NO_FILE', '未找到上传的图片文件');
+      }
+
+      const filename = path.basename(file.filename);
+      // 修改原因：图床上传失败时返回本地静态 URL，前端可无感回退显示。
+      const imageUrl = `/static/image/${filename}`;
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          imageUrl
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+uploadRouter.get(
+  '/image-proxy',
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const targetUrl = String(req.query.url ?? '').trim();
+      if (!targetUrl) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'url 不能为空');
+      }
+
+      let parsed: URL;
+      try {
+        parsed = new URL(targetUrl);
+      } catch {
+        throw new AppError(400, 'VALIDATION_ERROR', 'url 格式不合法');
+      }
+
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new AppError(400, 'VALIDATION_ERROR', '仅支持 http/https 协议');
+      }
+
+      const allowedHosts = getImageProxyAllowedHosts();
+      if (!allowedHosts.has(parsed.hostname.toLowerCase())) {
+        throw new AppError(403, 'PROXY_HOST_NOT_ALLOWED', '图片来源域名不在白名单内');
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), IMAGE_PROXY_TIMEOUT_MS);
+
+      let upstream: globalThis.Response;
+      try {
+        upstream = await fetch(parsed.toString(), {
+          method: 'GET',
+          redirect: 'follow',
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!upstream.ok) {
+        throw new AppError(502, 'UPSTREAM_IMAGE_FETCH_FAILED', '上游图片读取失败');
+      }
+
+      const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+      if (!contentType.toLowerCase().startsWith('image/')) {
+        throw new AppError(502, 'UPSTREAM_INVALID_CONTENT_TYPE', '上游返回非图片资源');
+      }
+
+      const cacheControl = upstream.headers.get('cache-control') || 'public, max-age=600';
+      const payload = Buffer.from(await upstream.arrayBuffer());
+
+      // 修改原因：通过后端转发图片，降低浏览器直连第三方图床时的 HTTP2 协议抖动影响。
+      // ⚠️ 不确定因素：代理会增加后端带宽压力，后续可按访问量再补缓存层。
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', cacheControl);
+      return res.status(200).send(payload);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        return next(new AppError(504, 'UPSTREAM_TIMEOUT', '上游图片读取超时'));
+      }
       next(err);
     }
   }
