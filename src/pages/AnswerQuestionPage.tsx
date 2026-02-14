@@ -21,6 +21,12 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { ImageCarousel } from '@/components/ui/image-carousel';
 
+// 修改原因：将自动保存周期调整为 5 秒，平衡“输入安全感”和浏览器写入频率。
+const DRAFT_AUTO_SAVE_INTERVAL_MS = 5_000;
+// 修改原因：定期清理长期未使用草稿，降低 localStorage 持续膨胀风险。
+// ⚠️ 不确定因素：当前按 7 天定义“过期”，若后续产品希望更长保留期需调整该阈值。
+const DRAFT_EXPIRE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function AnswerQuestionPage() {
   const navigate = useNavigate();
   const { id: questionIdParam } = useParams();
@@ -41,6 +47,8 @@ export function AnswerQuestionPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  // 修改原因：仅在草稿内容变化时写入，避免定时重复写同一份内容。
+  const lastAutoSavedDraftRef = useRef<string>('');
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   const [question, setQuestion] = useState<Question | null>(null);
@@ -143,16 +151,66 @@ export function AnswerQuestionPage() {
         content?: string;
         images?: string[];
         audioUrl?: string | null;
+        updatedAt?: number;
       };
+      // 修改原因：读取草稿时先做过期判断，命中过期则立即清理，避免恢复陈旧内容。
+      if (typeof parsed.updatedAt === 'number' && Date.now() - parsed.updatedAt > DRAFT_EXPIRE_MS) {
+        window.localStorage.removeItem(draftKey);
+        lastAutoSavedDraftRef.current = '';
+        return;
+      }
+      // ⚠️ 不确定因素：历史草稿可能没有 updatedAt，当前保持可恢复以避免误删用户已有内容。
       // 修改原因：回到同题回答页自动恢复草稿，减少误返回后的重复编辑。
-      setContent(parsed.content ?? '');
-      setImages(Array.isArray(parsed.images) ? parsed.images : []);
-      setAudioUrl(parsed.audioUrl ?? null);
+      const restoredContent = parsed.content ?? '';
+      const restoredImages = Array.isArray(parsed.images) ? parsed.images : [];
+      const restoredAudioUrl = parsed.audioUrl ?? null;
+      setContent(restoredContent);
+      setImages(restoredImages);
+      setAudioUrl(restoredAudioUrl);
+      lastAutoSavedDraftRef.current = JSON.stringify({
+        content: restoredContent,
+        images: restoredImages,
+        audioUrl: restoredAudioUrl
+      });
       toast.success('已恢复上次未提交的回答草稿');
     } catch {
       // ⚠️ 不确定因素：本地缓存可能被非预期值污染，当前仅忽略异常并保留空编辑态。
     }
   }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    const timer = window.setInterval(() => {
+      // 修改原因：无输入内容时不写入草稿，避免产生无意义空草稿记录。
+      const hasDraftContent = content.trim().length > 0 || images.length > 0 || !!audioUrl;
+      if (!hasDraftContent) return;
+      try {
+        const draftPayload = {
+          content,
+          images,
+          audioUrl
+        };
+        const serializedDraftPayload = JSON.stringify(draftPayload);
+        if (serializedDraftPayload === lastAutoSavedDraftRef.current) {
+          return;
+        }
+        window.localStorage.setItem(
+          draftKey,
+          JSON.stringify({
+            ...draftPayload,
+            // 修改原因：自动保存与手动保存保持同一数据结构，避免恢复行为不一致。
+            updatedAt: Date.now()
+          })
+        );
+        lastAutoSavedDraftRef.current = serializedDraftPayload;
+      } catch {
+        // 修改原因：自动保存失败时静默处理，避免定时弹错打断输入。
+      }
+    }, DRAFT_AUTO_SAVE_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [draftKey, content, images, audioUrl]);
 
   const handleImageUpload = () => {
     if (isUploadingImages) {
@@ -399,15 +457,20 @@ export function AnswerQuestionPage() {
   const saveDraft = () => {
     if (!draftKey) return;
     try {
+      const draftPayload = {
+        content,
+        images,
+        audioUrl
+      };
       window.localStorage.setItem(
         draftKey,
         JSON.stringify({
-          content,
-          images,
-          audioUrl,
+          ...draftPayload,
           updatedAt: Date.now()
         })
       );
+      // 修改原因：手动保存后同步快照，避免自动保存重复写入相同内容。
+      lastAutoSavedDraftRef.current = JSON.stringify(draftPayload);
     } catch {
       // ⚠️ 不确定因素：部分浏览器可能禁用或限制 localStorage 写入；这里仅提示，不阻断退出流程。
       toast.error('草稿保存失败，请检查浏览器存储权限');
@@ -418,6 +481,7 @@ export function AnswerQuestionPage() {
     if (!draftKey) return;
     try {
       window.localStorage.removeItem(draftKey);
+      lastAutoSavedDraftRef.current = '';
     } catch {
       // ignore
     }

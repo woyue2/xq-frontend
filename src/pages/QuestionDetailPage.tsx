@@ -71,6 +71,12 @@ const normalizeQuestion = (raw: any) => {
   };
 };
 
+// 修改原因：将自动保存周期调整为 5 秒，平衡“输入安全感”和浏览器写入频率。
+const DRAFT_AUTO_SAVE_INTERVAL_MS = 5_000;
+// 修改原因：定期清理长期未使用草稿，降低 localStorage 持续膨胀风险。
+// ⚠️ 不确定因素：当前按 7 天定义“过期”，若后续产品希望更长保留期需调整该阈值。
+const DRAFT_EXPIRE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function QuestionDetailPage() {
   const { id: questionId } = useParams();
   const navigate = useNavigate();
@@ -85,6 +91,8 @@ export function QuestionDetailPage() {
   const commentDraftKey =
     currentUser?.id && safeQuestionId ? `draft:comment:${safeQuestionId}:${currentUser.id}` : '';
   const commentImageInputRef = useRef<HTMLInputElement | null>(null);
+  // 修改原因：仅在草稿内容变化时写入，避免定时重复写同一份内容。
+  const lastAutoSavedDraftRef = useRef<string>('');
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
 
   // 初始优先从列表缓存中读取（Home/MyQuestions 等通过 useQuestions 已经加载的场景）
@@ -269,15 +277,62 @@ export function QuestionDetailPage() {
       const parsed = JSON.parse(rawDraft) as {
         newComment?: string;
         commentImage?: string | null;
+        updatedAt?: number;
       };
+      // 修改原因：读取草稿时先做过期判断，命中过期则立即清理，避免恢复陈旧内容。
+      if (typeof parsed.updatedAt === 'number' && Date.now() - parsed.updatedAt > DRAFT_EXPIRE_MS) {
+        window.localStorage.removeItem(commentDraftKey);
+        lastAutoSavedDraftRef.current = '';
+        return;
+      }
+      // ⚠️ 不确定因素：历史草稿可能没有 updatedAt，当前保持可恢复以避免误删用户已有内容。
       // 修改原因：返回同题详情页时自动恢复评论输入态，减少误退出带来的重复编辑。
-      setNewComment(parsed.newComment ?? '');
-      setCommentImage(parsed.commentImage ?? null);
+      const restoredNewComment = parsed.newComment ?? '';
+      const restoredCommentImage = parsed.commentImage ?? null;
+      setNewComment(restoredNewComment);
+      setCommentImage(restoredCommentImage);
+      lastAutoSavedDraftRef.current = JSON.stringify({
+        newComment: restoredNewComment,
+        commentImage: restoredCommentImage
+      });
       toast.success('已恢复上次未提交的评论草稿');
     } catch {
       // ⚠️ 不确定因素：本地缓存可能被手工修改为无效 JSON，当前仅忽略异常并保持空输入。
     }
   }, [commentDraftKey]);
+
+  useEffect(() => {
+    if (!commentDraftKey) return;
+    const timer = window.setInterval(() => {
+      // 修改原因：无输入内容时不写入草稿，避免产生无意义空草稿记录。
+      const hasDraftContent = newComment.trim().length > 0 || !!commentImage;
+      if (!hasDraftContent) return;
+      try {
+        const draftPayload = {
+          newComment,
+          commentImage
+        };
+        const serializedDraftPayload = JSON.stringify(draftPayload);
+        if (serializedDraftPayload === lastAutoSavedDraftRef.current) {
+          return;
+        }
+        window.localStorage.setItem(
+          commentDraftKey,
+          JSON.stringify({
+            ...draftPayload,
+            // 修改原因：自动保存与手动保存保持同一数据结构，避免恢复行为不一致。
+            updatedAt: Date.now()
+          })
+        );
+        lastAutoSavedDraftRef.current = serializedDraftPayload;
+      } catch {
+        // 修改原因：自动保存失败时静默处理，避免定时弹错打断输入。
+      }
+    }, DRAFT_AUTO_SAVE_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [commentDraftKey, newComment, commentImage]);
 
   useEffect(() => {
     return () => {
@@ -863,14 +918,19 @@ export function QuestionDetailPage() {
   const saveCommentDraft = () => {
     if (!commentDraftKey) return;
     try {
+      const draftPayload = {
+        newComment,
+        commentImage
+      };
       window.localStorage.setItem(
         commentDraftKey,
         JSON.stringify({
-          newComment,
-          commentImage,
+          ...draftPayload,
           updatedAt: Date.now()
         })
       );
+      // 修改原因：手动保存后同步快照，避免自动保存重复写入相同内容。
+      lastAutoSavedDraftRef.current = JSON.stringify(draftPayload);
     } catch {
       // ⚠️ 不确定因素：localStorage 受浏览器策略/空间限制可能写失败，此时仅提示用户。
       toast.error('评论草稿保存失败，请检查浏览器存储权限');
@@ -890,6 +950,7 @@ export function QuestionDetailPage() {
       try {
         // 修改原因：用户显式选择“放弃草稿”时立即删除本地草稿，避免再次自动恢复。
         window.localStorage.removeItem(commentDraftKey);
+        lastAutoSavedDraftRef.current = '';
       } catch {
         // ignore
       }

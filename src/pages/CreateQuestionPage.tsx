@@ -42,8 +42,17 @@ const METHOD_PROGRESS_OPTIONS = [
 ] as const;
 
 const TOPIC_UNKNOWN_OPTION = '不知道';
-// 修改原因：方案A要求“每次仅上传一道题图片”，收敛上传数量到单图，降低后续打印版面失控风险。
+type UploadArea = 'question' | 'process';
+
+// 修改原因：方案A中“题目区”限定单图，确保题干主图边界清晰。
 const MAX_QUESTION_IMAGES = 1;
+// 修改原因：方案A中“草稿/过程区”允许补充过程图，但限制为2张，避免输入失控。
+const MAX_PROCESS_IMAGES = 2;
+// 修改原因：将自动保存周期调整为 5 秒，平衡“输入安全感”和浏览器写入频率。
+const DRAFT_AUTO_SAVE_INTERVAL_MS = 5_000;
+// 修改原因：定期清理长期未使用草稿，降低 localStorage 持续膨胀风险。
+// ⚠️ 不确定因素：当前按 7 天定义“过期”，若后续产品希望更长保留期需调整该阈值。
+const DRAFT_EXPIRE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
@@ -61,7 +70,9 @@ export function CreateQuestionPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  // 修改原因：按需求拆分图片语义，题目区与草稿/过程区分开管理。
+  const [questionImages, setQuestionImages] = useState<string[]>([]);
+  const [processImages, setProcessImages] = useState<string[]>([]);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
   // Structured input state
@@ -83,7 +94,10 @@ export function CreateQuestionPage() {
 
   const [similarQuestions, setSimilarQuestions] = useState<Question[]>([]);
   const debouncedTitle = useDebounce(title, 500);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const questionFileInputRef = useRef<HTMLInputElement | null>(null);
+  const processFileInputRef = useRef<HTMLInputElement | null>(null);
+  // 修改原因：仅在草稿内容变化时写入，避免定时重复写同一份内容。
+  const lastAutoSavedDraftRef = useRef<string>('');
   const cropResolveRef = useRef<((file: File | null) => void) | null>(null);
   // 修改原因：方案A要求“上传前先裁剪”，这里保存当前待裁剪图片。
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
@@ -94,6 +108,7 @@ export function CreateQuestionPage() {
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   // 修改原因：支持点击缩略图查看大图，覆盖“上传后（表单内预览阶段）”查看诉求。
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const previewImages = [...questionImages, ...processImages];
 
   // Smart MagnifyingGlass Effect
   useEffect(() => {
@@ -108,21 +123,100 @@ export function CreateQuestionPage() {
       const parsed = JSON.parse(rawDraft) as {
         title?: string;
         content?: string;
+        questionImages?: string[];
+        processImages?: string[];
         images?: string[];
         selectedTopic?: string;
         selectedMethod?: string;
+        updatedAt?: number;
       };
+      // 修改原因：读取草稿时先做过期判断，命中过期则立即清理，避免恢复陈旧内容。
+      if (typeof parsed.updatedAt === 'number' && Date.now() - parsed.updatedAt > DRAFT_EXPIRE_MS) {
+        window.localStorage.removeItem(draftKey);
+        lastAutoSavedDraftRef.current = '';
+        return;
+      }
+      // ⚠️ 不确定因素：历史草稿可能没有 updatedAt，当前保持可恢复以避免误删用户已有内容。
       // 修改原因：进入页面自动恢复同账号草稿，减少误退出后的重复输入。
-      setTitle(parsed.title ?? '');
-      setContent(parsed.content ?? '');
-      setImages(Array.isArray(parsed.images) ? parsed.images : []);
-      setSelectedTopic(parsed.selectedTopic ?? '');
-      setSelectedMethod(parsed.selectedMethod ?? '');
+      const restoredTitle = parsed.title ?? '';
+      const restoredContent = parsed.content ?? '';
+      let restoredQuestionImages: string[] = [];
+      let restoredProcessImages: string[] = [];
+      if (Array.isArray(parsed.questionImages) || Array.isArray(parsed.processImages)) {
+        restoredQuestionImages = Array.isArray(parsed.questionImages) ? parsed.questionImages.slice(0, MAX_QUESTION_IMAGES) : [];
+        restoredProcessImages = Array.isArray(parsed.processImages) ? parsed.processImages.slice(0, MAX_PROCESS_IMAGES) : [];
+      } else {
+        // ⚠️ 不确定因素：历史草稿仅保存 images 数组，这里按“首张题目图 + 后续过程图”回填，若历史数据语义不同需人工调整。
+        const fallbackImages = Array.isArray(parsed.images) ? parsed.images : [];
+        restoredQuestionImages = fallbackImages.slice(0, MAX_QUESTION_IMAGES);
+        restoredProcessImages = fallbackImages.slice(MAX_QUESTION_IMAGES, MAX_QUESTION_IMAGES + MAX_PROCESS_IMAGES);
+      }
+      const restoredSelectedTopic = parsed.selectedTopic ?? '';
+      const restoredSelectedMethod = parsed.selectedMethod ?? '';
+      setTitle(restoredTitle);
+      setContent(restoredContent);
+      setQuestionImages(restoredQuestionImages);
+      setProcessImages(restoredProcessImages);
+      setSelectedTopic(restoredSelectedTopic);
+      setSelectedMethod(restoredSelectedMethod);
+      lastAutoSavedDraftRef.current = JSON.stringify({
+        title: restoredTitle,
+        content: restoredContent,
+        images: [...restoredQuestionImages, ...restoredProcessImages],
+        questionImages: restoredQuestionImages,
+        processImages: restoredProcessImages,
+        selectedTopic: restoredSelectedTopic,
+        selectedMethod: restoredSelectedMethod
+      });
       toast.success('已恢复上次未提交的提问草稿');
     } catch {
       // ⚠️ 不确定因素：localStorage 可能被外部手动篡改为非 JSON，这里仅做静默兜底不阻断页面。
     }
   }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftKey) return;
+    const timer = window.setInterval(() => {
+      // 修改原因：无输入内容时不写入草稿，避免产生无意义空草稿记录。
+      const hasDraftContent =
+        title.trim().length > 0 ||
+        content.trim().length > 0 ||
+        questionImages.length > 0 ||
+        processImages.length > 0 ||
+        selectedTopic.length > 0 ||
+        selectedMethod.length > 0;
+      if (!hasDraftContent) return;
+      try {
+        const draftPayload = {
+          title,
+          content,
+          // 修改原因：自动保存与手动保存保持同一数据结构，避免恢复行为不一致。
+          images: [...questionImages, ...processImages],
+          questionImages,
+          processImages,
+          selectedTopic,
+          selectedMethod
+        };
+        const serializedDraftPayload = JSON.stringify(draftPayload);
+        if (serializedDraftPayload === lastAutoSavedDraftRef.current) {
+          return;
+        }
+        window.localStorage.setItem(
+          draftKey,
+          JSON.stringify({
+            ...draftPayload,
+            updatedAt: Date.now()
+          })
+        );
+        lastAutoSavedDraftRef.current = serializedDraftPayload;
+      } catch {
+        // 修改原因：自动保存失败时静默处理，避免定时弹错打断输入。
+      }
+    }, DRAFT_AUTO_SAVE_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [draftKey, title, content, questionImages, processImages, selectedTopic, selectedMethod]);
 
   // 题目维度配置加载：当前仅使用 method 维度
   useEffect(() => {
@@ -162,34 +256,52 @@ export function CreateQuestionPage() {
 
   const showMethodField = !!currentSubjectConfig;
 
-  const handleImageUpload = () => {
+  const getAreaMax = (area: UploadArea) => (area === 'question' ? MAX_QUESTION_IMAGES : MAX_PROCESS_IMAGES);
+
+  const getAreaImages = (area: UploadArea) => (area === 'question' ? questionImages : processImages);
+
+  const handleImageUpload = (area: UploadArea) => {
     if (isUploadingImages) {
       return;
     }
 
-    if (images.length >= MAX_QUESTION_IMAGES) {
-      toast.error('每次仅可上传1张题目图片，如需更换请先删除当前图片');
+    const currentImages = getAreaImages(area);
+    const maxCount = getAreaMax(area);
+    if (currentImages.length >= maxCount) {
+      // 修改原因：分区给出准确提示，避免用户误以为另一区域也不可上传。
+      toast.error(
+        area === 'question'
+          ? '题目区仅可上传1张图片，如需更换请先删除当前图片'
+          : '草稿/过程区最多上传2张图片，如需更换请先删除已有图片'
+      );
       return;
     }
 
-    if (!fileInputRef.current) return;
-    fileInputRef.current.click();
+    const inputRef = area === 'question' ? questionFileInputRef.current : processFileInputRef.current;
+    if (!inputRef) return;
+    inputRef.click();
   };
 
-  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>, area: UploadArea) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
       return;
     }
 
-    // ⚠️ 不确定因素：部分系统文件选择器在特定手势/多选模式下仍可能返回多文件，这里统一兜底为仅取首张。
-    if (files.length > 1) {
-      toast.error('一次只能选择1张题目图片');
+    const maxCount = getAreaMax(area);
+    const currentImages = getAreaImages(area);
+    if (files.length > maxCount) {
+      // 修改原因：分区限制选择数量，避免一次选择过多导致用户预期偏差。
+      toast.error(area === 'question' ? '题目区一次只能选择1张图片' : '草稿/过程区一次最多选择2张图片');
     }
 
-    const remainingSlots = MAX_QUESTION_IMAGES - images.length;
+    const remainingSlots = maxCount - currentImages.length;
     if (remainingSlots <= 0) {
-      toast.error('每次仅可上传1张题目图片，如需更换请先删除当前图片');
+      toast.error(
+        area === 'question'
+          ? '题目区仅可上传1张图片，如需更换请先删除当前图片'
+          : '草稿/过程区最多上传2张图片，如需更换请先删除已有图片'
+      );
       event.target.value = '';
       return;
     }
@@ -227,7 +339,11 @@ export function CreateQuestionPage() {
         uploadedUrls.push(imageUrl);
       }
       if (uploadedUrls.length > 0) {
-        setImages(prev => [...prev, ...uploadedUrls]);
+        if (area === 'question') {
+          setQuestionImages(prev => [...prev, ...uploadedUrls].slice(0, MAX_QUESTION_IMAGES));
+        } else {
+          setProcessImages(prev => [...prev, ...uploadedUrls].slice(0, MAX_PROCESS_IMAGES));
+        }
         toast.success('图片上传成功');
       }
     } catch {
@@ -256,13 +372,16 @@ export function CreateQuestionPage() {
     setPendingCropFile(null);
   };
 
-  const handleRemoveImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
+  const handleRemoveImage = (area: UploadArea, index: number) => {
+    if (area === 'question') {
+      setQuestionImages(prev => prev.filter((_, i) => i !== index));
+      return;
+    }
+    setProcessImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleBack = () => {
-    if (title || content || images.length > 0) {
+    if (title || content || questionImages.length > 0 || processImages.length > 0) {
       setShowExitDialog(true);
     } else {
       navigate('/');
@@ -272,17 +391,25 @@ export function CreateQuestionPage() {
   const saveDraft = () => {
     if (!draftKey) return;
     try {
+      const draftPayload = {
+        title,
+        content,
+        // 修改原因：保留旧字段以兼容历史草稿读取逻辑。
+        images: [...questionImages, ...processImages],
+        questionImages,
+        processImages,
+        selectedTopic,
+        selectedMethod
+      };
       window.localStorage.setItem(
         draftKey,
         JSON.stringify({
-          title,
-          content,
-          images,
-          selectedTopic,
-          selectedMethod,
+          ...draftPayload,
           updatedAt: Date.now()
         })
       );
+      // 修改原因：手动保存后同步快照，避免自动保存重复写入相同内容。
+      lastAutoSavedDraftRef.current = JSON.stringify(draftPayload);
     } catch {
       // ⚠️ 不确定因素：Safari 隐私模式或存储空间不足时 setItem 可能失败，此处仅提示用户。
       toast.error('草稿保存失败，请检查浏览器存储权限');
@@ -293,6 +420,7 @@ export function CreateQuestionPage() {
     if (!draftKey) return;
     try {
       window.localStorage.removeItem(draftKey);
+      lastAutoSavedDraftRef.current = '';
     } catch {
       // ignore
     }
@@ -340,13 +468,15 @@ export function CreateQuestionPage() {
 
     setSubmitting(true);
     try {
+      // 修改原因：方案A前后端不改接口，按约定顺序合并为单一 images 字段提交（题目图在前，过程图在后）。
+      const mergedImages = [...questionImages, ...processImages];
       const payload = {
         title,
         content,
         // 修改原因：即使未来页面上出现异常状态，也确保请求体中的 subject 固定为 math。
         subject: selectedSubject,
         tags: [selectedTopic, selectedMethod].filter(Boolean),
-        images
+        images: mergedImages
       };
 
       const created = await questionService.createQuestion(payload);
@@ -518,58 +648,103 @@ export function CreateQuestionPage() {
 
           {/* 4. 图片上传区 */}
           <div className="space-y-2">
-            {/* 修改原因：显性提示“单题单图”规则，减少误操作与预期偏差。 */}
-            <Label className="font-bold">上传图片（每次仅1张）</Label>
-            <div className="flex flex-wrap gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-                data-testid="create-question-image-input"
-              />
-              {/* 已上传图片预览 */}
-              {images.map((image, index) => (
-                <div key={index} className="relative w-24 h-24">
-                  <img
-                    src={image}
-                    alt={`上传图片${index + 1}`}
-                    className="w-full h-full object-cover rounded-lg cursor-pointer"
-                    onClick={() => setSelectedImage(image)}
-                  />
-                  <button
-                    onClick={() => handleRemoveImage(index)}
-                    disabled={isUploadingImages}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+            <Label className="font-bold">图片上传</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2 rounded-lg border border-gray-100 p-3">
+                {/* 修改原因：按需求明确“题目区”用途，降低误传过程图的概率。 */}
+                <p className="text-sm font-semibold text-gray-700">题目区（最多1张）</p>
+                <p className="text-xs text-gray-500">用于上传题干主图，建议仅保留完整题目内容。</p>
+                <input
+                  ref={questionFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => void handleImageChange(event, 'question')}
+                  className="hidden"
+                  data-testid="create-question-image-input"
+                />
+                <div className="flex flex-wrap gap-3">
+                  {questionImages.map((image, index) => (
+                    <div key={`question-${index}`} className="relative w-24 h-24">
+                      <img
+                        src={image}
+                        alt={`题目图${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg cursor-pointer"
+                        onClick={() => setSelectedImage(image)}
+                      />
+                      <button
+                        onClick={() => handleRemoveImage('question', index)}
+                        disabled={isUploadingImages}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {questionImages.length < MAX_QUESTION_IMAGES && (
+                    <button
+                      onClick={() => handleImageUpload('question')}
+                      disabled={isUploadingImages}
+                      className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-teal-500 hover:bg-teal-50 transition"
+                    >
+                      <UploadSimple className="w-6 h-6 text-gray-400" />
+                      <span className="text-xs text-gray-500">
+                        {isUploadingImages ? '上传中...' : '上传题目图'}
+                      </span>
+                    </button>
+                  )}
                 </div>
-              ))}
-
-              {/* 上传按钮 */}
-              {images.length < MAX_QUESTION_IMAGES && (
-                <button
-                  onClick={handleImageUpload}
-                  disabled={isUploadingImages}
-                  className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-teal-500 hover:bg-teal-50 transition"
-                >
-                  <UploadSimple className="w-6 h-6 text-gray-400" />
-                  <span className="text-xs text-gray-500">
-                    {isUploadingImages ? '上传中...' : '上传图片'}
-                  </span>
-                </button>
-              )}
+              </div>
+              <div className="space-y-2 rounded-lg border border-gray-100 p-3">
+                {/* 修改原因：按需求新增“草稿/过程区”，支持上传解题过程辅助图片。 */}
+                <p className="text-sm font-semibold text-gray-700">草稿/过程区（最多2张）</p>
+                <p className="text-xs text-gray-500">用于上传草稿纸或中间步骤，帮助老师理解你的思路。</p>
+                <input
+                  ref={processFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(event) => void handleImageChange(event, 'process')}
+                  className="hidden"
+                  data-testid="create-question-process-image-input"
+                />
+                <div className="flex flex-wrap gap-3">
+                  {processImages.map((image, index) => (
+                    <div key={`process-${index}`} className="relative w-24 h-24">
+                      <img
+                        src={image}
+                        alt={`过程图${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg cursor-pointer"
+                        onClick={() => setSelectedImage(image)}
+                      />
+                      <button
+                        onClick={() => handleRemoveImage('process', index)}
+                        disabled={isUploadingImages}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {processImages.length < MAX_PROCESS_IMAGES && (
+                    <button
+                      onClick={() => handleImageUpload('process')}
+                      disabled={isUploadingImages}
+                      className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-teal-500 hover:bg-teal-50 transition"
+                    >
+                      <UploadSimple className="w-6 h-6 text-gray-400" />
+                      <span className="text-xs text-gray-500">
+                        {isUploadingImages ? '上传中...' : '上传过程图'}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
             {isUploadingImages && uploadProgress && (
               <p className="text-xs text-teal-600">
                 正在上传图片 {uploadProgress.current}/{uploadProgress.total}...
               </p>
             )}
-            <p className="text-xs text-gray-500">
-              每次仅上传1道题的图片；如需替换，请先删除当前图片后重新上传。
-            </p>
             <div className="pt-3">
               <Button
                 onClick={handleSubmit}
@@ -623,9 +798,9 @@ export function CreateQuestionPage() {
       />
 
       <ImageCarousel
-        images={images}
-        // 修改原因：当前页预览源就是 images，按当前点击图片定位初始索引。
-        initialIndex={Math.max(0, images.indexOf(selectedImage || ''))}
+        images={previewImages}
+        // 修改原因：预览源改为“题目区+过程区”合并集合，保持点击后定位正确。
+        initialIndex={Math.max(0, previewImages.indexOf(selectedImage || ''))}
         open={!!selectedImage}
         onClose={() => setSelectedImage(null)}
       />
