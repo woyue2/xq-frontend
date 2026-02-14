@@ -1,0 +1,41 @@
+# 本地 + 云兼容说明：
+# - 云端：SITE_ADDRESS=example.com（自动 HTTPS）
+# - 本地：SITE_ADDRESS=localhost 或 127.0.0.1（可先走 http://127.0.0.1）
+
+(common_routes) {
+  encode gzip
+
+  handle /api/* {
+    reverse_proxy backend:3000
+  }
+
+  handle /health {
+    reverse_proxy backend:3000
+  }
+
+  handle /api-docs* {
+    reverse_proxy backend:3000
+  }
+
+  handle /api-docs.json {
+    reverse_proxy backend:3000
+  }
+
+  handle /static/* {
+    reverse_proxy backend:3000
+  }
+
+  root * /srv
+  try_files {path} /index.html
+  file_server
+}
+
+# 生产域名入口（自动 HTTPS）
+{$SITE_ADDRESS:localhost} {
+  import common_routes
+}
+
+# 本地回环入口（HTTP），便于本机快速验证
+:80 {
+  import common_routes
+}
