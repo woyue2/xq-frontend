@@ -295,6 +295,17 @@ export class AiAuditService {
             return { safe: true };
         }
 
+        const sourceCheck = this.precheckImageSourceForAi(imageUrl);
+        if (!sourceCheck.reachable) {
+            // 修改原因：当图片来源地址对外部 AI 服务不可达时，直接转人工审核，避免误判为“通过”或无效重试。
+            // ⚠️ 不确定因素：当前仅识别常见不可达来源（相对路径、localhost、私网网段）；如部署在内网专线环境可按实际放宽规则。
+            return {
+                safe: false,
+                requiresManualReview: true,
+                reason: sourceCheck.reason
+            };
+        }
+
         try {
             const response = await this.requestAuditWithSingleRetry({
                 method: 'POST',
@@ -513,6 +524,70 @@ export class AiAuditService {
      */
     isEnabled(): boolean {
         return this.enabled;
+    }
+
+    /**
+     * 预检查图片来源是否可被外部 AI 服务访问
+     */
+    private precheckImageSourceForAi(imageUrl: string): { reachable: boolean; reason?: string } {
+        const trimmed = imageUrl.trim();
+
+        // data URL 由请求方直接携带图片数据，不依赖公网可达性，允许继续调用 AI。
+        if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)) {
+            return { reachable: true };
+        }
+
+        // 相对路径（如 /static/image/xxx）仅在当前服务内可访问，外部 AI 无法直接拉取。
+        if (trimmed.startsWith('/')) {
+            return {
+                reachable: false,
+                reason: '图片地址为站内相对路径，AI无法直接访问，已转人工审核'
+            };
+        }
+
+        let parsed: URL;
+        try {
+            parsed = new URL(trimmed);
+        } catch {
+            return {
+                reachable: false,
+                reason: '图片地址格式异常，已转人工审核'
+            };
+        }
+
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+            return {
+                reachable: false,
+                reason: '图片地址协议不受支持，已转人工审核'
+            };
+        }
+
+        const host = parsed.hostname.toLowerCase();
+        if (
+            host === 'localhost' ||
+            host === '::1' ||
+            host === 'host.docker.internal' ||
+            host.endsWith('.local')
+        ) {
+            return {
+                reachable: false,
+                reason: '图片地址为本机/局域网主机，AI无法直接访问，已转人工审核'
+            };
+        }
+
+        if (
+            /^127\./.test(host) ||
+            /^10\./.test(host) ||
+            /^192\.168\./.test(host) ||
+            /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+        ) {
+            return {
+                reachable: false,
+                reason: '图片地址为私网IP，AI无法直接访问，已转人工审核'
+            };
+        }
+
+        return { reachable: true };
     }
 
     /**
