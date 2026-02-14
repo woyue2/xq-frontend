@@ -3,9 +3,9 @@
   去查用户表，所以可以用一个专门给压测用的虚拟 teacher 用户。
 
   下面是本地一条直接可用的一行命令（假设后端已在本地 http://
-  localhost:4000 跑起来）：
+  localhost:3000 跑起来）：
 
-  BACKEND_URL=http://localhost:4000 \
+  BACKEND_URL=http://localhost:3000 \
   BACKEND_SMOKE_TEACHER_TOKEN=$(cd backend && node -e
   "require('dotenv').config(); const
   jwt=require('jsonwebtoken'); const token=jwt.sign({ sub:
@@ -26,7 +26,7 @@
   2. 在项目根目录（有 scripts/perf-smoke.sh 的地方）开一个新
      终端，直接跑这条命令：
 
-     BACKEND_URL=http://localhost:4000 \
+     BACKEND_URL=http://localhost:3000 \
      BACKEND_SMOKE_TEACHER_TOKEN=$(cd backend && node -e
   "require('dotenv').config(); const
   jwt=require('jsonwebtoken'); const token=jwt.sign({ sub:

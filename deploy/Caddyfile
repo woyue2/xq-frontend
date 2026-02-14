@@ -1,0 +1,35 @@
+:80 {
+  encode gzip
+
+  # 修改原因：默认接受任意 Host 头，便于本地（127.0.0.1/IP）和服务器 IP 直连共同复用。
+  # ⚠️ 不确定因素：正式上线若启用 HTTPS 域名证书，建议改回明确域名块（如 qa.example.com）。
+
+  # 修改原因：使用 route 固定执行顺序，避免 try_files 先于 /health /api* 反代导致被误改写到 index.html。
+  route {
+    # API 请求转发给后端
+    handle /api/* {
+      reverse_proxy backend:3000
+    }
+
+    # 健康检查、接口文档、静态资源也交给后端
+    handle /health {
+      reverse_proxy backend:3000
+    }
+    handle /api-docs* {
+      reverse_proxy backend:3000
+    }
+    handle /api-docs.json {
+      reverse_proxy backend:3000
+    }
+    handle /static/* {
+      reverse_proxy backend:3000
+    }
+
+    # 其他路径交给前端静态文件（SPA）
+    handle {
+      root * /srv
+      try_files {path} /index.html
+      file_server
+    }
+  }
+}

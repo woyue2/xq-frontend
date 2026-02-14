@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: kpqa
-      POSTGRES_PASSWORD: kpqa_password
+      POSTGRES_PASSWORD: QykzoBflzMmXdtLY8zf7ReRi
       POSTGRES_DB: kpqa_db
     ports:
       - "5432:5432"
@@ -50,36 +48,27 @@ services:
           memory: "64M"
 
   backend:
-    image: node:20-alpine
+    # 修改原因：切换为“本地预构建镜像”，避免服务器每次启动都安装依赖和编译。
+    image: kpqa-backend:local
+    # 修改原因：强制仅使用本地镜像，避免 Compose 自动去远程拉取同名镜像导致限流失败。
+    pull_policy: never
     container_name: kpqa-backend
-    working_dir: /app
-    # 挂载本地 backend 目录，方便直接使用当前代码
     volumes:
-      - ../backend:/app
       # 修改原因：为音频文件提供独立持久卷，容器重建后仍可读取历史录音。
       - audio_data:/data/audio
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      DATABASE_URL: postgresql://kpqa:kpqa_password@postgres:5432/kpqa_db?connection_limit=5
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: "please-change-this-in-production"
-      JWT_EXPIRES_IN: "7d"
-      # 修改原因：显式固定音频目录到持久卷挂载点，避免依赖工作目录造成路径偏移。
-      AUDIO_BASE_DIR: /data/audio
-      # 可选：如启用 AI 自动审核回调，请在生产环境中为内部回调接口配置独立令牌
-      # 建议将实际值放入独立的 .env.production 文件中，通过 docker compose 引用
-      # AI_INTERNAL_TOKEN: "please-set-strong-random-token-in-real-env"
+    # 修改原因：后端敏感环境变量统一放入 deploy/.env.prod，降低误提交风险。
+    env_file:
+      - ./.env.prod
     depends_on:
       - postgres
       - redis
     ports:
       - "3000:3000"
-    # 简单的一步到位命令：安装依赖 + 构建 + 启动
-    command: >
-      sh -c "npm ci && npm run build && node dist/server.js"
+    # 修改原因：在编排层强制指定 Node ESM 兼容启动参数，避免镜像内默认 CMD 不一致导致的导入失败。
+    command: ["node", "--experimental-specifier-resolution=node", "dist/server.js"]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      # 修改原因：后端服务端口为 3000，健康检查需与实际监听端口保持一致。
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -92,9 +81,38 @@ services:
           cpus: "0.3"
           memory: "256M"
 
+  caddy:
+    # 修改原因：补齐“前端静态资源 + /api 反向代理”入口，便于本地按服务器形态联调。
+    image: caddy:2-alpine
+    container_name: kpqa-caddy
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      # 修改原因：统一通过 Caddyfile 管理前端路由和后端代理规则。
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 修改原因：直接挂载前端构建产物 dist，避免在部署编排层引入额外前端运行容器。
+      - ../dist:/srv:ro
+      # 修改原因：保留 Caddy 运行时数据目录，便于后续启用 HTTPS 证书自动管理。
+      - caddy_data:/data
+      - caddy_config:/config
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "128M"
+        reservations:
+          cpus: "0.1"
+          memory: "64M"
+
 volumes:
   postgres_data:
   redis_data:
   # 修改原因：给 backend 音频文件单独持久化，降低实例重建导致文件丢失风险。
   # ⚠️ 不确定因素：多节点部署时，named volume 默认不跨主机共享，需外部共享存储。
   audio_data:
+  # 修改原因：预留网关运行时持久目录，后续启用 HTTPS 可直接复用。
+  caddy_data:
+  caddy_config:

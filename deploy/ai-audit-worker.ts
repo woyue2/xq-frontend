@@ -9,7 +9,7 @@
  *
  * 使用方式（示例）：
  *  - 在项目根目录执行：
- *    BACKEND_BASE_URL="http://localhost:4000" \
+ *    BACKEND_BASE_URL="http://localhost:3000" \
  *    AI_AUDIT_BASE_URL="https://your-audit-service/api" \
  *    npx tsx deploy/ai-audit-worker.ts
  *
@@ -25,7 +25,7 @@ import { aiAuditConfig } from '../backend/src/config/ai-audit';
 // 你的后端地址，用于回调 /api/internal/ai-check
 // 可以通过环境变量覆盖，便于在不同环境下切换。
 const BACKEND_BASE_URL =
-  process.env.BACKEND_BASE_URL ?? 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL ?? 'http://localhost:3000';
 
 const prisma = new PrismaClient();
 

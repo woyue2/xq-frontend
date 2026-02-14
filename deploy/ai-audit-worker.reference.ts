@@ -23,7 +23,7 @@ import { PrismaClient } from '@prisma/client';
 // 当前后端的地址，用来回调 /api/internal/ai-check
 // 例如你的 Node 后端跑在本机 3000 端口，就用默认值。
 const BACKEND_BASE_URL =
-  process.env.BACKEND_BASE_URL ?? 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL ?? 'http://localhost:3000';
 
 // 外部审核接口（按照你举的例子写死一个 URL，实际使用时请改成自己的）
 const SIMPLE_AUDIT_URL =

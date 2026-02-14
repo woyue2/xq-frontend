@@ -128,7 +128,7 @@
   - 启动命令：
     - `sh -c "npm ci && npm run build && node dist/server.js"`
   - 健康检查：
-    - `GET http://localhost:4000/health`。
+    - `GET http://localhost:3000/health`。
   - 资源限制：
     - `cpus: "0.8"`，`memory: "512M"`。
 
