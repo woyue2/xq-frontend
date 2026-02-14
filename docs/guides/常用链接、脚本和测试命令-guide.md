@@ -147,7 +147,6 @@ cd backend && BACKEND_LOG_FILE=/path/to/your.log npx tsx script/scan-error-logs.
 | -------------------------------------------- | ----------------------------------------- |
 | `backend/script/seed-admin.ts`               | 创建/更新管理员老师：11111111111 + 123123 |
 | `backend/script/seed-multi-audio-answer.ts`  | 多段音频测试用老师 + 问题 + 回答          |
-| `backend/script/seed-question-dimensions.ts` | 初始化解题方法维度及选项                  |
 
 ---
 

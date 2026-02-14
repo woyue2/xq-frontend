@@ -230,7 +230,6 @@ docker compose -f docker-compose.prod.yml logs -f backend
 
 ```bash
 docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
-docker compose -f docker-compose.prod.yml exec backend npm run seed:question-dimensions
 docker compose -f docker-compose.prod.yml exec backend npm run seed:admin
 ```
 
