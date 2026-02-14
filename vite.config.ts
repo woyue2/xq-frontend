@@ -54,12 +54,12 @@ export default defineConfig({
     proxy: {
       '/api': {
         // @reason: 后端服务默认运行在 4000 端口（见 backend/.env PORT 值）
-        target: 'http://localhost:4000',
+        target: 'http://localhost:3000',
         changeOrigin: true
       },
       '/static': {
         // @reason: 后端静态资源（音频/图片）也从 4000 端口提供
-        target: 'http://localhost:4000',
+        target: 'http://localhost:3000',
         changeOrigin: true
       }
     }

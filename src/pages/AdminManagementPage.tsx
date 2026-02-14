@@ -160,6 +160,9 @@ export function AdminManagementPage() {
   const [methodOptions, setMethodOptions] = useState<QuestionDimensionOptionDto[]>([]);
   const [loadingMethodDim, setLoadingMethodDim] = useState(false);
   const [savingMethodMeta, setSavingMethodMeta] = useState(false);
+  // 修改原因：按当前产品决策临时停用“题目维度管理”前端入口，避免空库阶段出现可见但不可完成初始化的配置流程。
+  // ⚠️ 不确定因素：后续若恢复该能力，应与后端一起恢复，并补齐“从 0 创建维度”的完整路径。
+  const enableQuestionDimensionAdmin = false;
 
   const [loadingWhitelist, setLoadingWhitelist] = useState(false);
 
@@ -757,210 +760,214 @@ export function AdminManagementPage() {
         </div>
       </div>
 
-      {/* 题目维度配置（解题方法/办法） */}
-      {/* 修改原因：该区块对应后端 question-dimensions 数据管理能力，影响配置数据本身；当前不应删除。 */}
-      <div className="max-w-7xl mx-auto w-full px-4 pb-6">
-        <div className="bg-white rounded-2xl shadow-sm p-4 mt-2">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-base font-bold text-gray-800">
-                题目维度配置（解题方法/办法）
-              </h2>
-              <p className="text-xs text-gray-500 mt-1">
-                控制“创建问题”页面中解题方法下拉的名称、启用状态和选项集合。
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadMethodDimension}
-                disabled={loadingMethodDim}
-              >
-                {loadingMethodDim ? '加载中...' : '刷新配置'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAddMethodOption}
-                disabled={!methodDimension}
-              >
-                新增选项
-              </Button>
-            </div>
-          </div>
-
-          {methodDimension ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs">维度名称</Label>
-                  <Input
-                    value={methodDimension.name}
-                    onChange={(e) =>
-                      setMethodDimension({
-                        ...methodDimension,
-                        name: e.target.value
-                      })
-                    }
-                    className="w-40 h-9"
-                  />
+      {enableQuestionDimensionAdmin && (
+        <>
+          {/* 题目维度配置（解题方法/办法） */}
+          {/* 修改原因：该区块对应后端 question-dimensions 数据管理能力，影响配置数据本身；当前不应删除。 */}
+          <div className="max-w-7xl mx-auto w-full px-4 pb-6">
+            <div className="bg-white rounded-2xl shadow-sm p-4 mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-base font-bold text-gray-800">
+                    题目维度配置（解题方法/办法）
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    控制“创建问题”页面中解题方法下拉的名称、启用状态和选项集合。
+                  </p>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">启用状态</Label>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant={methodDimension.enabled ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() =>
-                        setMethodDimension({
-                          ...methodDimension,
-                          enabled: true
-                        })
-                      }
-                    >
-                      启用
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={!methodDimension.enabled ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() =>
-                        setMethodDimension({
-                          ...methodDimension,
-                          enabled: false
-                        })
-                      }
-                    >
-                      停用
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-5">
+                <div className="flex gap-2">
                   <Button
+                    variant="outline"
                     size="sm"
-                    onClick={handleSaveMethodMeta}
-                    disabled={savingMethodMeta}
-                    className="bg-[#D5BDAF] hover:bg-[#B59D8F]"
+                    onClick={loadMethodDimension}
+                    disabled={loadingMethodDim}
                   >
-                    {savingMethodMeta ? '保存中...' : '保存维度配置'}
+                    {loadingMethodDim ? '加载中...' : '刷新配置'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddMethodOption}
+                    disabled={!methodDimension}
+                  >
+                    新增选项
                   </Button>
                 </div>
               </div>
 
-              <div className="border-t border-gray-100 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-700">
-                    选项列表（含“暂不确定”/unknown）
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    建议保留 unknown 作为兜底选项
-                  </span>
-                </div>
-                {methodOptions.length === 0 ? (
-                  <p className="text-xs text-gray-500">
-                    暂无选项，请点击“新增选项”添加。
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {methodOptions.map((opt) => {
-                      const isUnknown = opt.value === 'unknown';
-                      return (
-                        <div
-                          key={opt.id}
-                          className="flex flex-wrap items-center gap-3 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50"
+              {methodDimension ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">维度名称</Label>
+                      <Input
+                        value={methodDimension.name}
+                        onChange={(e) =>
+                          setMethodDimension({
+                            ...methodDimension,
+                            name: e.target.value
+                          })
+                        }
+                        className="w-40 h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">启用状态</Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant={methodDimension.enabled ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() =>
+                            setMethodDimension({
+                              ...methodDimension,
+                              enabled: true
+                            })
+                          }
                         >
-                          <div className="space-y-1">
-                            <Label className="text-xs">展示文案</Label>
-                            <Input
-                              value={opt.label}
-                              onChange={(e) =>
-                                setMethodOptions((prev) =>
-                                  prev.map((o) =>
-                                    o.id === opt.id
-                                      ? { ...o, label: e.target.value }
-                                      : o
-                                  )
-                                )
-                              }
-                              className="w-40 h-9"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">内部值</Label>
-                            <div className="text-xs px-2 py-1 rounded bg-white border border-gray-200">
-                              {opt.value}
-                              {isUnknown && (
-                                <span className="ml-1 text-[10px] text-gray-400">
-                                  （暂不确定）
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">排序</Label>
-                            <Input
-                              type="number"
-                              value={opt.order ?? 0}
-                              onChange={(e) => {
-                                const next = Number(e.target.value) || 0;
-                                setMethodOptions((prev) =>
-                                  prev.map((o) =>
-                                    o.id === opt.id
-                                      ? { ...o, order: next }
-                                      : o
-                                  )
-                                );
-                              }}
-                              className="w-20 h-9"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">启用</Label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setMethodOptions((prev) =>
-                                  prev.map((o) =>
-                                    o.id === opt.id
-                                      ? { ...o, enabled: !o.enabled }
-                                      : o
-                                  )
-                                )
-                              }
-                              className={`px-3 py-1 rounded-full text-xs border transition ${
-                                opt.enabled
-                                  ? 'bg-green-50 text-green-700 border-green-200'
-                                  : 'bg-gray-50 text-gray-400 border-gray-200'
-                              }`}
-                            >
-                              {opt.enabled ? '启用' : '停用'}
-                            </button>
-                          </div>
-                          <div className="ml-auto">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateMethodOption(opt)}
-                            >
-                              保存
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          启用
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={!methodDimension.enabled ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() =>
+                            setMethodDimension({
+                              ...methodDimension,
+                              enabled: false
+                            })
+                          }
+                        >
+                          停用
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-5">
+                      <Button
+                        size="sm"
+                        onClick={handleSaveMethodMeta}
+                        disabled={savingMethodMeta}
+                        className="bg-[#D5BDAF] hover:bg-[#B59D8F]"
+                      >
+                        {savingMethodMeta ? '保存中...' : '保存维度配置'}
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">
+                        选项列表（含“暂不确定”/unknown）
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        建议保留 unknown 作为兜底选项
+                      </span>
+                    </div>
+                    {methodOptions.length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        暂无选项，请点击“新增选项”添加。
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {methodOptions.map((opt) => {
+                          const isUnknown = opt.value === 'unknown';
+                          return (
+                            <div
+                              key={opt.id}
+                              className="flex flex-wrap items-center gap-3 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50"
+                            >
+                              <div className="space-y-1">
+                                <Label className="text-xs">展示文案</Label>
+                                <Input
+                                  value={opt.label}
+                                  onChange={(e) =>
+                                    setMethodOptions((prev) =>
+                                      prev.map((o) =>
+                                        o.id === opt.id
+                                          ? { ...o, label: e.target.value }
+                                          : o
+                                      )
+                                    )
+                                  }
+                                  className="w-40 h-9"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">内部值</Label>
+                                <div className="text-xs px-2 py-1 rounded bg-white border border-gray-200">
+                                  {opt.value}
+                                  {isUnknown && (
+                                    <span className="ml-1 text-[10px] text-gray-400">
+                                      （暂不确定）
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">排序</Label>
+                                <Input
+                                  type="number"
+                                  value={opt.order ?? 0}
+                                  onChange={(e) => {
+                                    const next = Number(e.target.value) || 0;
+                                    setMethodOptions((prev) =>
+                                      prev.map((o) =>
+                                        o.id === opt.id
+                                          ? { ...o, order: next }
+                                          : o
+                                      )
+                                    );
+                                  }}
+                                  className="w-20 h-9"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">启用</Label>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setMethodOptions((prev) =>
+                                      prev.map((o) =>
+                                        o.id === opt.id
+                                          ? { ...o, enabled: !o.enabled }
+                                          : o
+                                      )
+                                    )
+                                  }
+                                  className={`px-3 py-1 rounded-full text-xs border transition ${
+                                    opt.enabled
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-gray-50 text-gray-400 border-gray-200'
+                                  }`}
+                                >
+                                  {opt.enabled ? '启用' : '停用'}
+                                </button>
+                              </div>
+                              <div className="ml-auto">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUpdateMethodOption(opt)}
+                                >
+                                  保存
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs text-gray-500">
+                  暂未加载到解题方法维度配置，请点击“刷新配置”获取。
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-xs text-gray-500">
-              暂未加载到解题方法维度配置，请点击“刷新配置”获取。
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* 添加用户对话框 */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>

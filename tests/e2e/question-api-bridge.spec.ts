@@ -7,7 +7,7 @@ async function fetchQuestionDetail(
   token: string
 ) {
   const backendBase =
-    process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+    process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
   const res = await request.get(`${backendBase}/api/questions/${questionId}`, {
     headers: {

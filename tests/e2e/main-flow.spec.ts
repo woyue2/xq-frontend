@@ -86,7 +86,7 @@ test.describe('前端主流程冒烟测试', () => {
 
     // 3.1 问题进入详情页后，由老师在后台审核通过，确保点赞/收藏链路符合后端约束（仅允许已审核问题被互动）
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
     const teacherRes = await test.request.post(
       `${backendBase}/api/internal/test-token`,
       {

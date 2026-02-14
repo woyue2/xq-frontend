@@ -7,7 +7,7 @@ test.describe('学生角色端到端业务链路', () => {
     request
   }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     // 使用教师身份通过后端接口创建一条已审核通过的问题，避免受 AI 审核影响
     const teacherRes = await request.post(
@@ -96,7 +96,7 @@ test.describe('学生角色端到端业务链路', () => {
     request
   }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     // 通过教师身份在后端创建一条已审核通过的问题
     const teacherRes = await request.post(

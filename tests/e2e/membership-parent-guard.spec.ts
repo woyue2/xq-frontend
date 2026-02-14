@@ -22,7 +22,7 @@ async function createApprovedQuestion(
   title: string
 ): Promise<string> {
   const backendBase =
-    process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+    process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
   // 学生 token
   const studentRes = await request.post(

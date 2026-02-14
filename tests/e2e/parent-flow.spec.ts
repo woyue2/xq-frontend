@@ -4,7 +4,7 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
 test.describe('家长角色端到端业务链路', () => {
   test('家长: 个人中心“我的孩子”空态与绑定入口', async ({ page }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     const apiContext = await test.request.newContext({
       baseURL: backendBase
@@ -113,7 +113,7 @@ test.describe('家长角色端到端业务链路', () => {
     request
   }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     // 1. 准备一条已审核通过的问题，确保首页有稳定数据
     const studentRes = await request.post(
@@ -245,7 +245,7 @@ test.describe('家长角色端到端业务链路', () => {
     page
   }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     const apiContext = await test.request.newContext({
       baseURL: backendBase

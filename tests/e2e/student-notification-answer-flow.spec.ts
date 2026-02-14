@@ -6,7 +6,7 @@ test.describe('学生收到老师回答通知并查看详情 E2E', () => {
     // 1. 先用学生创建一个问题（通过后端接口，保证后续审核与通知链路）
     const studentToken = await (async () => {
       const res = await request.post(
-        `${process.env.BACKEND_BASE_URL || 'http://localhost:4000'}/api/internal/test-token`,
+        `${process.env.BACKEND_BASE_URL || 'http://localhost:3000'}/api/internal/test-token`,
         {
           data: { role: 'student' }
         }
@@ -16,7 +16,7 @@ test.describe('学生收到老师回答通知并查看详情 E2E', () => {
     })();
 
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     const createRes = await request.post(`${backendBase}/api/questions`, {
       headers: {

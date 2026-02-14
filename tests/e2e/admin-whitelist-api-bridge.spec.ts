@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const BACKEND_BASE =
-  process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
 async function getRoleToken(role: 'student' | 'teacher' | 'parent') {
   const apiContext = await test.request.newContext({

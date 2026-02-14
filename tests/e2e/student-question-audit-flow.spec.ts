@@ -15,7 +15,7 @@ async function approveQuestionAsTeacher(
   questionId: string
 ) {
   const backendBase =
-    process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+    process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
   // 1) 获取教师测试 token
   const tokenRes = await request.post(

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { bootstrapAuth } from './utils/bootstrapAuth';
 
 const BACKEND_BASE =
-  process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
 test.describe('教师语音回答 E2E（无模拟，验证播放路径）', () => {
   test('老师创建带音频回答后，学生端能看到可播放的语音回答', async ({

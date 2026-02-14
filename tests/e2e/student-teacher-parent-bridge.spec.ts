@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { bootstrapAuth } from './utils/bootstrapAuth';
 
 const BACKEND_BASE =
-  process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 const TEST_IMAGE_PATH =
   '/mnt/c/Users/Administrator/Downloads/知识星球问答小程序 4/codex-develop-doc/test.jpg';
 

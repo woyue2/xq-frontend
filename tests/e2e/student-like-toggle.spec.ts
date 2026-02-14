@@ -8,7 +8,7 @@ test.describe('STU-010 学生点赞/取消点赞真实链路', () => {
     request
   }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     // 1. 通过后端接口使用教师身份创建一条已审核通过的问题（跳过 AI 审核的不确定性）
     const teacherRes = await request.post(

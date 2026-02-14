@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-BACKEND_URL="${BACKEND_URL:-http://localhost:4000}"
+BACKEND_URL="${BACKEND_URL:-http://localhost:3000}"
 
 echo "🔍 Backend API smoke test"
 echo "   Target: ${BACKEND_URL}"

@@ -4,7 +4,7 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
 test.describe('学生历史提问 - 头像入口链路', () => {
   test('老师: 首页点击学生头像 → 学生历史提问页 → 问题详情', async ({ page }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     const apiContext = await playwrightRequest.newContext({
       baseURL: backendBase

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { bootstrapAuth } from './utils/bootstrapAuth';
 
 const BACKEND_BASE =
-  process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
 async function createApprovedQuestionForStudent() {
   const apiContext = await test.request.newContext({

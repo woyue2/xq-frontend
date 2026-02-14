@@ -13,7 +13,7 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
 test.describe.skip('学生理解状态标记(弄懂了/没懂)端到端链路', () => {
   test('学生: 提问 → 老师回答 → 首页标记弄懂/没懂', async ({ page }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     const apiContext = await playwrightRequest.newContext({
       baseURL: backendBase

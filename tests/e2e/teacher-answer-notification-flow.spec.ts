@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { bootstrapAuth } from './utils/bootstrapAuth';
 
 const BACKEND_BASE =
-  process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+  process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
 test.describe('TEA: 教师前端回答 + 学生新回答通知联动 E2E', () => {
   test('老师通过前端回答后，学生可从“有新回答”通知进入问题详情', async ({

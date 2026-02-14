@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BACKEND_BASE = process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+const BACKEND_BASE = process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
 /**
  * 使用指定手机号获取测试 token

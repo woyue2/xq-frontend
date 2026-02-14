@@ -7,7 +7,7 @@ test.describe('题目解题方法维度配置 E2E', () => {
     request
   }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     // 预先从后端读取配置，获取 unknown 对应的展示文案。
     // 如当前后端尚未暴露该配置接口（404），则退回到前端默认文案“暂不确定”。

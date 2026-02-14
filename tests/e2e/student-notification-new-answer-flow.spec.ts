@@ -11,7 +11,7 @@ import { bootstrapAuth } from './utils/bootstrapAuth';
 test.describe('学生新回答通知联动', () => {
   test('学生：从通知中心点击“有新回答”进入问题详情并聚焦到对应回答', async ({ page }) => {
     const backendBase =
-      process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+      process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
     const apiContext = await playwrightRequest.newContext({
       baseURL: backendBase

@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 
 const FRONTEND_BASE = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
-const BACKEND_BASE = process.env.BACKEND_BASE_URL || 'http://localhost:4000';
+const BACKEND_BASE = process.env.BACKEND_BASE_URL || 'http://localhost:3000';
 
 test.describe('录音功能调试', () => {
   test('测试 MediaRecorder 和音频上传', async ({ page, context }) => {
