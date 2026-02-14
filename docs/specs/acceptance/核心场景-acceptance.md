@@ -3,7 +3,7 @@
 > **版本**: v2.0
 > **更新时间**: 2026-02-07
 > **适用环境**: 本地开发环境 (http://localhost:5173)
-> **后端地址**: http://localhost:4000
+> **后端地址**: http://localhost:3000
 
 ---
 
@@ -46,7 +46,7 @@ npm run dev
 
 **验证点**：
 
-- ✅ 后端运行在 http://localhost:4000
+- ✅ 后端运行在 http://localhost:3000
 - ✅ 前端运行在 http://localhost:5173
 - ✅ 数据库连接正常（无报错）
 

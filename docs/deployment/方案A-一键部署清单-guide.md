@@ -263,7 +263,7 @@ curl -I https://qa.example.com/
 
 ## 9. 当前项目已知注意事项
 
-1. 现有 `deploy/4-docker-compose.1c1g.yml` 中 backend 健康检查写的是 `localhost:4000`，但 `PORT=3000`，会导致探活口径不一致。  
+1. 现有 `deploy/4-docker-compose.1c1g.yml` 中 backend 健康检查写的是 `localhost:3000`，但 `PORT=3000`，会导致探活口径不一致。  
 2. 若多节点部署，当前本地文件上传/音频持久卷不会跨主机自动共享，需要对象存储或共享存储。  
 3. 生产上线前务必替换默认数据库密码和 `JWT_SECRET`。  
 

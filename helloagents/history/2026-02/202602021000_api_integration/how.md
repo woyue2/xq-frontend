@@ -18,7 +18,7 @@ Update `vite.config.ts`:
 server: {
   proxy: {
     '/api': {
-      target: 'http://localhost:4000', // Or backend URL
+      target: 'http://localhost:3000', // Or backend URL
       changeOrigin: true,
       rewrite: (path) => path.replace(/^\/api/, '')
     }

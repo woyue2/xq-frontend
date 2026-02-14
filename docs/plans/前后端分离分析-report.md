@@ -313,12 +313,12 @@ VITE_API_BASE=/api
 当前开发模式（推测）：
 前端：localhost:5173
   ↓ Vite 代理
-后端：localhost:4000
+后端：localhost:3000
 
 vite.config.ts:
 server: {
   proxy: {
-    '/api': 'http://localhost:4000'
+    '/api': 'http://localhost:3000'
   }
 }
 
@@ -332,7 +332,7 @@ server: {
 **建议：**
 ```bash
 # .env.development
-VITE_API_BASE=http://localhost:4000/api
+VITE_API_BASE=http://localhost:3000/api
 
 # 移除 Vite 代理配置
 # 让前端直接调用后端，更接近生产环境

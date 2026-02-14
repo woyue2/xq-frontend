@@ -9,7 +9,7 @@
 
 - **Base URL**: 通过环境变量 `VITE_API_BASE` 配置。
 - **Mock**: 支持本地 Mock 数据，通过 `VITE_USE_MOCK=true` 开启。
-- **Proxy**: 开发环境配置了 `/api` 代理到本地后端（默认 `http://localhost:4000`）。
+- **Proxy**: 开发环境配置了 `/api` 代理到本地后端（默认 `http://localhost:3000`）。
 
 ## 2. 目录结构
 
@@ -43,7 +43,7 @@ await questionService.createQuestion({
 
 ## 4. 联调指南
 
-1. **后端准备**: 确保后端服务运行在 `http://localhost:4000` (或修改 `vite.config.ts`)。
+1. **后端准备**: 确保后端服务运行在 `http://localhost:3000` (或修改 `vite.config.ts`)。
 2. **关闭 Mock**: 在 `.env` 或启动命令中设置 `VITE_USE_MOCK=false`。
 3. **运行测试**: `npm run test src/test/api.test.ts` 验证接口连通性。
 

@@ -41,7 +41,7 @@
 
 Playwright 测试默认通过 `BACKEND_BASE_URL` 访问后端；如未设置，则使用：
 
-- `http://localhost:4000`（见 `tests/e2e/utils/bootstrapAuth.ts`）
+- `http://localhost:3000`（见 `tests/e2e/utils/bootstrapAuth.ts`）
 
 推荐启动步骤：
 
@@ -52,7 +52,7 @@ npm run dev    # 启动 Express + Prisma 后端，端口使用 env.PORT（建议
 
 确认后端健康：
 
-- 浏览器或 curl 访问 `http://localhost:4000/health`，应返回 `{"status":"ok",...}`。
+- 浏览器或 curl 访问 `http://localhost:3000/health`，应返回 `{"status":"ok",...}`。
 
 如需自定义端口：
 
@@ -95,7 +95,7 @@ npm run test:e2e
 这将：
 
 - 启动前端 dev server（端口 4173，禁用 Mock）；
-- 使用默认 `BACKEND_BASE_URL=http://localhost:4000` 调用真实后端；
+- 使用默认 `BACKEND_BASE_URL=http://localhost:3000` 调用真实后端；
 - 运行 `tests/e2e/*.spec.ts` 中全部用例。
 
 ### 4.3 只跑某些业务链路
@@ -144,7 +144,7 @@ npm run test:e2e -- --project=chromium --grep "角色注册与身份展示"
 
 1. **E2E 报错 `ECONNREFUSED` 或卡在 /health**
    - 检查后台是否已启动：`cd backend && npm run dev`。
-   - 确认 `PORT` 与 `BACKEND_BASE_URL` 一致（默认后端 4000，前端测试使用 `http://localhost:4000`）。
+   - 确认 `PORT` 与 `BACKEND_BASE_URL` 一致（默认后端 4000，前端测试使用 `http://localhost:3000`）。
 
 2. **用例中报 401/UNAUTHORIZED**
    - 检查 `/api/internal/test-token` 是否可用（生产环境禁止，测试环境需 `NODE_ENV !== 'production'`）。

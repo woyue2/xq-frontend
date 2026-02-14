@@ -61,7 +61,7 @@
 
 
 🔄 下一步: 如需批量跑所有 e2e 测试，可在项目根目录执行
-  BACKEND_BASE_URL=http://localhost:4000 npx playwright test，前端
+  BACKEND_BASE_URL=http://localhost:3000 npx playwright test，前端
   将自动在 4173 端口启动；如果你希望继续补齐其他页面的 e2e，请告诉
   我具体文件名或场景，我可以按同样方式帮你跑通并修复。
 

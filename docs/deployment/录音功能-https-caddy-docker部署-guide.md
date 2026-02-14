@@ -75,7 +75,7 @@ qa.example.com {
   encode gzip
 
   handle /api/* {
-    reverse_proxy backend:4000
+    reverse_proxy backend:3000
   }
 
   handle {
@@ -86,7 +86,7 @@ qa.example.com {
 
 ### 4. 前端 API 基础路径
 
-确保前端走相对路径 `/api`（当前项目已是此模式），避免前端直接请求 `http://localhost:4000` 触发混合内容或跨域问题。
+确保前端走相对路径 `/api`（当前项目已是此模式），避免前端直接请求 `http://localhost:3000` 触发混合内容或跨域问题。
 
 ## 方案 B（内网调试）：自签证书
 
