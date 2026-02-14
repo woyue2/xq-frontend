@@ -1,4 +1,4 @@
-import { ArrowLeft, ChatCentered, PencilSimple, CaretRight, SignOut, ShieldCheck, Camera, Check, Users, Pencil, SpinnerGap, Baby, Phone, Plus, Key } from '@phosphor-icons/react';
+import { ArrowLeft, ChatCentered, PencilSimple, CaretRight, SignOut, ShieldCheck, Camera, Check, Users, Pencil, SpinnerGap, Baby, Phone, Plus, Key, Printer } from '@phosphor-icons/react';
 // 修改原因：按需求保持点赞/收藏图标为原始样式，并为"我的提问"使用与 MyQuestionsPage 一致的 ChatCentered 图标。
 import { Heart, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -494,6 +494,14 @@ const handleGetBindCode = async () => {
       color: 'text-yellow-500',
       visible: true,
       onClick: () => navigate('/my-favorites'),
+    },
+    {
+      icon: Printer,
+      label: '打印题目',
+      color: 'text-indigo-500',
+      visible: currentUser.role === 'parent',
+      // 修改原因：家长从个人页可直接进入打印选题流程，减少路径跳转成本。
+      onClick: () => navigate('/print/questions/select'),
     },
     {
       // 修改原因：为"我的提问"分配独立问题语义图标，避免与"待回答"入口图标重复。

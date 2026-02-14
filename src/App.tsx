@@ -22,6 +22,8 @@ import { DiagnosticPage } from '@/pages/DiagnosticPage';
 import { ParentQuestionPage } from '@/pages/ParentQuestionPage';
 import { StudentHistoryPage } from '@/pages/StudentHistoryPage';
 import { TestApiPage } from '@/pages/TestApiPage';
+import { PrintQuestionSelectPage } from '@/pages/PrintQuestionSelectPage';
+import { PrintQuestionViewPage } from '@/pages/PrintQuestionViewPage';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Toaster } from "@/components/ui/sonner";
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -71,6 +73,10 @@ export function App() {
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
             </Route>
+
+            {/* 修改原因：打印流程使用独立页面，避免主布局头尾在打印时进入纸面。 */}
+            <Route path="/print/questions/select" element={<PrintQuestionSelectPage />} />
+            <Route path="/print/questions/view" element={<PrintQuestionViewPage />} />
 
             {/* Protected Routes (Main Layout) */}
             <Route element={<MainLayout />}>
