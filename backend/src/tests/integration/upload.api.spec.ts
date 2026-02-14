@@ -4,6 +4,7 @@ import { signAccessToken } from '../../utils/jwt';
 
 describe('Upload API', () => {
   const app = createApp();
+  const originalFetch = global.fetch;
 
   const teacherToken = signAccessToken({
     sub: 'teacher_upload_001',
@@ -13,6 +14,10 @@ describe('Upload API', () => {
   const studentToken = signAccessToken({
     sub: 'student_upload_001',
     role: 'student'
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   // 获取图片上传签名
@@ -132,5 +137,86 @@ describe('Upload API', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('INVALID_FILE_TYPE');
+  });
+
+  // 图片上传失败时可回退到本地存储路径
+  it('should allow authenticated user to upload image to local fallback storage', async () => {
+    const buffer = Buffer.alloc(1024, 'a');
+
+    const res = await request(app)
+      .post('/api/upload/image-local')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .attach('file', buffer, {
+        filename: 'fallback.jpg',
+        contentType: 'image/jpeg'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+    expect(typeof res.body.data.imageUrl).toBe('string');
+    expect(res.body.data.imageUrl.startsWith('/static/image/')).toBe(true);
+  });
+
+  // 非图片类型不允许走本地图片上传接口
+  it('should reject non-image file when uploading to image-local endpoint', async () => {
+    const buffer = Buffer.alloc(1024, 'a');
+
+    const res = await request(app)
+      .post('/api/upload/image-local')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .attach('file', buffer, {
+        filename: 'not-image.txt',
+        contentType: 'text/plain'
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_FILE_TYPE');
+  });
+
+  // 非白名单域名禁止通过图片代理读取，避免被滥用为开放代理
+  it('should reject image-proxy request when host is not whitelisted', async () => {
+    const res = await request(app)
+      .get('/api/upload/image-proxy')
+      .query({ url: 'https://example.com/demo.jpg' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('PROXY_HOST_NOT_ALLOWED');
+  });
+
+  // 白名单图床可通过后端代理读取，提升图片加载稳定性
+  it('should proxy image for allowed host', async () => {
+    const payload = Buffer.from('image-binary');
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: {
+        get: (name: string) => {
+          const lower = name.toLowerCase();
+          if (lower === 'content-type') return 'image/jpeg';
+          if (lower === 'cache-control') return 'public, max-age=60';
+          return null;
+        }
+      },
+      arrayBuffer: async () => payload
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const targetUrl = 'https://s3.bmp.ovh/2026/02/14/demo.jpg';
+    const res = await request(app)
+      .get('/api/upload/image-proxy')
+      .query({ url: targetUrl });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('image/jpeg');
+    expect(res.headers['cache-control']).toBe('public, max-age=60');
+    expect(Buffer.isBuffer(res.body)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      targetUrl,
+      expect.objectContaining({
+        method: 'GET',
+        redirect: 'follow'
+      })
+    );
   });
 });
