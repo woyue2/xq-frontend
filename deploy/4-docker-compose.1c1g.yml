@@ -90,6 +90,7 @@ services:
       - backend
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       # 修改原因：统一通过 Caddyfile 管理前端路由和后端代理规则。
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

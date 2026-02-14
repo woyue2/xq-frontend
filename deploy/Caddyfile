@@ -1,4 +1,4 @@
-:80 {
+app.wdhonghong.sbs {
   encode gzip
 
   # 修改原因：默认接受任意 Host 头，便于本地（127.0.0.1/IP）和服务器 IP 直连共同复用。
