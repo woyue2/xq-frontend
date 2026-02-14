@@ -139,4 +139,42 @@ describe('AiAuditService retry strategy', () => {
     expect(result.requiresManualReview).toBe(true);
     expect(result.reason).toContain('未启用');
   });
+
+  it('should fallback to manual review for relative image url without calling AI', async () => {
+    const service = new AiAuditService() as any;
+    service.enabled = true;
+    service.baseUrl = 'http://mock-ai-audit.test';
+    service.apiKey = 'mock-key';
+
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
+
+    const result = await service.auditImage('/static/image/local-fallback.jpg');
+
+    // 修改原因：本地相对路径外部AI不可达，应直接转人工审核且不发起AI请求。
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.safe).toBe(false);
+    expect(result.requiresManualReview).toBe(true);
+    expect(result.reason).toContain('相对路径');
+  });
+
+  it('should fallback to manual review for localhost/private image urls without calling AI', async () => {
+    const service = new AiAuditService() as any;
+    service.enabled = true;
+    service.baseUrl = 'http://mock-ai-audit.test';
+    service.apiKey = 'mock-key';
+
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
+
+    const localhostResult = await service.auditImage('http://localhost:3000/static/image/a.jpg');
+    const privateIpResult = await service.auditImage('http://192.168.1.2/static/image/b.jpg');
+
+    // 修改原因：本机/私网地址通常不可被外部AI访问，需直接转人工审核避免无效调用。
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localhostResult.safe).toBe(false);
+    expect(localhostResult.requiresManualReview).toBe(true);
+    expect(privateIpResult.safe).toBe(false);
+    expect(privateIpResult.requiresManualReview).toBe(true);
+  });
 });
