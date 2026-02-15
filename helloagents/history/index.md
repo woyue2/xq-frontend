@@ -1,6 +1,8 @@
 # History Index
 
 ## 2026-02
+- [202602151616_profile-change-phone](./2026-02/202602151616_profile-change-phone/why.md): Profile 页面新增换绑手机号（含验证码慢显）
+- [202602151600_register-code-display-animation](./2026-02/202602151600_register-code-display-animation/why.md): 注册态验证码提示延迟 2 秒并缓慢显示
 - [202602011958_backend-core](./2026-02/202602011958_backend-core/why.md): 后端整体架构与核心业务模块落地（backend-core）
 - [202602021300_structured-logging](./2026-02/202602021300_structured-logging/why.md): 本地联调结构化日志与错误码记录方案落地
 - [202602022130_route-hard-errors](./2026-02/202602022130_route-hard-errors/why.md): 前后端硬错误路由修复与契约对齐
