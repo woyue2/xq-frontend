@@ -66,6 +66,21 @@ export function AnswerQuestionPage() {
   // 修改原因：支持点击缩略图查看大图，覆盖“上传后（表单内预览阶段）”查看诉求。
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const MAX_RECORDING_SECONDS = 60;
+  // 修改原因：不同浏览器支持的录音编码不同（如 Safari 常见 audio/mp4，Chrome 常见 audio/webm）。
+  // 按优先级选择当前浏览器可用的 MIME，避免 HTTPS 下仍因编码不支持导致录音失败。
+  const pickSupportedRecordingMimeType = () => {
+    if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+      return '';
+    }
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus'
+    ];
+    const matched = candidates.find((type) => MediaRecorder.isTypeSupported(type));
+    return matched ?? '';
+  };
   // 修改原因：在进入录音流程前先做能力探测，避免用户点击后才报错。
   const getAudioCapability = () => {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -315,7 +330,12 @@ export function AnswerQuestionPage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      // 修改原因：构造 MediaRecorder 时显式传入可用编码，减少浏览器默认编码不兼容导致的启动失败。
+      const preferredMimeType = pickSupportedRecordingMimeType();
+      // ⚠️ 不确定因素：少数 WebView 即使 isTypeSupported 返回 true，实际 start 仍可能失败，保留 try/catch 兜底。
+      const recorder = preferredMimeType
+        ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       mediaStreamRef.current = stream;
       setAudioUrl(null);
@@ -332,7 +352,9 @@ export function AnswerQuestionPage() {
 
       recorder.onstop = async () => {
         try {
-          const blob = new Blob(chunks, { type: 'audio/webm' });
+          // 修改原因：上传前沿用录音器实际编码，避免把 mp4 内容错误标记成 webm 导致后续播放异常。
+          const runtimeMimeType = recorder.mimeType || chunks[0]?.type || preferredMimeType || 'audio/webm';
+          const blob = new Blob(chunks, { type: runtimeMimeType });
 
           // 停止所有音轨，释放麦克风
           if (mediaStreamRef.current) {
@@ -388,7 +410,18 @@ export function AnswerQuestionPage() {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('start recording failed', error);
-      toast.error('无法访问麦克风，请检查浏览器权限设置');
+      // 修改原因：按错误类型给出更精确提示，降低“HTTPS 也不可用”时的排障成本。
+      const errorName =
+        typeof error === 'object' && error && 'name' in error ? String((error as { name?: string }).name) : '';
+      if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+        toast.error('麦克风权限被拒绝，请在浏览器设置中允许后重试');
+      } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+        toast.error('未检测到可用麦克风设备');
+      } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+        toast.error('麦克风被占用或不可读，请关闭其他占用应用后重试');
+      } else {
+        toast.error('录音启动失败，请刷新页面后重试');
+      }
     }
   };
 
