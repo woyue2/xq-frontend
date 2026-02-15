@@ -32,7 +32,7 @@ async function main() {
   const phone = '11111111111';
   const nickname = '管理员老师';
   const role = 'teacher';
-  const plainPassword = '123123';
+  const plainPassword = '87654321';
 
   logStep('start');
   const passwordHash = await withTimeout('hash password', () => bcrypt.hash(plainPassword, 10));
