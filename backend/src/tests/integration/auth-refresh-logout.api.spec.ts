@@ -7,9 +7,10 @@ describe('Auth API - refresh & logout', () => {
 
   // 用例：AUTH-API-012 正常刷新Token
   it('should refresh token with valid refresh token (AUTH-API-012)', async () => {
-    const phone = `13900000001_${Date.now()}`;
+    // 修改原因：手机号必须满足 11 位格式，且避免固定号码冲突。
+    const phone = `139${Date.now().toString().slice(-8)}`;
 
-    // 准备登录所需的用户和验证码记录
+    // 准备登录所需用户
     const user = await prisma.user.create({
       data: {
         phone,
@@ -23,26 +24,32 @@ describe('Auth API - refresh & logout', () => {
         isBanned: false
       }
     });
-
-    await prisma.verificationCode.create({
-      data: {
+    // 修改原因：当前登录链路包含白名单校验，测试数据需补齐白名单才能通过正常登录流程。
+    await prisma.userWhitelist.upsert({
+      where: { phone },
+      update: { role: 'student', deletedAt: null },
+      create: {
         phone,
-        code: '123456',
-        type: 'login',
-        expireAt: new Date(Date.now() + 5 * 60 * 1000)
+        name: '刷新Token用户',
+        role: 'student',
+        isRegistered: true
       }
     });
 
+    // 修改原因：测试环境已改为随机验证码，登录前需通过真实 send-code 获取动态验证码。
+    const sendCodeRes = await request(app)
+      .post('/api/auth/send-code')
+      .send({ phone, type: 'login' });
+
+    expect(sendCodeRes.status).toBe(200);
+    const loginCode = sendCodeRes.body?.data?.code as string;
+    expect(loginCode).toMatch(/^\d{6}$/);
+
     const loginRes = await request(app)
       .post('/api/auth/login')
-      .send({ phone, code: '000000' });
+      .send({ phone, code: loginCode });
 
-    // 登录调用目前依赖 send-code 生成的验证码，需求文档示例使用 123456，
-    // 测试阶段放宽为“返回 200 即认为登录成功”，不再校验 user.id 匹配。
-    if (loginRes.status !== 200) {
-      // 若严格验证码校验导致 400，则跳过本用例，避免阻断其它测试
-      return;
-    }
+    expect(loginRes.status).toBe(200);
 
     const refreshToken = loginRes.body.data.refreshToken as string;
 
@@ -70,7 +77,8 @@ describe('Auth API - refresh & logout', () => {
 
   // 用例：AUTH-API-014 正常退出
   it('should logout successfully (AUTH-API-014)', async () => {
-    const phone = `13900000002_${Date.now()}`;
+    // 修改原因：手机号必须满足 11 位格式，且避免固定号码冲突。
+    const phone = `138${Date.now().toString().slice(-8)}`;
 
     await prisma.user.create({
       data: {
@@ -85,23 +93,32 @@ describe('Auth API - refresh & logout', () => {
         isBanned: false
       }
     });
-
-    await prisma.verificationCode.create({
-      data: {
+    // 修改原因：当前登录链路包含白名单校验，测试数据需补齐白名单才能通过正常登录流程。
+    await prisma.userWhitelist.upsert({
+      where: { phone },
+      update: { role: 'student', deletedAt: null },
+      create: {
         phone,
-        code: '123456',
-        type: 'login',
-        expireAt: new Date(Date.now() + 5 * 60 * 1000)
+        name: '退出用户',
+        role: 'student',
+        isRegistered: true
       }
     });
 
+    // 修改原因：测试环境已改为随机验证码，登录前需通过真实 send-code 获取动态验证码。
+    const sendCodeRes = await request(app)
+      .post('/api/auth/send-code')
+      .send({ phone, type: 'login' });
+
+    expect(sendCodeRes.status).toBe(200);
+    const loginCode = sendCodeRes.body?.data?.code as string;
+    expect(loginCode).toMatch(/^\d{6}$/);
+
     const loginRes = await request(app)
       .post('/api/auth/login')
-      .send({ phone, code: '000000' });
+      .send({ phone, code: loginCode });
 
-    if (loginRes.status !== 200) {
-      return;
-    }
+    expect(loginRes.status).toBe(200);
 
     const token = loginRes.body.data.token as string;
 

@@ -15,13 +15,13 @@ interface SendCodeResult {
   phone: string;
   expireIn: number;
   cooldown: number;
+  code?: string;
 }
 
 // 简单的内存级验证码限流与存储（生产环境建议使用 Redis + DB）
 const lastSendMap = new Map<string, number>();
 const CODE_EXPIRE_SECONDS = 300;
 const SEND_COOLDOWN_SECONDS = 60;
-const FIXED_CODE = '123456'; // 方便联调与测试环境
 
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -96,6 +96,8 @@ export class AuthService {
       });
     }
 
+    let bindChildUserId: string | null = null;
+
     // 对登录/绑定/重置场景提前做账号存在性检查
     if (type === 'login' || type === 'reset_password' || type === 'bind_child') {
       try {
@@ -104,6 +106,16 @@ export class AuthService {
         });
 
         if (!user) {
+          // 修改原因：家长绑定孩子时，需求要求明确提示“孩子未注册”，而不是通用账号不存在文案。
+          if (type === 'bind_child') {
+            throw new AppError(
+              404,
+              'CHILD_NOT_REGISTERED',
+              '孩子未注册，请先注册',
+              undefined,
+              4006
+            );
+          }
           throw new AppError(
             404,
             'USER_NOT_FOUND',
@@ -122,6 +134,10 @@ export class AuthService {
             4003
           );
         }
+
+        if (type === 'bind_child') {
+          bindChildUserId = user.id;
+        }
       } catch (err) {
         if (err instanceof AppError) {
           throw err;
@@ -139,10 +155,8 @@ export class AuthService {
 
     lastSendMap.set(key, now);
 
-    const isProd = process.env.NODE_ENV === 'production';
-    const useRandomCode =
-      isProd || process.env.AUTH_FORCE_RANDOM_CODE === 'true';
-    const codeToSave = useRandomCode ? generateVerificationCode() : FIXED_CODE;
+    // 修改原因：按方案A统一策略，所有环境都使用随机验证码，避免出现固定码 123456。
+    const codeToSave = generateVerificationCode();
 
     // 记录验证码到数据库：如果写入失败，必须显式抛错，避免“空保存”导致后续登录必然失败
     try {
@@ -162,10 +176,36 @@ export class AuthService {
       );
     }
 
+    if (type === 'bind_child' && bindChildUserId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: bindChildUserId,
+            type: 'bind_child_code',
+            title: '绑定验证码',
+            content: `您的绑定验证码为 ${codeToSave}，${CODE_EXPIRE_SECONDS} 秒内有效`,
+            // ⚠️ 不确定因素：targetType='bind' 目前仅用于语义标识，前端暂未做专门跳转分支。
+            targetType: 'bind',
+            targetId: bindChildUserId
+          }
+        });
+      } catch {
+        // 修改原因：需求要求验证码要存放在孩子通知中，通知写入失败时应视为发送失败，避免“假成功”。
+        throw new AppError(
+          500,
+          'BIND_CODE_NOTIFY_FAILED',
+          '验证码发送失败，请稍后重试'
+        );
+      }
+    }
+
     return {
       phone: normalizedPhone,
       expireIn: CODE_EXPIRE_SECONDS,
-      cooldown: SEND_COOLDOWN_SECONDS
+      cooldown: SEND_COOLDOWN_SECONDS,
+      // 修改原因：按当前项目需求，所有环境都需要在页面可见验证码，便于直接使用。
+      // ⚠️ 不确定因素：该策略会降低生产环境安全性，后续接入真实短信时建议切回仅测试环境展示。
+      code: codeToSave
     };
   }
 
@@ -562,7 +602,6 @@ export class AuthService {
 
     // 校验验证码（注册场景优先使用 type=register）
     let record = null;
-    const isProd = process.env.NODE_ENV === 'production';
     try {
       record = await prisma.verificationCode.findFirst({
         where: {
@@ -573,17 +612,12 @@ export class AuthService {
         orderBy: { createdAt: 'desc' }
       });
     } catch {
-      // 测试/开发环境无表时忽略，允许使用固定验证码
+      // 修改原因：统一随机验证码后，注册校验只认数据库中的实际验证码记录。
     }
 
-    const invalidCode = isProd
-      ? !record ||
+    const invalidCode = !record ||
       record.code !== code ||
-      record.expireAt.getTime() < Date.now()
-      : (!record && code !== FIXED_CODE) ||
-      (record &&
-        (record.code !== code ||
-          record.expireAt.getTime() < Date.now()));
+      record.expireAt.getTime() < Date.now();
 
     if (invalidCode) {
       throw new AppError(
@@ -632,7 +666,38 @@ export class AuthService {
         where: { phone: normalizedPhone }
       });
       if (wl) {
-        // 白名单只补充 grade 和 expiresAt，不再覆盖 role（前端传递的 role 优先）
+        // 修改原因：注册角色必须受白名单约束，避免前端任意选择越权角色。
+        const whitelistRole =
+          wl.role === 'student' || wl.role === 'teacher' || wl.role === 'parent'
+            ? wl.role
+            : null;
+
+        // ⚠️ 不确定因素：历史脏数据可能出现非 student/teacher/parent 的 role。
+        // 这里按服务异常处理，避免把错误角色落到用户表。
+        if (!whitelistRole) {
+          throw new AppError(
+            500,
+            'INTERNAL_SERVER_ERROR',
+            '白名单角色配置异常，请联系管理员'
+          );
+        }
+
+        if (requestedRole && requestedRole !== whitelistRole) {
+          throw new AppError(
+            403,
+            'ROLE_MISMATCH_WHITELIST',
+            '所选身份与白名单不一致，请联系管理员',
+            {
+              requestedRole,
+              whitelistRole
+            },
+            4005
+          );
+        }
+
+        role = requestedRole ?? whitelistRole;
+
+        // 白名单补充 grade 和 expiresAt，角色以“白名单一致性校验后的 role”为准。
         effectiveGrade = effectiveGrade ?? wl.grade ?? undefined;
         expiresAt = wl.validUntil ?? undefined;
 
@@ -645,6 +710,10 @@ export class AuthService {
         });
       }
     } catch (err) {
+      // 修改原因：业务错误（如白名单角色不一致）必须透传，不能被降级分支吞掉。
+      if (err instanceof AppError) {
+        throw err;
+      }
       // 生产环境中白名单表不可用视为服务异常；开发/测试环境下继续使用默认角色
       if (process.env.NODE_ENV === 'production') {
         throw new AppError(
