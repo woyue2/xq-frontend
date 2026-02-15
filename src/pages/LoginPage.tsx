@@ -33,7 +33,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [loginMode, setLoginMode] = useState<'code' | 'password'>('code');
+  // 登录默认使用密码；验证码仅用于注册/绑定/改绑等流程
+  const [loginMode] = useState<'code' | 'password'>('password');
   const [lastSentCode, setLastSentCode] = useState('');
   const [showRegisterCodeHint, setShowRegisterCodeHint] = useState(false);
   const registerCodeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,12 +122,7 @@ export function LoginPage() {
       return;
     }
 
-    if (isLogin && loginMode === 'code' && !code) {
-      toast.error('请输入验证码');
-      return;
-    }
-
-    if (isLogin && loginMode === 'password' && !password) {
+    if (isLogin && !password) {
       toast.error('请输入密码');
       return;
     }
@@ -177,21 +173,9 @@ export function LoginPage() {
     // 统一走真实后端联调模式（在测试环境下由 api.ts Mock 拦截器兜底）
     try {
       if (isLogin) {
-        if (loginMode === 'password') {
-          const response = await authService.passwordLogin({
-            phone,
-            password
-          });
-          const { token, user } = response.data.data;
-          login(user, token);
-          toast.success('登录成功');
-          navigate('/');
-          return;
-        }
-
-        const response = await authService.login({
+        const response = await authService.passwordLogin({
           phone,
-          code
+          password
         });
         const { token, user } = response.data.data;
         login(user, token);
@@ -227,10 +211,7 @@ export function LoginPage() {
   };
 
   const basePhoneValid = phone.length === 11;
-  const loginValid =
-    isLogin &&
-    ((loginMode === 'code' && !!code) ||
-      (loginMode === 'password' && !!password));
+  const loginValid = isLogin && !!password;
   const registerValid =
     !isLogin &&
     !!selectedRole &&
@@ -339,31 +320,18 @@ export function LoginPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="code">
-                {isLogin && loginMode === 'password' ? '密码' : '验证码'}
+                {isLogin ? '密码' : '验证码'}
               </Label>
-              {isLogin && (
-                <button
-                  type="button"
-                  className="text-xs text-blue-500 hover:underline"
-                  onClick={() => {
-                    setLoginMode(loginMode === 'code' ? 'password' : 'code');
-                    setCode('');
-                    setPassword('');
-                  }}
-                >
-                  {loginMode === 'code' ? '使用密码登录' : '使用验证码登录'}
-                </button>
-              )}
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
                   id="code"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder={isLogin && loginMode === 'password' ? '请输入密码' : '请输入验证码'}
-                  value={isLogin && loginMode === 'password' ? password : code}
+                  placeholder={isLogin ? '请输入密码' : '请输入验证码'}
+                  value={isLogin ? password : code}
                   onChange={(e) => {
-                    if (isLogin && loginMode === 'password') {
+                    if (isLogin) {
                       setPassword(e.target.value);
                     } else {
                       setCode(e.target.value);
@@ -378,7 +346,7 @@ export function LoginPage() {
                   {showPassword ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {(!isLogin || loginMode === 'code') && (
+              {!isLogin && (
                 <Button
                   onClick={handleGetCode}
                   disabled={countdown > 0}
