@@ -11,6 +11,7 @@ import type { Question } from '@/types';
 
 const SESSION_SELECTED_IDS_KEY = 'print:selectedQuestionIds';
 const SESSION_FILENAME_KEY = 'print:pdfFileName';
+const SESSION_RETURN_TO_KEY = 'print:returnTo';
 
 function formatDate(value?: string) {
   if (!value) return '-';
@@ -33,8 +34,8 @@ export function PrintQuestionViewPage() {
       navigate('/login');
       return;
     }
-    if (user.role !== 'parent') {
-      toast.error('仅家长可使用打印题目功能');
+    if (user.role !== 'parent' && user.role !== 'student' && user.role !== 'teacher') {
+      toast.error('当前账号不可使用打印题目功能');
       navigate('/');
       return;
     }
@@ -183,7 +184,18 @@ export function PrintQuestionViewPage() {
     }
   };
 
-  if (!user || user.role !== 'parent') {
+  const handleBack = () => {
+    // 修改原因：预览页返回改为“流程入口目标”，避免与选题页形成往返闭环。
+    try {
+      const returnTo = sessionStorage.getItem(SESSION_RETURN_TO_KEY);
+      navigate(returnTo || '/profile');
+    } catch {
+      // ⚠️ 不确定因素：若 sessionStorage 不可用，回退目标会降级为 /profile。
+      navigate('/profile');
+    }
+  };
+
+  if (!user || (user.role !== 'parent' && user.role !== 'student' && user.role !== 'teacher')) {
     return null;
   }
 
@@ -234,7 +246,7 @@ export function PrintQuestionViewPage() {
 
       <div className="print-toolbar flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/print/questions/select')} className="p-2 hover:bg-gray-100 rounded-full">
+          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full">
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <h1 className="text-lg font-bold">打印预览</h1>

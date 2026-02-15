@@ -591,6 +591,7 @@ type BackendQuestionListItem = {
     authorId: string;
     authorName: string;
     authorAvatar?: string | null;
+    authorRole?: string | null;
     isGoodQuestion: boolean;
     isPinned: boolean;
     likes?: number | null;
@@ -729,7 +730,8 @@ export const questionService = {
                 authorId: q.authorId,
                 authorName: q.authorName,
                 authorAvatar: q.authorAvatar ?? undefined,
-                authorRole: undefined,
+                // 修改原因：透传后端作者角色，供打印选题页按“学生题目”筛选复用。
+                authorRole: q.authorRole ?? undefined,
                 createdAt: q.createdAt,
                 // 修改原因：列表卡片的实心/空心态应以后端返回互动状态为准，避免被前端固定 false 覆盖。
                 // ⚠️ 不确定因素：旧后端可能不返回这两个字段；缺失时回退 false，保持向后兼容。
@@ -818,7 +820,8 @@ export const questionService = {
                 authorId: q.authorId,
                 authorName: q.authorName,
                 authorAvatar: q.authorAvatar ?? undefined,
-                authorRole: undefined,
+                // 修改原因：与通用列表保持字段一致，避免角色信息在不同列表接口中丢失。
+                authorRole: q.authorRole ?? undefined,
                 createdAt: q.createdAt,
                 isLiked: !!q.isLiked,
                 isFavorited: !!q.isFavorited
