@@ -208,12 +208,13 @@ const verifyCode = async (phone: string, code: string, type: string) => {
 
 export class ParentService {
   async generateQuestionsPdf(params: {
-    parentId: string;
+    userId: string;
+    userRole: string;
     questionIds: string[];
     fileName?: string;
     requestOrigin: string;
   }) {
-    const { parentId, questionIds, fileName, requestOrigin } = params;
+    const { userId, userRole, questionIds, fileName, requestOrigin } = params;
 
     const dedupedIds = Array.from(
       new Set(questionIds.filter((id) => typeof id === 'string' && id.trim() !== ''))
@@ -228,7 +229,7 @@ export class ParentService {
       throw new AppError(400, 'INVALID_PARAMS', '单次最多打印 100 道题目');
     }
 
-    // 修改原因：与当前前端逻辑保持一致，仅允许导出审核通过题目，避免扩大可见范围。
+    // 修改原因：导出仅允许已审核通过题目，避免扩大可见范围。
     const questions = await prisma.question.findMany({
       where: {
         id: { in: dedupedIds },
@@ -236,12 +237,70 @@ export class ParentService {
       },
       select: {
         id: true,
+        authorId: true,
         title: true,
         content: true,
         images: true,
         createdAt: true
       }
     });
+
+    const approvedQuestionIds = questions.map((item) => item.id);
+    const favoriteRows = approvedQuestionIds.length > 0
+      ? await prisma.favorite.findMany({
+          where: {
+            userId,
+            questionId: { in: approvedQuestionIds }
+          },
+          select: { questionId: true }
+        })
+      : [];
+    const favoritedQuestionIds = new Set(favoriteRows.map((item) => item.questionId));
+
+    let allowedQuestionIds = new Set<string>();
+    if (userRole === 'parent') {
+      // 修改原因：家长可导出“已绑定孩子题目 + 自己收藏”。
+      const childRows = await prisma.parentChild.findMany({
+        where: { parentId: userId },
+        select: { childId: true }
+      });
+      const childIdSet = new Set(childRows.map((item) => item.childId));
+
+      questions.forEach((item) => {
+        if (childIdSet.has(item.authorId) || favoritedQuestionIds.has(item.id)) {
+          allowedQuestionIds.add(item.id);
+        }
+      });
+    } else if (userRole === 'student') {
+      // 修改原因：学生可导出“自己的提问 + 自己收藏”。
+      questions.forEach((item) => {
+        if (item.authorId === userId || favoritedQuestionIds.has(item.id)) {
+          allowedQuestionIds.add(item.id);
+        }
+      });
+    } else if (userRole === 'teacher') {
+      // 修改原因：老师可导出“所有学生题目 + 老师自己收藏”。
+      const authorIds = Array.from(new Set(questions.map((item) => item.authorId)));
+      const studentAuthors = authorIds.length > 0
+        ? await prisma.user.findMany({
+            where: {
+              id: { in: authorIds },
+              role: 'student'
+            },
+            select: { id: true }
+          })
+        : [];
+      const studentAuthorIdSet = new Set(studentAuthors.map((item) => item.id));
+
+      // ⚠️ 不确定因素：当前按“全站学生题目”解释“所有孩子题目”；若后续产品改为“仅老师关联学生”，需在这里收紧范围。
+      questions.forEach((item) => {
+        if (studentAuthorIdSet.has(item.authorId) || favoritedQuestionIds.has(item.id)) {
+          allowedQuestionIds.add(item.id);
+        }
+      });
+    } else {
+      throw new AppError(403, 'FORBIDDEN', '当前账号不可导出打印 PDF');
+    }
 
     const byId = new Map<string, PrintableQuestion>(
       questions.map((item) => [
@@ -258,8 +317,11 @@ export class ParentService {
 
     const ordered = dedupedIds
       .map((id) => byId.get(id))
-      .filter((item): item is PrintableQuestion => Boolean(item));
-    const missingIds = dedupedIds.filter((id) => !byId.has(id));
+      .filter((item): item is PrintableQuestion => {
+        if (!item) return false;
+        return allowedQuestionIds.has(item.id);
+      });
+    const missingIds = dedupedIds.filter((id) => !byId.has(id) || !allowedQuestionIds.has(id));
 
     if (ordered.length === 0) {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '没有可导出的题目');
@@ -316,9 +378,6 @@ export class ParentService {
           left: '10mm'
         }
       });
-
-      // 修改原因：预留 parentId，便于后续若需按“绑定关系”收紧权限时可直接扩展，不影响当前接口签名。
-      void parentId;
 
       return {
         fileName: safeFileName,

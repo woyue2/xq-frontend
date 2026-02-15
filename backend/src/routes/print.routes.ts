@@ -15,8 +15,9 @@ printRouter.post(
   '/questions/pdf',
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.user || req.user.role !== 'parent') {
-        throw new AppError(403, 'FORBIDDEN', '仅家长可导出打印 PDF');
+      if (!req.user || (req.user.role !== 'parent' && req.user.role !== 'student' && req.user.role !== 'teacher')) {
+        // 修改原因：按需求放开学生/老师打印能力，保留统一导出入口。
+        throw new AppError(403, 'FORBIDDEN', '当前账号不可导出打印 PDF');
       }
 
       const payload = req.body as {
@@ -47,7 +48,8 @@ printRouter.post(
           : `${req.protocol}://${req.get('host')}`;
 
       const result = await parentService.generateQuestionsPdf({
-        parentId: req.user.id,
+        userId: req.user.id,
+        userRole: req.user.role,
         questionIds,
         fileName,
         requestOrigin
