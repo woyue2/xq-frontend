@@ -105,6 +105,7 @@ describe('Question API', () => {
           in: [
             'q-001',
             'q-002',
+            'q-search-space-1',
             'q-good',
             'q-status-1',
             'q-status-2',
@@ -372,6 +373,39 @@ describe('Question API', () => {
 
     const titles: string[] = res.body.data.list.map((q: any) => q.title);
     expect(titles.some((t) => t.includes('勾股定理'))).toBe(true);
+  });
+
+  // Q-API-005K-SPACE 关键字含空白时也应稳定命中
+  it('should still match keyword when search text contains extra spaces (Q-API-005K-SPACE)', async () => {
+    await prisma.question.create({
+      data: {
+        id: 'q-search-space-1',
+        title: '勾股定理实战题',
+        content: '用于验证空白字符搜索边界',
+        subject: 'math',
+        tags: ['勾股定理'],
+        difficulty: 'easy',
+        status: 'approved',
+        isGoodQuestion: false,
+        isPinned: false,
+        likes: 0,
+        favorites: 0,
+        comments: 0,
+        answers: 0,
+        authorId: 'user-001',
+        authorName: '搜索同学C'
+      }
+    });
+
+    const res = await request(app)
+      .get('/api/questions?page=1&pageSize=20&search=%E5%8B%BE%E8%82%A1%20%20%E5%AE%9A%E7%90%86')
+      .set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(200);
+
+    const titles: string[] = res.body.data.list.map((q: any) => q.title);
+    expect(titles).toContain('勾股定理实战题');
   });
 
   // Q-API-006 筛选好问题

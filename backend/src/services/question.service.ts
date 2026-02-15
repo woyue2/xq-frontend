@@ -388,6 +388,9 @@ export class QuestionService {
 
     if (typeof search === 'string' && search.trim().length > 0) {
       const keyword = search.trim();
+      // 修改原因：用户输入常出现多空格/全角空格，导致“同一语义关键词”偶发不命中。
+      // 这里补充“去空白关键词”匹配分支，提升关键字匹配稳定性（仅影响 search 场景）。
+      const compactKeyword = keyword.replace(/\s+/g, '');
       const orConditions: any[] = [
         {
           title: {
@@ -404,6 +407,22 @@ export class QuestionService {
           mode: 'insensitive'
         }
       });
+
+      if (compactKeyword.length > 0 && compactKeyword !== keyword) {
+        orConditions.push({
+          title: {
+            contains: compactKeyword,
+            mode: 'insensitive'
+          }
+        });
+        orConditions.push({
+          content: {
+            contains: compactKeyword,
+            mode: 'insensitive'
+          }
+        });
+      }
+      // ⚠️ 不确定因素：去空白匹配会扩大结果集；当前仅在“用户输入含空白且与原词不同”时生效以控制影响范围。
 
       where.OR = orConditions;
     }
