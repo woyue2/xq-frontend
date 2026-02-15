@@ -19,7 +19,6 @@ export default defineConfig({
       },
       // 修改原因：仅纳入规范图标资产，避免异常 favicon.ico 参与安装图标决策。
       includeAssets: [
-        'favicon.svg',
         'favicon-32.png',
         'apple-touch-icon.png',
         'pwa-192.png',

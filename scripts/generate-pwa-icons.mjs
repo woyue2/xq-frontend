@@ -4,7 +4,7 @@ import sharp from 'sharp'
 
 const rootDir = process.cwd()
 const staticDir = path.join(rootDir, 'static')
-const sourceSvg = path.join(staticDir, 'favicon.svg')
+const sourcePng = path.join(staticDir, 'icon-source.png')
 
 const ICON_BACKGROUND = '#e0f2fe'
 
@@ -18,7 +18,7 @@ const OUTPUTS = [
 ]
 
 const createAnyIcon = async (size) => {
-  return sharp(sourceSvg, { density: 1024 })
+  return sharp(sourcePng)
     .resize(size, size, { fit: 'cover' })
     .png()
     .toBuffer()
@@ -26,7 +26,7 @@ const createAnyIcon = async (size) => {
 
 const createMaskableIcon = async (size) => {
   const innerSize = Math.round(size * 0.8)
-  const innerIcon = await sharp(sourceSvg, { density: 1024 })
+  const innerIcon = await sharp(sourcePng)
     .resize(innerSize, innerSize, { fit: 'cover' })
     .png()
     .toBuffer()
@@ -51,7 +51,7 @@ const createMaskableIcon = async (size) => {
 }
 
 const main = async () => {
-  await fs.access(sourceSvg)
+  await fs.access(sourcePng)
 
   for (const output of OUTPUTS) {
     const buffer =
@@ -63,6 +63,7 @@ const main = async () => {
   }
 
   console.log('Generated PWA icons:')
+  console.log(`- source: ${path.basename(sourcePng)}`)
   for (const output of OUTPUTS) {
     console.log(`- ${output.file}`)
   }
