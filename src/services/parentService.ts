@@ -91,4 +91,16 @@ export const parentService = {
     response.data.data.list = normalizedList;
     return response;
   },
+
+  downloadQuestionsPdf: (
+    questionIds: string[],
+    fileName?: string
+  ) =>
+    // 修改原因：新增最小 API 封装，避免页面直写二进制请求细节。
+    api.post('/print/questions/pdf', {
+      questionIds,
+      fileName
+    }, {
+      responseType: 'blob'
+    }),
 };

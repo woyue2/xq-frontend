@@ -233,13 +233,15 @@ export function PrintQuestionSelectPage() {
         </div>
         <Button onClick={goPrint} className="bg-morandi-5 hover:bg-morandi-5/90">
           <Printer className="w-4 h-4 mr-1" />
-          去打印（{selectedIds.size}）
+          {/* 修改原因：主流程已由浏览器打印切换为 PDF 导出，按钮文案同步。 */}
+          去导出（{selectedIds.size}）
         </Button>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
         <p className="text-sm text-gray-700 font-medium">用途说明</p>
-        <p className="text-xs text-gray-500">可从“我的收藏 + 孩子全部题目”中勾选，进入打印页后使用浏览器原生打印。</p>
+        {/* 修改原因：打印流程已改为服务端生成 PDF，避免继续提示“浏览器原生打印”。 */}
+        <p className="text-xs text-gray-500">可从“我的收藏 + 孩子全部题目”中勾选，进入打印页后一键导出 PDF。</p>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-wrap gap-2">

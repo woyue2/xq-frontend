@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { questionService } from '@/services/api';
+import { parentService } from '@/services/parentService';
 import type { Question } from '@/types';
 
 const SESSION_SELECTED_IDS_KEY = 'print:selectedQuestionIds';
@@ -16,15 +17,6 @@ function formatDate(value?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }
 
 export function PrintQuestionViewPage() {
@@ -125,8 +117,7 @@ export function PrintQuestionViewPage() {
   useEffect(() => {
     if (!printFileName.trim()) return;
 
-    // 修改原因：部分浏览器在打开打印预览时会读取“当前页已稳定的 title”，
-    // 若只在点击打印瞬间设置标题，可能来不及生效。
+    // 修改原因：导出失败时，用户可能手动截图/另存页面；保持标题与建议文件名一致，便于识别。
     const previousTitle = document.title;
     document.title = printFileName;
 
@@ -135,128 +126,61 @@ export function PrintQuestionViewPage() {
     };
   }, [printFileName]);
 
-  const handlePrint = () => {
-    const cards = Array.from(document.querySelectorAll<HTMLElement>('.print-card'));
-    if (cards.length === 0) {
-      window.requestAnimationFrame(() => {
-        window.print();
-      });
+  const handlePrint = async () => {
+    if (questions.length === 0) {
+      toast.error('当前没有可打印内容');
       return;
     }
 
     const nextFileName = printFileName.trim() || '打印题目';
-    const popup = window.open('', '_blank');
-    if (!popup) {
-      toast.error('浏览器拦截了打印窗口，请允许弹窗后重试');
-      return;
-    }
+    const questionIds = questions.map((item) => item.id);
 
-    // 修改原因：部分浏览器仅使用“打印源窗口标题”作为 PDF 默认文件名，独立窗口方式命中率更高。
-    const html = `
-      <!doctype html>
-      <html lang="zh-CN">
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>${escapeHtml(nextFileName)}</title>
-          <style>
-            @page {
-              size: A4 portrait;
-              margin: 10mm;
-            }
-            * {
-              box-sizing: border-box;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff;
-              color: #111827;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
-            }
-            .print-root {
-              padding: 0;
-              margin: 0;
-            }
-            .print-card {
-              border: 1px solid #d1d5db;
-              border-radius: 10px;
-              padding: 12px;
-              margin-bottom: 8mm;
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            .print-image-grid {
-              display: grid;
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-              gap: 3mm;
-              margin-top: 12px;
-            }
-            .print-question-image {
-              width: 100%;
-              max-height: 78mm;
-              object-fit: contain;
-              background: #ffffff;
-            }
-            .print-answer-space {
-              min-height: 42mm;
-              background: #ffffff !important;
-            }
-          </style>
-        </head>
-        <body>
-          <main class="print-root">${cards.map((card) => card.outerHTML).join('')}</main>
-        </body>
-      </html>
-    `;
+    try {
+      // 修改原因：移动端无法稳定使用 window.print，改为后端生成 PDF 并交给系统下载/预览。
+      const response = await parentService.downloadQuestionsPdf(questionIds, nextFileName);
 
-    popup.document.open();
-    popup.document.write(html);
-    popup.document.close();
+      const blob = response.data as Blob;
+      const contentDisposition = response.headers?.['content-disposition'];
+      const encodedNameMatch =
+        typeof contentDisposition === 'string'
+          ? contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+          : null;
+      const decodedName = encodedNameMatch?.[1]
+        ? decodeURIComponent(encodedNameMatch[1])
+        : `${nextFileName}.pdf`;
 
-    let hasPrinted = false;
-    const triggerPrint = () => {
-      if (hasPrinted) return;
-      hasPrinted = true;
-      popup.focus();
-      popup.print();
-    };
+      const objectUrl = window.URL.createObjectURL(blob);
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-    const waitForImagesThenPrint = () => {
-      const images = Array.from(popup.document.images);
-      if (images.length === 0) {
-        window.setTimeout(triggerPrint, 120);
-        return;
+      if (isMobile) {
+        // 修改原因：移动端优先新页预览，让用户使用系统“分享/存储到文件”流程保存 PDF。
+        const opened = window.open(objectUrl, '_blank');
+        if (!opened) {
+          toast.error('浏览器拦截了新页面，请允许后重试');
+        }
+      } else {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = decodedName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
 
-      let finished = 0;
-      const done = () => {
-        finished += 1;
-        if (finished >= images.length) {
-          window.setTimeout(triggerPrint, 120);
-        }
-      };
+      const missingHeader = response.headers?.['x-print-missing-ids'];
+      if (typeof missingHeader === 'string' && missingHeader.trim() !== '') {
+        toast.warning('部分题目已失效或暂无权限，导出时已自动跳过');
+      }
 
-      images.forEach((image) => {
-        if (image.complete) {
-          done();
-        } else {
-          image.addEventListener('load', done, { once: true });
-          image.addEventListener('error', done, { once: true });
-        }
-      });
-
-      // ⚠️ 不确定因素：若网络图片长期 pending，兜底在 2.5 秒后直接触发打印，避免无响应。
-      window.setTimeout(triggerPrint, 2500);
-    };
-
-    popup.onload = waitForImagesThenPrint;
-    if (popup.document.readyState === 'complete') {
-      waitForImagesThenPrint();
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+      }, 30_000);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('生成 PDF 失败', error);
+      toast.error('生成 PDF 失败，请稍后重试');
     }
-    popup.onafterprint = () => {
-      popup.close();
-    };
   };
 
   if (!user || user.role !== 'parent') {
@@ -318,18 +242,18 @@ export function PrintQuestionViewPage() {
         </div>
         <Button onClick={handlePrint} className="bg-morandi-5 hover:bg-morandi-5/90">
           <Printer className="w-4 h-4 mr-1" />
-          立即打印
+          导出 PDF
         </Button>
       </div>
 
       <div className="print-toolbar bg-white rounded-2xl p-4 shadow-sm space-y-2">
         <p className="text-sm text-gray-700 font-medium">打印说明</p>
         <p className="text-xs text-gray-500">{pageHint}</p>
-        <p className="text-xs text-gray-500">每道题包含题目图片与疑问描述，适合家长批量打印后离线复习。</p>
+        <p className="text-xs text-gray-500">每道题包含题目图片与疑问描述，点击“导出 PDF”后可下载或预览。</p>
         {printFileName ? (
           <p className="text-xs text-gray-500">建议保存文件名：{printFileName}</p>
         ) : null}
-        {/* ⚠️ 不确定因素：不同浏览器对 PDF 默认文件名策略可能不同，document.title 方式并非 100% 强制生效。 */}
+        {/* ⚠️ 不确定因素：移动端 WebView 对 PDF 打开策略不一致，个别机型可能表现为“直接下载”而非“新页预览”。 */}
         {/* ⚠️ 不确定因素：语音内容与超长回答在纸质场景可读性较差，当前方案默认不进入打印版面。 */}
       </div>
 
