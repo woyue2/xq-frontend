@@ -225,7 +225,9 @@ export function LoginPage() {
   const canSubmit = basePhoneValid && (loginValid || registerValid);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    // 修改原因：夸克“智能排版”可能改写视口计算，min-h-[100dvh] 用于优先匹配动态可视区域高度。
+    // ⚠️ 不确定因素：不同夸克版本对 dvh 的支持存在差异，保留 min-h-screen 作为回退。
+    <div className="flex flex-col min-h-screen min-h-[100dvh] overflow-y-auto">
       {/* 角色选择弹窗 */}
       <Dialog open={showRoleSelect} onOpenChange={setShowRoleSelect}>
         <DialogContent className="sm:max-w-md">
@@ -275,6 +277,7 @@ export function LoginPage() {
       </div> */}
 
       {/* 中间内容区 */}
+      {/* 修改原因：在被浏览器二次排版时保留纵向伸缩空间，避免首屏被工具栏/重排策略裁切后无法滚动查看完整表单。 */}
       <div className="flex-1 flex flex-col justify-center pb-10">
         <div className="w-full space-y-6">
           {/* Logo区域 */}
@@ -284,7 +287,6 @@ export function LoginPage() {
             </div>
             <h2 className="text-2xl mb-1">初中知识问答</h2>
             <p className="text-xs text-[#D5BDAF] font-bold mb-3">好好学习，天天向上</p>
-            <p className="text-gray-500">欢迎来到知识星球</p>
           </div>
 
           {/* 手机号输入 */}
