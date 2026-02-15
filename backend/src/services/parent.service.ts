@@ -1,5 +1,183 @@
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
+import { chromium } from '@playwright/test';
+
+type PrintableQuestion = {
+  id: string;
+  title: string;
+  content: string | null;
+  images: string[];
+  createdAt: Date;
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const sanitizePdfFileName = (value: string) => {
+  const base = value.trim() || '打印题目';
+  return base
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .slice(0, 80);
+};
+
+const resolveAssetUrl = (rawUrl: string, requestOrigin: string) => {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (trimmed.startsWith('/')) return `${requestOrigin}${trimmed}`;
+  return `${requestOrigin}/${trimmed}`;
+};
+
+const renderPrintPdfHtml = (questions: PrintableQuestion[], fileName: string, requestOrigin: string) => {
+  const cards = questions.map((question, index) => {
+    const safeTitle = escapeHtml(question.title || '未命名题目');
+    const safeContent = escapeHtml(
+      question.content?.trim() ? question.content : '（未填写疑问描述）'
+    );
+    const safeDate = question.createdAt.toISOString().slice(0, 10);
+    const imagesHtml =
+      question.images.length > 0
+        ? `<div class="print-image-grid">${question.images
+            .map((url, imageIndex) => {
+              const safeUrl = escapeHtml(resolveAssetUrl(url, requestOrigin));
+              return `<div class="image-wrapper"><img src="${safeUrl}" alt="question-${index + 1}-image-${imageIndex + 1}" class="print-question-image" /></div>`;
+            })
+            .join('')}</div>`
+        : '<p class="empty-image">（本题未上传图片）</p>';
+
+    return `
+      <article class="print-card">
+        <div class="head-row">
+          <h2>第 ${index + 1} 题</h2>
+          <span>${safeDate}</span>
+        </div>
+        <p class="title">${safeTitle}</p>
+        <p class="content">${safeContent.replace(/\n/g, '<br/>')}</p>
+        ${imagesHtml}
+        <section class="answer-section">
+          <p class="answer-title">答题区</p>
+          <div class="print-answer-space"></div>
+        </section>
+      </article>
+    `;
+  });
+
+  return `
+  <!doctype html>
+  <html lang="zh-CN">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>${escapeHtml(fileName)}</title>
+      <style>
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
+        * {
+          box-sizing: border-box;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+          color: #111827;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        .print-root {
+          margin: 0;
+          padding: 0;
+        }
+        .print-card {
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          padding: 12px;
+          margin-bottom: 8mm;
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+        .head-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+        .head-row h2 {
+          margin: 0;
+          font-size: 16px;
+          line-height: 1.4;
+        }
+        .head-row span {
+          color: #9ca3af;
+          font-size: 12px;
+          line-height: 1;
+        }
+        .title {
+          margin: 0;
+          font-size: 14px;
+          line-height: 1.7;
+          font-weight: 600;
+          color: #111827;
+        }
+        .content {
+          margin: 8px 0 0;
+          font-size: 14px;
+          line-height: 1.7;
+          color: #374151;
+        }
+        .print-image-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 3mm;
+          margin-top: 12px;
+        }
+        .image-wrapper {
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        .print-question-image {
+          width: 100%;
+          max-height: 78mm;
+          object-fit: contain;
+          background: #ffffff;
+          display: block;
+        }
+        .empty-image {
+          margin-top: 12px;
+          color: #9ca3af;
+          font-size: 12px;
+        }
+        .answer-section {
+          margin-top: 16px;
+        }
+        .answer-title {
+          margin: 0 0 8px;
+          color: #9ca3af;
+          font-size: 12px;
+        }
+        .print-answer-space {
+          min-height: 42mm;
+          border: 1px dashed #d1d5db;
+          border-radius: 10px;
+          background-image: repeating-linear-gradient(to bottom, #ffffff 0px, #ffffff 27px, #f3f4f6 28px);
+        }
+      </style>
+    </head>
+    <body>
+      <main class="print-root">${cards.join('')}</main>
+    </body>
+  </html>
+  `;
+};
 
 // Helper to verify SMS code for parent-child binding.
 // 与 AuthService 中验证码校验逻辑保持一致：始终依赖 VerificationCode 表，不再引入环境级“万能码”。
@@ -29,6 +207,135 @@ const verifyCode = async (phone: string, code: string, type: string) => {
 };
 
 export class ParentService {
+  async generateQuestionsPdf(params: {
+    parentId: string;
+    questionIds: string[];
+    fileName?: string;
+    requestOrigin: string;
+  }) {
+    const { parentId, questionIds, fileName, requestOrigin } = params;
+
+    const dedupedIds = Array.from(
+      new Set(questionIds.filter((id) => typeof id === 'string' && id.trim() !== ''))
+    );
+
+    if (dedupedIds.length === 0) {
+      throw new AppError(400, 'INVALID_PARAMS', '请先选择要打印的题目');
+    }
+
+    // 修改原因：限制单次打印数量，避免移动端一次性导出过大 PDF 导致超时。
+    if (dedupedIds.length > 100) {
+      throw new AppError(400, 'INVALID_PARAMS', '单次最多打印 100 道题目');
+    }
+
+    // 修改原因：与当前前端逻辑保持一致，仅允许导出审核通过题目，避免扩大可见范围。
+    const questions = await prisma.question.findMany({
+      where: {
+        id: { in: dedupedIds },
+        status: 'approved'
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        images: true,
+        createdAt: true
+      }
+    });
+
+    const byId = new Map<string, PrintableQuestion>(
+      questions.map((item) => [
+        item.id,
+        {
+          id: item.id,
+          title: item.title,
+          content: item.content,
+          images: Array.isArray(item.images) ? item.images : [],
+          createdAt: item.createdAt
+        }
+      ])
+    );
+
+    const ordered = dedupedIds
+      .map((id) => byId.get(id))
+      .filter((item): item is PrintableQuestion => Boolean(item));
+    const missingIds = dedupedIds.filter((id) => !byId.has(id));
+
+    if (ordered.length === 0) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', '没有可导出的题目');
+    }
+
+    const safeFileName = sanitizePdfFileName(fileName || '打印题目');
+    const html = renderPrintPdfHtml(ordered, safeFileName, requestOrigin);
+
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+    try {
+      browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage({
+        viewport: { width: 1240, height: 1754 }
+      });
+      await page.setContent(html, { waitUntil: 'networkidle' });
+
+      await page.evaluate(async () => {
+        const images = Array.from(document.images);
+        if (images.length === 0) return;
+
+        const waitAll = Promise.all(
+          images.map(
+            (image) =>
+              new Promise<void>((resolve) => {
+                if (image.complete) {
+                  resolve();
+                  return;
+                }
+                image.addEventListener('load', () => resolve(), { once: true });
+                image.addEventListener('error', () => resolve(), { once: true });
+              })
+          )
+        );
+
+        // ⚠️ 不确定因素：个别外链图片可能长期 pending；这里 3 秒超时后继续导出，避免接口无响应。
+        await Promise.race([
+          waitAll,
+          new Promise<void>((resolve) => {
+            window.setTimeout(() => resolve(), 3000);
+          })
+        ]);
+      });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '10mm',
+          right: '10mm',
+          bottom: '10mm',
+          left: '10mm'
+        }
+      });
+
+      // 修改原因：预留 parentId，便于后续若需按“绑定关系”收紧权限时可直接扩展，不影响当前接口签名。
+      void parentId;
+
+      return {
+        fileName: safeFileName,
+        pdfBuffer,
+        missingIds
+      };
+    } catch {
+      // ⚠️ 不确定因素：若部署环境未安装 Playwright Chromium 二进制，会进入此分支并返回 503。
+      throw new AppError(503, 'PDF_RENDER_FAILED', 'PDF 生成失败，请稍后重试');
+    } finally {
+      // 修改原因：确保异常路径也能关闭浏览器进程，避免长期运行出现资源泄漏。
+      if (browser) {
+        await browser.close();
+      }
+    }
+  }
+
   /**
    * 绑定孩子
    */

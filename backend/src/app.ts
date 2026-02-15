@@ -24,6 +24,7 @@ import { internalRouter } from './routes/internal.routes';
 import { configRouter } from './routes/config.routes';
 import { profileRouter } from './routes/profile.routes';
 import { parentRouter } from './routes/parent.routes';
+import { printRouter } from './routes/print.routes';
 import { env } from './config/env';
 
 export const createApp = () => {
@@ -98,6 +99,8 @@ export const createApp = () => {
   app.use('/api/internal', internalRouter);
   app.use('/api/config', configRouter);
   app.use('/api/parent', parentRouter);
+  // 修改原因：新增统一打印导出入口，前端固定调用 /api/print/questions/pdf。
+  app.use('/api/print', printRouter);
   app.use('/api', notificationRouter);
 
   app.use(errorMiddleware);
