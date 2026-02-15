@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>“霜降晨曦”字体与尺寸探索</title>
+  <style>
+    :root {
+      --bg-main: #f1f5f9;
+      --frost-blue-start: #e0f2fe;
+      --frost-blue-end: #bae6fd;
+      --frost-text: #0369a1;
+      --logo-scale: 1; /* 默认倍率 */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "PingFang SC", system-ui, sans-serif;
+      background-color: var(--bg-main);
+      color: #1e293b;
+      padding-bottom: 120px;
+    }
+
+    header {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      padding: 8px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+    .btn:active { transform: scale(0.95); }
+
+    .grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
+      padding: 0 20px;
+    }
+
+    .logo-card {
+      background: #fff;
+      border-radius: 32px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s;
+    }
+
+    .logo-box {
+      width: calc(160px * var(--logo-scale));
+      height: calc(160px * var(--logo-scale));
+      border-radius: calc(40px * var(--logo-scale));
+      background: linear-gradient(135deg, var(--frost-blue-start) 0%, var(--frost-blue-end) 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .character {
+      font-size: calc(80px * var(--logo-scale));
+      color: var(--frost-text);
+      line-height: 1;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .info { text-align: center; }
+    .info h3 { font-size: 1.1rem; margin-bottom: 8px; color: #334155; }
+    .info p { font-size: 0.85rem; color: #94a3b8; font-family: monospace; }
+
+    /* 9 种字体风格 */
+    .font-1 { font-family: "STKaiti", "Kaiti", serif; } /* 优雅楷体 */
+    .font-2 { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 900; } /* 现代超重黑 */
+    .font-3 { font-family: "STSong", "SimSun", serif; font-weight: bold; } /* 经典宋体 */
+    .font-4 { font-family: "STXingkai", "Xingkai", cursive; } /* 灵动行楷 */
+    .font-5 { font-family: "Rounded Mplus 1c", "Comic Sans MS", cursive; font-weight: bold; } /* 亲和圆体 */
+    .font-6 { font-family: "Noto Serif SC", serif; font-weight: 900; } /* 厚重衬线 */
+    .font-7 { font-family: "Ma Shan Zheng", cursive; } /* 书法艺术 */
+    .font-8 { font-family: "Zhi Mang Xing", cursive; } /* 飘逸草书 */
+    .font-9 { font-family: "system-ui", sans-serif; font-weight: 100; } /* 极简细体 */
+
+    .scale-value {
+      font-weight: bold;
+      color: #3b82f6;
+      min-width: 40px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <div class="label" style="font-size: 0.75rem; color: #64748b; font-weight: bold;">LOGO 尺寸调节</div>
+    <div class="control-group">
+      <button class="btn" id="decSize">－</button>
+      <span class="scale-value" id="scaleDisplay">1.0x</span>
+      <button class="btn" id="incSize">＋</button>
+    </div>
+    <button class="btn" id="resetSize" style="font-size: 0.7rem;">重置大小</button>
+  </div>
+
+  <header>
+    <h1>“霜降晨曦”字体探索</h1>
+    <p style="color: #64748b; margin-top: 10px;">清新淡蓝背景下的 9 种不同性格的“题”字表达</p>
+  </header>
+
+  <main class="grid">
+    
+    <!-- 1. 优雅楷体 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-1">题</span>
+      </div>
+      <div class="info">
+        <h3>优雅楷体 (Elegant Kaiti)</h3>
+        <p>font-family: Kaiti</p>
+      </div>
+    </div>
+
+    <!-- 2. 现代超重黑 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-2">题</span>
+      </div>
+      <div class="info">
+        <h3>现代超重黑 (Modern Heavy)</h3>
+        <p>font-weight: 900</p>
+      </div>
+    </div>
+
+    <!-- 3. 经典宋体 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-3">题</span>
+      </div>
+      <div class="info">
+        <h3>经典宋体 (Classic Song)</h3>
+        <p>font-family: SimSun</p>
+      </div>
+    </div>
+
+    <!-- 4. 灵动行楷 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-4">题</span>
+      </div>
+      <div class="info">
+        <h3>灵动行楷 (Fluent Script)</h3>
+        <p>font-family: Xingkai</p>
+      </div>
+    </div>
+
+    <!-- 5. 亲和圆体 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-5">题</span>
+      </div>
+      <div class="info">
+        <h3>亲和圆体 (Friendly Round)</h3>
+        <p>Border-radius style</p>
+      </div>
+    </div>
+
+    <!-- 6. 厚重衬线 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-6">题</span>
+      </div>
+      <div class="info">
+        <h3>厚重衬线 (Heavy Serif)</h3>
+        <p>Serif Black</p>
+      </div>
+    </div>
+
+    <!-- 7. 书法艺术 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-7">题</span>
+      </div>
+      <div class="info">
+        <h3>书法艺术 (Calligraphy)</h3>
+        <p>Artistic Brush</p>
+      </div>
+    </div>
+
+    <!-- 8. 飘逸草书 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-8">题</span>
+      </div>
+      <div class="info">
+        <h3>飘逸草书 (Cursive Flow)</h3>
+        <p>Dynamic Stroke</p>
+      </div>
+    </div>
+
+    <!-- 9. 极简细体 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character font-9">题</span>
+      </div>
+      <div class="info">
+        <h3>极简细体 (Minimal Thin)</h3>
+        <p>Font-weight: 100</p>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let scale = 1.0;
+    const root = document.documentElement;
+    const display = document.getElementById('scaleDisplay');
+
+    function updateScale(newScale) {
+      scale = Math.max(0.5, Math.min(2.0, newScale));
+      root.style.setProperty('--logo-scale', scale);
+      display.textContent = scale.toFixed(1) + 'x';
+    }
+
+    document.getElementById('incSize').addEventListener('click', () => updateScale(scale + 0.1));
+    document.getElementById('decSize').addEventListener('click', () => updateScale(scale - 0.1));
+    document.getElementById('resetSize').addEventListener('click', () => updateScale(1.0));
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学海答疑 - 图标库设计 (10-18岁适用)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --accent-blue: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-green: #4ade80;
+      --accent-orange: #fb923c;
+      --text-main: #f8fafc;
+      --text-dim: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+
+    header {
+      max-width: 1000px;
+      margin: 0 auto 60px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(to right, var(--accent-blue), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .icon-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .icon-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      background: rgba(30, 41, 59, 0.9);
+    }
+
+    .icon-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, var(--icon-color), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .icon-card:hover::before {
+      opacity: 0.1;
+    }
+
+    .icon-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      stroke: var(--icon-color);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      filter: drop-shadow(0 0 8px var(--icon-color-alpha));
+      transition: transform 0.4s ease;
+    }
+
+    .icon-card:hover svg {
+      transform: scale(1.1) rotate(-5deg);
+    }
+
+    .icon-name {
+      position: relative;
+      z-index: 1;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+
+    .icon-desc {
+      position: relative;
+      z-index: 1;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    /* Icon Colors */
+    .color-blue { --icon-color: #38bdf8; --icon-color-alpha: rgba(56, 189, 248, 0.4); }
+    .color-purple { --icon-color: #a855f7; --icon-color-alpha: rgba(168, 85, 247, 0.4); }
+    .color-green { --icon-color: #4ade80; --icon-color-alpha: rgba(74, 222, 128, 0.4); }
+    .color-orange { --icon-color: #fb923c; --icon-color-alpha: rgba(251, 146, 60, 0.4); }
+    .color-pink { --icon-color: #f472b6; --icon-color-alpha: rgba(244, 114, 182, 0.4); }
+    .color-yellow { --icon-color: #facc15; --icon-color-alpha: rgba(250, 204, 21, 0.4); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 1.8rem; }
+      .icon-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>知识之径 图标系统</h1>
+    <p class="subtitle">专为 10-18 岁青少年设计的现代化学习助手图标库，平衡了趣味性与学术严谨感。</p>
+  </header>
+
+  <main class="icon-grid">
+    <!-- 1. 提问 Q&A -->
+    <div class="icon-card color-blue">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          <path d="M12 7v4"></path>
+          <path d="M12 14h.01"></path>
+        </svg>
+      </div>
+      <span class="icon-name">快速提问</span>
+      <span class="icon-desc">开启好奇心之门</span>
+    </div>
+
+    <!-- 2. 书籍/知识库 -->
+    <div class="icon-card color-purple">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          <path d="M8 7h8"></path>
+          <path d="M8 11h8"></path>
+        </svg>
+      </div>
+      <span class="icon-name">知识文库</span>
+      <span class="icon-desc">系统化的学科资料</span>
+    </div>
+
+    <!-- 3. 灵感/解答 -->
+    <div class="icon-card color-yellow">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M9 18h6"></path>
+          <path d="M10 22h4"></path>
+          <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"></path>
+        </svg>
+      </div>
+      <span class="icon-name">智慧解答</span>
+      <span class="icon-desc">点亮思维的火花</span>
+    </div>
+
+    <!-- 4. 数学/逻辑 -->
+    <div class="icon-card color-green">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 12h3L9 3l6 18 3-9h3"></path>
+          <circle cx="12" cy="12" r="10" opacity="0.2"></circle>
+        </svg>
+      </div>
+      <span class="icon-name">数学逻辑</span>
+      <span class="icon-desc">解析几何与代数</span>
+    </div>
+
+    <!-- 5. 科学/实验 -->
+    <div class="icon-card color-pink">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M16.3 11L9 11l-2-4h11.3z"></path>
+          <path d="M7 7L5 15c-1 4 1 6 5 6h4c4 0 6-2 5-6l-2-8"></path>
+          <path d="M9 3h6"></path>
+          <path d="M12 3v4"></path>
+        </svg>
+      </div>
+      <span class="icon-name">科学实验室</span>
+      <span class="icon-desc">探索自然界的奥秘</span>
+    </div>
+
+    <!-- 6. 荣誉/成就 -->
+    <div class="icon-card color-orange">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+          <path d="M4 22h16"></path>
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path>
+        </svg>
+      </div>
+      <span class="icon-name">成长勋章</span>
+      <span class="icon-desc">记录每一步进步</span>
+    </div>
+
+    <!-- 7. 搜索/查找 -->
+    <div class="icon-card color-blue">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </div>
+      <span class="icon-name">精准搜索</span>
+      <span class="icon-desc">秒级定位难点解析</span>
+    </div>
+
+    <!-- 8. 个人中心 -->
+    <div class="icon-card color-purple">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <span class="icon-name">学习档案</span>
+      <span class="icon-desc">我的学习成长路径</span>
+    </div>
+
+    <!-- 9. 消息/通知 -->
+    <div class="icon-card color-yellow">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </div>
+      <span class="icon-name">消息中心</span>
+      <span class="icon-desc">老师答疑及时提醒</span>
+    </div>
+
+    <!-- 10. 学习计划 -->
+    <div class="icon-card color-green">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      </div>
+      <span class="icon-name">日程规划</span>
+      <span class="icon-desc">合理分配学习时间</span>
+    </div>
+
+    <!-- 11. 社区讨论 -->
+    <div class="icon-card color-pink">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        </svg>
+      </div>
+      <span class="icon-name">学霸社区</span>
+      <span class="icon-desc">与同龄人思维碰撞</span>
+    </div>
+
+    <!-- 12. 错题本 -->
+    <div class="icon-card color-orange">
+      <div class="icon-wrapper">
+        <svg viewBox="0 0 24 24">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+      </div>
+      <span class="icon-name">错题本</span>
+      <span class="icon-desc">温故知新，查漏补缺</span>
+    </div>
+  </main>
+
+  <footer style="text-align: center; margin-top: 60px; color: var(--text-dim); font-size: 0.9rem;">
+    <p>&copy; 2026 知识之径 Q&A System - UI Icon Design Exploration</p>
+  </footer>
+
+</body>
+</html>

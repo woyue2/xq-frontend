@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>“霜降晨曦”思源字体占比调节器</title>
+  <!-- 引入思源黑体 (Noto Sans SC) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;300;400;500;700;900&display=swap">
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --frost-blue-start: #e0f2fe;
+      --frost-blue-end: #bae6fd;
+      --frost-text: #0369a1;
+      --char-ratio: 0.5; /* 默认汉字占容器的比例 */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+      background-color: var(--bg-main);
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 120px;
+    }
+
+    header {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .control-panel {
+      position: fixed;
+      bottom: 40px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(20px);
+      padding: 24px 40px;
+      border-radius: 32px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      width: 300px;
+    }
+
+    input[type=range] {
+      flex: 1;
+      cursor: pointer;
+    }
+
+    .value-display {
+      font-family: monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #3b82f6;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .grid {
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
+      padding: 0 20px;
+    }
+
+    .logo-card {
+      background: #fff;
+      border-radius: 32px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .logo-box {
+      width: 200px;
+      height: 200px;
+      border-radius: 54px;
+      background: linear-gradient(135deg, var(--frost-blue-start) 0%, var(--frost-blue-end) 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .character {
+      /* 核心逻辑：font-size 基于容器宽度 * 调节比例 */
+      font-size: calc(200px * var(--char-ratio));
+      color: var(--frost-text);
+      line-height: 1;
+      transition: font-size 0.1s ease-out;
+      font-family: "Noto Sans SC";
+    }
+
+    .info { text-align: center; margin-top: 20px; }
+    .info h3 { font-size: 1rem; margin-bottom: 4px; color: #334155; }
+    .info p { font-size: 0.8rem; color: #94a3b8; }
+
+    /* 9 种不同字重的预览 */
+    .weight-100 { font-weight: 100; }
+    .weight-300 { font-weight: 300; }
+    .weight-400 { font-weight: 400; }
+    .weight-500 { font-weight: 500; }
+    .weight-700 { font-weight: 700; }
+    .weight-900 { font-weight: 900; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>思源黑体 & 占比调节</h1>
+    <p style="color: #64748b; margin-top: 10px;">调节“题”字在容器中的留白比例，寻找最平和的视觉重心</p>
+  </header>
+
+  <main class="grid">
+    <!-- 展示不同字重的效果，它们都会受全局占比滑块控制 -->
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character weight-100">题</span>
+      </div>
+      <div class="info"><h3>极细 (Thin 100)</h3><p>呼吸感最强，极致空灵</p></div>
+    </div>
+
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character weight-300">题</span>
+      </div>
+      <div class="info"><h3>细体 (Light 300)</h3><p>平和、现代、轻盈</p></div>
+    </div>
+
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character weight-400">题</span>
+      </div>
+      <div class="info"><h3>常规 (Regular 400)</h3><p>最标准的视觉平衡</p></div>
+    </div>
+
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character weight-500">题</span>
+      </div>
+      <div class="info"><h3>中黑 (Medium 500)</h3><p>稳重且富有信任感</p></div>
+    </div>
+
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character weight-700">题</span>
+      </div>
+      <div class="info"><h3>粗体 (Bold 700)</h3><p>识别度极高，核心突出</p></div>
+    </div>
+
+    <div class="logo-card">
+      <div class="logo-box">
+        <span class="character weight-900">题</span>
+      </div>
+      <div class="info"><h3>特粗 (Black 900)</h3><p>极具视觉冲击力</p></div>
+    </div>
+  </main>
+
+  <div class="control-panel">
+    <div style="font-size: 0.8rem; color: #64748b; font-weight: bold; margin-bottom: 8px;">汉字占比调节 (Ratio)</div>
+    <div class="slider-container">
+      <input type="range" id="ratioSlider" min="20" max="90" value="50">
+      <span class="value-display" id="ratioValue">0.50</span>
+    </div>
+    <p style="font-size: 0.7rem; color: #94a3b8;">调整汉字相对于 Logo 容器的大小</p>
+  </div>
+
+  <script>
+    const slider = document.getElementById('ratioSlider');
+    const valueDisplay = document.getElementById('ratioValue');
+    const root = document.documentElement;
+
+    slider.addEventListener('input', () => {
+      const ratio = slider.value / 100;
+      valueDisplay.textContent = ratio.toFixed(2);
+      root.style.setProperty('--char-ratio', ratio);
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logo 原始背景饱和度调节器</title>
+  <style>
+    :root {
+      /* 原始背景 #020617 的 HSL 参数 */
+      --base-hue: 229; 
+      --base-lightness: 5%; 
+      --current-saturation: 84%; /* 原始饱和度 */
+      
+      --frozen-blue-start: #93c5fd;
+      --frozen-blue-end: #f8fafc;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "PingFang SC", system-ui, sans-serif;
+      /* 动态背景色：基于原始深蓝调 (#020617) 的 HSL 调节 */
+      background-color: hsl(var(--base-hue), var(--current-saturation), var(--base-lightness));
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.1s ease;
+      overflow: hidden;
+    }
+
+    .control-panel {
+      position: fixed;
+      bottom: 40px;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(20px);
+      padding: 30px 40px;
+      border-radius: 32px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      z-index: 1000;
+      width: 400px;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+    }
+
+    input[type=range] {
+      flex: 1;
+      cursor: pointer;
+      accent-color: #3b82f6;
+    }
+
+    .value-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #93c5fd;
+      min-width: 100px;
+      text-align: right;
+    }
+
+    .label-group {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .label {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+
+    .reset-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .logo-stage {
+      text-align: center;
+      position: relative;
+    }
+
+    .logo-svg {
+      width: 280px;
+      height: 280px;
+      filter: drop-shadow(0 0 30px rgba(147, 197, 253, 0.2));
+    }
+
+    .color-info {
+      margin-top: 30px;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      font-size: 0.9rem;
+      color: #94a3b8;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .color-info span {
+      color: #f8fafc;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo-stage">
+    <svg class="logo-svg" viewBox="0 0 200 200">
+      <defs>
+        <linearGradient id="frozenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:var(--frozen-blue-start);stop-opacity:1" />
+          <stop offset="100%" style="stop-color:var(--frozen-blue-end);stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <!-- 1:1 复刻自 favicon.svg -->
+      <path d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" 
+            fill="none" 
+            stroke="url(#frozenGrad)" 
+            stroke-width="12" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+      <!-- 深色背景下使用浅色节点 -->
+      <circle cx="100" cy="100" r="15" fill="#f8fafc" />
+    </svg>
+    
+    <div class="color-info" id="hexInfo">
+      当前背景色 (HEX): <span id="currentHex">#020617</span>
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <div class="label-group">
+      <div class="label">原始背景饱和度 (Saturation)</div>
+      <button class="reset-btn" id="resetBtn">恢复默认 (84%)</button>
+    </div>
+    
+    <div class="slider-container">
+      <input type="range" id="satSlider" min="0" max="100" value="84">
+      <span class="value-display" id="satValue">84%</span>
+    </div>
+    
+    <p style="font-size: 0.75rem; color: #64748b; text-align: center;">
+      基于原始深色调 <strong>#020617</strong> 进行调节
+    </p>
+  </div>
+
+  <script>
+    const slider = document.getElementById('satSlider');
+    const valueDisplay = document.getElementById('satValue');
+    const currentHex = document.getElementById('currentHex');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // HSL 转 HEX 的简易函数
+    function hslToHex(h, s, l) {
+      l /= 100;
+      const a = s * Math.min(l, 1 - l) / 100;
+      const f = n => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    function updateBackground() {
+      const sat = slider.value;
+      valueDisplay.textContent = sat + '%';
+      document.documentElement.style.setProperty('--current-saturation', sat + '%');
+      
+      // 更新 HEX 显示
+      const hex = hslToHex(229, sat, 5);
+      currentHex.textContent = hex.toUpperCase();
+    }
+
+    slider.addEventListener('input', updateBackground);
+    
+    resetBtn.addEventListener('click', () => {
+      slider.value = 84;
+      updateBackground();
+    });
+
+    // 初始化
+    updateBackground();
+  </script>
+</body>
+</html>

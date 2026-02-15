@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>方案4：无限探索 - 多彩配色研究</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #0f172a;
+      --text-dim: #64748b;
+      --border: #f1f5f9;
+      
+      /* Scheme A: Electric Blue (Tech & Logic) */
+      --a-start: #3b82f6;
+      --a-end: #06b6d4;
+      
+      /* Scheme B: Cyber Purple (Creativity & Future) */
+      --b-start: #8b5cf6;
+      --b-end: #d946ef;
+      
+      /* Scheme C: Nature Mint (Growth & Calm) */
+      --c-start: #10b981;
+      --c-end: #34d399;
+      
+      /* Scheme D: Deep Space (Authority & Mystery) */
+      --d-start: #1e293b;
+      --d-end: #475569;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #020617;
+        --text: #f8fafc;
+        --text-dim: #94a3b8;
+        --border: #1e293b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 100px;
+    }
+
+    header {
+      max-width: 800px;
+      margin: 80px auto 60px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1.1rem;
+    }
+
+    .grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+    }
+
+    .color-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    .color-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+    }
+
+    .preview-box {
+      width: 100%;
+      height: 200px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      border-radius: 16px;
+      position: relative;
+    }
+
+    .logo-svg {
+      width: 120px;
+      height: 120px;
+    }
+
+    .infinite-path {
+      fill: none;
+      stroke-width: 12;
+      stroke-linecap: round;
+      transition: stroke 0.3s ease;
+    }
+
+    .center-node {
+      transition: fill 0.3s ease;
+    }
+
+    .info h3 {
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .info p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+    }
+
+    /* Color Specifics */
+    .card-a .preview-box { background: rgba(59, 130, 246, 0.05); }
+    .card-a .infinite-path { stroke: url(#gradA); }
+    .card-a .center-node { fill: url(#gradA); }
+
+    .card-b .preview-box { background: rgba(139, 92, 246, 0.05); }
+    .card-b .infinite-path { stroke: url(#gradB); }
+    .card-b .center-node { fill: url(#gradB); }
+
+    .card-c .preview-box { background: rgba(16, 185, 129, 0.05); }
+    .card-c .infinite-path { stroke: url(#gradC); }
+    .card-c .center-node { fill: url(#gradC); }
+
+    .card-d .preview-box { background: #0f172a; }
+    .card-d .infinite-path { stroke: url(#gradD); }
+    .card-d .center-node { fill: url(#gradD); }
+    .card-d .info h3 { color: inherit; }
+
+    /* App Icon Mockup */
+    .mockup-section {
+      max-width: 800px;
+      margin: 80px auto 0;
+      padding: 40px;
+      background: var(--border);
+      border-radius: 32px;
+      text-align: center;
+    }
+
+    .icon-row {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+
+    .app-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .app-icon svg {
+      width: 50px;
+      height: 50px;
+    }
+  </style>
+</head>
+<body>
+
+  <svg style="width:0; height:0; position:absolute;">
+    <defs>
+      <linearGradient id="gradA" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+      </linearGradient>
+      <linearGradient id="gradB" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#d946ef;stop-opacity:1" />
+      </linearGradient>
+      <linearGradient id="gradC" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+      </linearGradient>
+      <linearGradient id="gradD" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#94a3b8;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <header>
+    <h1>方案4：配色延展研究</h1>
+    <p class="subtitle">针对“无限探索”标志，我们从科技感、创造力、亲和力及高端感四个维度进行了配色探索。</p>
+  </header>
+
+  <main class="grid">
+    
+    <!-- A: Electric Blue -->
+    <div class="color-card card-a">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" />
+          <path class="infinite-path" d="M100,140 C80,140 60,150 60,170" />
+          <path class="infinite-path" d="M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>极客蓝 (Electric Blue)</h3>
+        <p>代表科技、逻辑与理性，给人以高效、精准的心理暗示，适合工具属性强的软件。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#3b82f6"></div>
+          <div class="swatch" style="background:#06b6d4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B: Cyber Purple -->
+    <div class="color-card card-b">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" />
+          <path class="infinite-path" d="M100,140 C80,140 60,150 60,170" />
+          <path class="infinite-path" d="M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>幻彩紫 (Cyber Purple)</h3>
+        <p>代表创意、想象力与未来感。这种配色在青少年群体中极具吸引力，个性鲜明。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#8b5cf6"></div>
+          <div class="swatch" style="background:#d946ef"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C: Mint Green -->
+    <div class="color-card card-c">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" />
+          <path class="infinite-path" d="M100,140 C80,140 60,150 60,170" />
+          <path class="infinite-path" d="M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>清新绿 (Nature Mint)</h3>
+        <p>代表成长、健康与宁静。缓解学习压力，给人以舒适、亲和的视觉感受。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#10b981"></div>
+          <div class="swatch" style="background:#34d399"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D: Midnight Gold -->
+    <div class="color-card card-d">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" />
+          <path class="infinite-path" d="M100,140 C80,140 60,150 60,170" />
+          <path class="infinite-path" d="M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>深空银 (Midnight Silver)</h3>
+        <p>深色底搭配银白/淡灰。展现出一种高端、极简、权威的质感，适合作为专业版配色。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#f8fafc"></div>
+          <div class="swatch" style="background:#94a3b8"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <section class="mockup-section">
+    <h2>App 图标效果模拟</h2>
+    <p>不同配色方案在移动端桌面上的呈现效果</p>
+    <div class="icon-row">
+      <div class="app-icon" style="background: linear-gradient(135deg, #3b82f6, #06b6d4);">
+        <svg viewBox="0 0 200 200">
+          <path d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" fill="none" stroke="white" stroke-width="12" stroke-linecap="round" />
+          <circle cx="100" cy="100" r="15" fill="white" />
+        </svg>
+      </div>
+      <div class="app-icon" style="background: linear-gradient(135deg, #8b5cf6, #d946ef);">
+        <svg viewBox="0 0 200 200">
+          <path d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" fill="none" stroke="white" stroke-width="12" stroke-linecap="round" />
+          <circle cx="100" cy="100" r="15" fill="white" />
+        </svg>
+      </div>
+      <div class="app-icon" style="background: white; border: 1px solid #e2e8f0;">
+        <svg viewBox="0 0 200 200">
+          <path d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" fill="none" stroke="url(#gradC)" stroke-width="12" stroke-linecap="round" />
+          <circle cx="100" cy="100" r="15" fill="url(#gradC)" />
+        </svg>
+      </div>
+      <div class="app-icon" style="background: #0f172a;">
+        <svg viewBox="0 0 200 200">
+          <path d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" fill="none" stroke="white" stroke-width="12" stroke-linecap="round" />
+          <circle cx="100" cy="100" r="15" fill="white" />
+        </svg>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>

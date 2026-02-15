@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>寒霜结晶 - 浅色背景表现预览</title>
+  <style>
+    :root {
+      --frozen-blue: #93c5fd;
+      --frozen-dark: #1e40af;
+      --text-main: #1e293b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "PingFang SC", system-ui, sans-serif;
+      background-color: #f1f5f9;
+      color: var(--text-main);
+      padding-bottom: 80px;
+    }
+
+    header {
+      text-align: center;
+      padding: 80px 20px 40px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #0f172a;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 1.1rem;
+    }
+
+    .grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+    }
+
+    .bg-card {
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bg-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .preview {
+      height: 220px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .logo-container {
+      width: 120px;
+      height: 120px;
+    }
+
+    .info {
+      padding: 20px;
+      background: #fff;
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .info h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+
+    .info p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    /* Logo 样式：针对浅色背景略微增强了对比度 */
+    .frozen-logo-path {
+      fill: none;
+      stroke: url(#lightGrad);
+      stroke-width: 15;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      /* 在极浅色背景下增加一层淡淡的投影，提升质感 */
+      filter: drop-shadow(0 2px 4px rgba(30, 64, 175, 0.1));
+    }
+
+    .frozen-logo-node {
+      fill: #1e40af; /* 浅色背景下，中心点使用深蓝色以获得更好的识别度 */
+    }
+
+    /* 9 种浅色背景定义 */
+    .bg-1 { background-color: #ffffff; } /* 纯净白 */
+    .bg-2 { background-color: #f8fafc; } /* 冰霜白 */
+    .bg-3 { background-color: #fefce8; } /* 象牙黄 */
+    .bg-4 { background-color: #f0f9ff; } /* 晨曦蓝 */
+    .bg-5 { background-color: #f5f3ff; } /* 丁香紫 */
+    .bg-6 { background-color: #ecfdf5; } /* 薄荷绿 */
+    .bg-7 { background-color: #fff7ed; } /* 晚霞粉 */
+    .bg-8 { background-color: #f1f5f9; } /* 现代灰 */
+    .bg-9 { background-color: #fafaf9; } /* 亚麻色 */
+  </style>
+</head>
+<body>
+
+  <!-- SVG 渐变定义 (专为浅色背景优化) -->
+  <svg style="width:0;height:0;position:absolute;">
+    <defs>
+      <linearGradient id="lightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" /> <!-- 调高了起始蓝色的饱和度 -->
+        <stop offset="100%" style="stop-color:#93c5fd;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <header>
+    <h1>寒霜结晶：浅色背景探索</h1>
+    <p class="subtitle">验证 Logo 在不同明度与色调背景下的表现力与兼容性</p>
+  </header>
+
+  <main class="grid">
+    
+    <!-- 1. 纯净白 -->
+    <div class="bg-card">
+      <div class="preview bg-1">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>纯净白 (Pure White)</h3>
+        <p>最标准的办公/文档背景，对比度极高。</p>
+      </div>
+    </div>
+
+    <!-- 2. 冰霜白 -->
+    <div class="bg-card">
+      <div class="preview bg-2">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>冰霜白 (Frost White)</h3>
+        <p>带有极淡蓝调的白，与“寒霜”主题最契合。</p>
+      </div>
+    </div>
+
+    <!-- 3. 象牙黄 -->
+    <div class="bg-card">
+      <div class="preview bg-3">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>象牙黄 (Ivory Cream)</h3>
+        <p>温馨的护眼色背景，呈现出一种纸质书本的质感。</p>
+      </div>
+    </div>
+
+    <!-- 4. 晨曦蓝 -->
+    <div class="bg-card">
+      <div class="preview bg-4">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>晨曦蓝 (Morning Blue)</h3>
+        <p>同色系过渡，营造出极其和谐、通透的视觉氛围。</p>
+      </div>
+    </div>
+
+    <!-- 5. 丁香紫 -->
+    <div class="bg-card">
+      <div class="preview bg-5">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>丁香紫 (Lavender Mist)</h3>
+        <p>温婉的紫色，展现出学习软件感性、富有创造力的一面。</p>
+      </div>
+    </div>
+
+    <!-- 6. 薄荷绿 -->
+    <div class="bg-card">
+      <div class="preview bg-6">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>薄荷绿 (Mint Breeze)</h3>
+        <p>清爽的绿色，象征成长与生机，缓解长时间学习的视觉疲劳。</p>
+      </div>
+    </div>
+
+    <!-- 7. 晚霞粉 -->
+    <div class="bg-card">
+      <div class="preview bg-7">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>晚霞粉 (Sunset Glow)</h3>
+        <p>温暖的柔粉色，增加软件的亲和力，减少学术的枯燥感。</p>
+      </div>
+    </div>
+
+    <!-- 8. 现代灰 -->
+    <div class="bg-card">
+      <div class="preview bg-8">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>现代灰 (Modern Slate)</h3>
+        <p>中性的浅灰色，非常适合作为系统级应用的背景，显得专业且克制。</p>
+      </div>
+    </div>
+
+    <!-- 9. 亚麻色 -->
+    <div class="bg-card">
+      <div class="preview bg-9">
+        <svg class="logo-container" viewBox="0 0 200 200">
+          <path class="frozen-logo-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="frozen-logo-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>亚麻色 (Linen Stone)</h3>
+        <p>带有大地色调的浅色，呈现出一种自然、环保且稳重的视觉效果。</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer style="text-align: center; margin-top: 60px; color: #94a3b8; font-size: 0.9rem;">
+    <p>好的设计应该在任何光影下都能闪光。挑选最适合您产品调性的背景色彩。</p>
+  </footer>
+
+</body>
+</html>

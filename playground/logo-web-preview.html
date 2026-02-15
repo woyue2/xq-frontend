@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>寒霜结晶 - Web 浏览器展示效果预览</title>
+  <style>
+    :root {
+      --frozen-blue: #93c5fd;
+      --frozen-white: #f8fafc;
+      --bg-dark: #020617;
+      --bg-light: #f8fafc;
+      --nav-height: 72px;
+      --accent-glow: rgba(147, 197, 253, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "PingFang SC", system-ui, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--frozen-white);
+      overflow-x: hidden;
+    }
+
+    /* 1. 模拟导航栏场景 */
+    .navbar {
+      height: var(--nav-height);
+      background: rgba(2, 6, 23, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(147, 197, 253, 0.1);
+      display: flex;
+      align-items: center;
+      padding: 0 40px;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-small {
+      width: 32px;
+      height: 32px;
+    }
+
+    .brand-name {
+      font-weight: 700;
+      font-size: 1.2rem;
+      letter-spacing: -0.01em;
+      background: linear-gradient(to right, var(--frozen-blue), #fff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* 2. Favicon 模拟 */
+    .favicon-section {
+      margin-top: 120px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .browser-mockup {
+      background: #1e293b;
+      border-radius: 12px 12px 0 0;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .browser-tabs {
+      height: 40px;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+    }
+
+    .tab {
+      background: #1e293b;
+      height: 30px;
+      padding: 0 16px;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--frozen-blue);
+    }
+
+    .tab img, .tab svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* 3. 加载动画场景 */
+    .loader-section {
+      padding: 80px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .frozen-loader {
+      width: 80px;
+      height: 80px;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; filter: drop-shadow(0 0 5px var(--frozen-blue)); }
+      50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px var(--frozen-blue)); }
+    }
+
+    /* 4. 落地页英雄区场景 */
+    .hero {
+      height: 80vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(circle at center, rgba(30, 58, 138, 0.3) 0%, transparent 70%);
+    }
+
+    .logo-large {
+      width: 180px;
+      height: 180px;
+      margin-bottom: 32px;
+      filter: drop-shadow(0 0 30px rgba(147, 197, 253, 0.2));
+    }
+
+    .hero h2 {
+      font-size: 3.5rem;
+      margin-bottom: 16px;
+      background: linear-gradient(to bottom, #fff, var(--frozen-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* 5. 亮色模式对比 */
+    .light-mode-preview {
+      background: var(--bg-light);
+      color: #0f172a;
+      padding: 100px 40px;
+      text-align: center;
+    }
+
+    .light-mode-preview h3 {
+      margin-bottom: 40px;
+      color: #64748b;
+    }
+
+    .logo-light {
+      filter: drop-shadow(0 4px 12px rgba(147, 197, 253, 0.3));
+    }
+
+    /* SVG 样式定义 */
+    .frozen-path {
+      fill: none;
+      stroke: url(#frozenGrad);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--frozen-blue);
+      margin-bottom: 20px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SVG 渐变定义 -->
+  <svg style="width:0;height:0;position:absolute;">
+    <defs>
+      <linearGradient id="frozenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#93c5fd;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#ffffff;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- 1. 导航栏场景 -->
+  <nav class="navbar">
+    <a href="#" class="brand">
+      <svg class="logo-small" viewBox="0 0 200 200">
+        <path class="frozen-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" stroke-width="15"/>
+        <circle cx="100" cy="100" r="15" fill="white" />
+      </svg>
+      <span class="brand-name">FROZEN IQ</span>
+    </a>
+    <div style="display:flex; gap: 24px; font-size: 0.9rem; opacity: 0.8;">
+      <span>课程</span>
+      <span>题库</span>
+      <span>社区</span>
+      <span style="border: 1px solid var(--frozen-blue); padding: 4px 16px; border-radius: 20px;">登录</span>
+    </div>
+  </nav>
+
+  <!-- 4. 落地页英雄区 -->
+  <section class="hero">
+    <p class="section-title">核心品牌展示</p>
+    <svg class="logo-large" viewBox="0 0 200 200">
+      <path class="frozen-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+      <circle cx="100" cy="100" r="12" fill="white" />
+    </svg>
+    <h2>极致纯净，逻辑之美</h2>
+    <p style="color: var(--frozen-blue); max-width: 500px; opacity: 0.8;">专为 10-18 岁青少年打造的沉浸式答疑平台，在寒霜般清澈的环境中，探索知识的无限可能。</p>
+  </section>
+
+  <!-- 2. Favicon 模拟 -->
+  <section class="favicon-section">
+    <p class="section-title">浏览器标签页 (Favicon) 表现</p>
+    <div class="browser-mockup">
+      <div class="browser-tabs">
+        <div class="tab">
+          <svg viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="80" fill="var(--frozen-blue)" />
+            <path d="M70,100 L100,70 L130,100 L100,130 Z" fill="white" />
+          </svg>
+          Frozen IQ - 首页
+        </div>
+        <div style="width: 20px; height: 20px; opacity: 0.3;">+</div>
+      </div>
+      <div style="height: 100px; background: #0f172a; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; opacity: 0.5;">
+        ( 模拟地址栏: https://frozen-iq.edu )
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 加载动画场景 -->
+  <section class="loader-section">
+    <p class="section-title">应用加载/占位动画</p>
+    <svg class="frozen-loader" viewBox="0 0 200 200">
+      <path class="frozen-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" stroke-width="15" />
+      <circle cx="100" cy="100" r="20" fill="white" />
+    </svg>
+    <p style="font-size: 0.8rem; letter-spacing: 0.1em; opacity: 0.6;">正在为你寻找最优解...</p>
+  </section>
+
+  <!-- 5. 亮色模式对比 -->
+  <section class="light-mode-preview">
+    <p class="section-title" style="color: #64748b;">亮色模式适配 (Light Mode)</p>
+    <div style="display: flex; justify-content: center; align-items: center; gap: 60px;">
+      <svg class="logo-small logo-light" viewBox="0 0 200 200">
+        <path d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" fill="none" stroke="#3b82f6" stroke-width="15" />
+        <circle cx="100" cy="100" r="15" fill="#1d4ed8" />
+      </svg>
+      <div style="text-align: left;">
+        <h4 style="font-size: 1.5rem; margin-bottom: 8px;">同样纯净</h4>
+        <p style="color: #64748b; font-size: 0.9rem;">在白色背景下，我们调高了蓝色的饱和度，<br>确保标志在不同环境下都能保持极高的辨识度。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer style="padding: 60px; text-align: center; border-top: 1px solid rgba(147, 197, 253, 0.1); opacity: 0.5; font-size: 0.8rem;">
+    &copy; 2026 Frozen IQ. 设计专为未来逻辑学家打造。
+  </footer>
+
+</body>
+</html>

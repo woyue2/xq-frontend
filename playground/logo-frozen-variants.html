@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>寒霜结晶 - 8 种图形微调方案</title>
+  <style>
+    :root {
+      --bg: #020617;
+      --card-bg: #0f172a;
+      --frozen-blue: #93c5fd;
+      --frozen-white: #f8fafc;
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+      --border: rgba(147, 197, 253, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 100px;
+    }
+
+    header {
+      max-width: 900px;
+      margin: 80px auto 60px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, var(--frozen-blue), var(--frozen-white));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 32px;
+    }
+
+    .variant-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative;
+    }
+
+    .variant-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(147, 197, 253, 0.3);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    .preview-box {
+      width: 100%;
+      height: 200px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .logo-svg {
+      width: 120px;
+      height: 120px;
+    }
+
+    .variant-info h3 {
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+      text-align: center;
+      color: var(--frozen-blue);
+    }
+
+    .variant-info p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    /* Common Frozen Styles */
+    .frozen-stroke {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .frozen-grad-def {
+      width: 0; height: 0; position: absolute;
+    }
+
+    /* Variant Specifics */
+    
+    /* 1. Crystal Cut */
+    .v-crystal path { stroke: url(#frozenGrad); stroke-width: 8; stroke-linejoin: miter; }
+    
+    /* 2. Fluid Silk */
+    .v-fluid path { stroke: url(#frozenGrad); stroke-width: 12; stroke-linecap: round; }
+    
+    /* 3. Tech Mesh */
+    .v-tech path { stroke: url(#frozenGrad); stroke-width: 4; stroke-dasharray: 1 12; stroke-linecap: round; }
+    .v-tech .main-path { stroke-width: 10; stroke-dasharray: none; opacity: 0.3; }
+
+    /* 4. Layered Shadow */
+    .v-layer .path-bg { stroke: var(--frozen-blue); opacity: 0.2; transform: translate(4px, 4px); }
+    .v-layer .path-fg { stroke: var(--frozen-white); }
+
+    /* 5. Geometric Nodes */
+    .v-node path { stroke: var(--frozen-blue); stroke-width: 8; }
+    .v-node circle { fill: var(--frozen-white); }
+
+    /* 6. Origami Fold */
+    .v-fold path { stroke: url(#frozenGrad); stroke-width: 14; }
+
+    /* 7. Soft Glow */
+    .v-glow path { stroke: var(--frozen-white); stroke-width: 8; filter: drop-shadow(0 0 8px var(--frozen-blue)); }
+
+    /* 8. Minimalist Line */
+    .v-minimal path { stroke: var(--frozen-blue); stroke-width: 3; }
+  </style>
+</head>
+<body>
+
+  <svg class="frozen-grad-def">
+    <defs>
+      <linearGradient id="frozenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:var(--frozen-blue);stop-opacity:1" />
+        <stop offset="100%" style="stop-color:var(--frozen-white);stop-opacity:1" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <header>
+    <h1>寒霜结晶：图形演变</h1>
+    <p class="subtitle">在极致纯净的配色基础上，探索 8 种不同性格的图形表达。从严谨的几何到流动的感性。</p>
+  </header>
+
+  <main class="grid">
+    
+    <!-- 1. Crystal Cut (晶体切面) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-crystal" viewBox="0 0 200 200">
+          <path class="frozen-stroke" d="M60,100 L100,60 L140,100 L100,140 L60,100 M100,140 L60,180 M100,60 L140,20" />
+          <circle cx="100" cy="100" r="12" fill="url(#frozenGrad)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>晶体切面 (Crystal Cut)</h3>
+        <p>硬朗的折线设计，如同打磨过的冰晶，强调理性的棱角与逻辑的严密。</p>
+      </div>
+    </div>
+
+    <!-- 2. Fluid Silk (流动丝绸) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-fluid" viewBox="0 0 200 200">
+          <path class="frozen-stroke" d="M60,100 C60,60 140,60 140,100 C140,140 60,140 60,100 M100,140 C80,140 60,155 60,175 M100,60 C120,60 140,45 140,25" />
+          <circle cx="100" cy="100" r="15" fill="url(#frozenGrad)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>流动丝绸 (Fluid Silk)</h3>
+        <p>极致平滑的曲线过渡，象征知识的自然流动与思维的无限连贯。</p>
+      </div>
+    </div>
+
+    <!-- 3. Digital Pulse (数字脉冲) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-tech" viewBox="0 0 200 200">
+          <path class="frozen-stroke main-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <path class="frozen-stroke" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle cx="100" cy="100" r="10" fill="var(--frozen-white)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>数字脉冲 (Digital Pulse)</h3>
+        <p>虚实结合的点阵线条，体现数字化教学的精准与数据驱动的智能。</p>
+      </div>
+    </div>
+
+    <!-- 4. Layered Shadow (重叠霜影) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-layer" viewBox="0 0 200 200">
+          <path class="frozen-stroke path-bg" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <path class="frozen-stroke path-fg" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle cx="100" cy="100" r="15" fill="var(--frozen-blue)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>重叠霜影 (Layered Shadow)</h3>
+        <p>通过偏移与半透明叠层，营造出如同磨砂玻璃般的深邃空间感。</p>
+      </div>
+    </div>
+
+    <!-- 5. Geometric Nodes (几何节点) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-node" viewBox="0 0 200 200">
+          <path class="frozen-stroke" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100" />
+          <line x1="100" y1="140" x2="60" y2="175" stroke="var(--frozen-blue)" stroke-width="8" stroke-linecap="round" />
+          <line x1="100" y1="60" x2="140" y2="25" stroke="var(--frozen-blue)" stroke-width="8" stroke-linecap="round" />
+          <circle cx="100" cy="60" r="6" />
+          <circle cx="100" cy="140" r="6" />
+          <circle cx="60" cy="100" r="6" />
+          <circle cx="140" cy="100" r="6" />
+          <circle cx="100" cy="100" r="15" fill="var(--frozen-white)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>几何节点 (Geometric Nodes)</h3>
+        <p>在关键转折处加入圆点节点，强化“知识点”连接的逻辑美感。</p>
+      </div>
+    </div>
+
+    <!-- 6. Origami Fold (折纸工艺) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-fold" viewBox="0 0 200 200">
+          <path class="frozen-stroke" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 L100,140 C80,140 60,130 60,100 M100,140 L60,175 M100,60 L140,25" />
+          <circle cx="100" cy="100" r="18" fill="var(--frozen-white)" opacity="0.1" />
+          <circle cx="100" cy="100" r="10" fill="var(--frozen-blue)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>折纸工艺 (Origami Fold)</h3>
+        <p>半圆弧与直线结合，如同折叠的纸带，展现简洁而不失层次的工业感。</p>
+      </div>
+    </div>
+
+    <!-- 7. Soft Glow (极光光晕) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-glow" viewBox="0 0 200 200">
+          <path class="frozen-stroke" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle cx="100" cy="100" r="12" fill="white" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>极光光晕 (Soft Glow)</h3>
+        <p>带有柔和的外发光效果，赋予标志某种生命力，像是寒夜中指引方向的明灯。</p>
+      </div>
+    </div>
+
+    <!-- 8. Minimalist Line (极简单线) -->
+    <div class="variant-card">
+      <div class="preview-box">
+        <svg class="logo-svg v-minimal" viewBox="0 0 200 200">
+          <path class="frozen-stroke" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle cx="100" cy="100" r="4" fill="var(--frozen-blue)" />
+        </svg>
+      </div>
+      <div class="variant-info">
+        <h3>极简单线 (Minimalist Line)</h3>
+        <p>极致纤细的线条，摒弃一切冗余，追求绝对的清晰与高级感。</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer style="text-align: center; margin-top: 60px; color: var(--text-dim); font-size: 0.9rem;">
+    <p>从纯净中发现力量。选择最契合您品牌内核的图形表达。</p>
+  </footer>
+
+</body>
+</html>

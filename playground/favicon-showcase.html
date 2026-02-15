@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frozen IQ - Favicon 规范展示</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --text: #f8fafc;
+      --accent: #93c5fd;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 60px 20px;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .header { text-align: center; margin-bottom: 60px; }
+    .header h1 { font-size: 2rem; color: var(--accent); }
+    
+    .section {
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 24px;
+      padding: 40px;
+      margin-bottom: 32px;
+      border: 1px solid rgba(147, 197, 253, 0.1);
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .size-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 24px;
+      text-align: center;
+    }
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .preview-box {
+      background: #020617;
+      padding: 20px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .browser-mockup {
+      background: #1e293b;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    }
+    .tabs {
+      background: #0f172a;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+    }
+    .active-tab {
+      background: #1e293b;
+      height: 32px;
+      padding: 0 16px;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .active-tab img { width: 16px; height: 16px; }
+
+    code {
+      background: #020617;
+      padding: 16px;
+      border-radius: 12px;
+      display: block;
+      color: #94a3b8;
+      font-family: monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      border: 1px solid rgba(147, 197, 253, 0.1);
+    }
+    .copy-hint {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-top: 8px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Favicon 设计规范</h1>
+    <p>针对浏览器标签页优化的“寒霜结晶”图标</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">多尺寸预览</div>
+    <div class="size-grid">
+      <div class="size-item">
+        <div class="preview-box"><img src="favicon.svg" width="64" height="64"></div>
+        <span>64 x 64</span>
+      </div>
+      <div class="size-item">
+        <div class="preview-box"><img src="favicon.svg" width="32" height="32"></div>
+        <span>32 x 32</span>
+      </div>
+      <div class="size-item">
+        <div class="preview-box"><img src="favicon.svg" width="16" height="16"></div>
+        <span>16 x 16</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">浏览器实际效果模拟</div>
+    <div class="browser-mockup">
+      <div class="tabs">
+        <div class="active-tab">
+          <img src="favicon.svg">
+          Frozen IQ - 专注学习
+        </div>
+      </div>
+      <div style="height: 60px; padding: 12px;">
+        <div style="background: #0f172a; height: 100%; border-radius: 20px; display: flex; align-items: center; padding-left: 20px; font-size: 12px; color: #475569;">
+          https://frozen-iq.edu
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">如何在代码中使用</div>
+    <p style="font-size: 0.9rem; margin-bottom: 12px;">1. 直接引用 SVG 文件（推荐）：</p>
+    <code>&lt;link rel="icon" href="favicon.svg" type="image/svg+xml"&gt;</code>
+    
+    <p style="font-size: 0.9rem; margin-top: 24px; margin-bottom: 12px;">2. 使用内联 Base64（无需额外请求）：</p>
+    <code id="base64Code">正在生成 Base64...</code>
+    <p class="copy-hint">直接复制上方代码即可在 HTML 头部使用。</p>
+  </div>
+
+  <script>
+    // 模拟生成 Base64 逻辑展示
+    fetch('favicon.svg')
+      .then(r => r.text())
+      .then(svg => {
+        const b64 = btoa(unescape(encodeURIComponent(svg)));
+        document.getElementById('base64Code').textContent = `<link rel="icon" href="data:image/svg+xml;base64,${b64}">`;
+      });
+  </script>
+
+</body>
+</html>

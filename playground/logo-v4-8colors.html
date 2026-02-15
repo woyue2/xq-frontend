@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>无限探索 - 8 种想象力配色方案</title>
+  <style>
+    :root {
+      --bg: #020617;
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+      --card-bg: #0f172a;
+      --border: rgba(255,255,255,0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 100px;
+    }
+
+    header {
+      max-width: 900px;
+      margin: 80px auto 60px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -0.03em;
+      background: linear-gradient(to right, #6366f1, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 32px;
+    }
+
+    .color-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .color-card:hover {
+      transform: translateY(-10px);
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+    }
+
+    .preview-box {
+      width: 100%;
+      height: 240px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      border-radius: 24px;
+      position: relative;
+      background: #020617;
+    }
+
+    .logo-svg {
+      width: 140px;
+      height: 140px;
+    }
+
+    .infinite-path {
+      fill: none;
+      stroke-width: 12;
+      stroke-linecap: round;
+    }
+
+    .center-node {
+      /* Dynamic styles will be applied via classes */
+    }
+
+    .info h3 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .info p {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+
+    /* 8 Schemes */
+    
+    /* 1. Cyber Aurora (极光之境) */
+    .scheme-1 .infinite-path { stroke: url(#grad1); filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.5)); }
+    .scheme-1 .center-node { fill: #22d3ee; }
+
+    /* 2. Solar Flare (烈焰日落) */
+    .scheme-2 .infinite-path { stroke: url(#grad2); filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.5)); }
+    .scheme-2 .center-node { fill: #fbbf24; }
+
+    /* 3. Retro Arcade (复古电玩) */
+    .scheme-3 .infinite-path { stroke: url(#grad3); filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.5)); }
+    .scheme-3 .center-node { fill: #06b6d4; }
+
+    /* 4. Deep Sea Bio (深海荧光) */
+    .scheme-4 .infinite-path { stroke: url(#grad4); filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5)); }
+    .scheme-4 .center-node { fill: #34d399; }
+
+    /* 5. Cosmic Nebula (星云漫游) */
+    .scheme-5 .infinite-path { stroke: url(#grad5); filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5)); }
+    .scheme-5 .center-node { fill: #f472b6; }
+
+    /* 6. Desert Mirage (大漠幻影) */
+    .scheme-6 .infinite-path { stroke: url(#grad6); filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5)); }
+    .scheme-6 .center-node { fill: #d97706; }
+
+    /* 7. Frozen Crystal (寒霜结晶) */
+    .scheme-7 .infinite-path { stroke: url(#grad7); filter: drop-shadow(0 0 8px rgba(147, 197, 253, 0.5)); }
+    .scheme-7 .center-node { fill: #f8fafc; }
+
+    /* 8. Forest Myst (迷雾森林) */
+    .scheme-8 .infinite-path { stroke: url(#grad8); filter: drop-shadow(0 0 8px rgba(101, 163, 13, 0.5)); }
+    .scheme-8 .center-node { fill: #bef264; }
+
+  </style>
+</head>
+<body>
+
+  <svg style="width:0; height:0; position:absolute;">
+    <defs>
+      <!-- 1. Cyber Aurora -->
+      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#818cf8;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+      </linearGradient>
+      <!-- 2. Solar Flare -->
+      <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+      </linearGradient>
+      <!-- 3. Retro Arcade -->
+      <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" style="stop-color:#ec4899;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+      </linearGradient>
+      <!-- 4. Deep Sea Bio -->
+      <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#10b981;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#6ee7b7;stop-opacity:1" />
+      </linearGradient>
+      <!-- 5. Cosmic Nebula -->
+      <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#d946ef;stop-opacity:1" />
+      </linearGradient>
+      <!-- 6. Desert Mirage -->
+      <linearGradient id="grad6" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+      </linearGradient>
+      <!-- 7. Frozen Crystal -->
+      <linearGradient id="grad7" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#93c5fd;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+      </linearGradient>
+      <!-- 8. Forest Myst -->
+      <linearGradient id="grad8" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#4d7c0f;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#bef264;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <header>
+    <h1>想象力之巅：8 种探索配色</h1>
+    <p class="subtitle">打破常规，为“无限探索”标志注入跨越次元的视觉灵魂。每一组配色都是一个独立的世界观。</p>
+  </header>
+
+  <main class="grid">
+    
+    <!-- 1. Cyber Aurora -->
+    <div class="color-card scheme-1">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>极光之境 (Aurora)</h3>
+        <p>高维度的青色与紫色交织，如北极光般灵动。象征知识的深邃与未知的迷人。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#22d3ee"></div>
+          <div class="swatch" style="background:#818cf8"></div>
+          <div class="swatch" style="background:#34d399"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Solar Flare -->
+    <div class="color-card scheme-2">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>烈焰日落 (Solar Flare)</h3>
+        <p>炽热的橙红，像爆发的恒星。传递出极强的求知欲与生命力，适合热血的竞技学习风格。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#f97316"></div>
+          <div class="swatch" style="background:#ef4444"></div>
+          <div class="swatch" style="background:#fbbf24"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Retro Arcade -->
+    <div class="color-card scheme-3">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>复古电玩 (Retro)</h3>
+        <p>粉、紫、青的经典 80s 赛博配色。将学习游戏化，让解题变得像通关一样有趣。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#ec4899"></div>
+          <div class="swatch" style="background:#8b5cf6"></div>
+          <div class="swatch" style="background:#06b6d4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Deep Sea Bio -->
+    <div class="color-card scheme-4">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>深海荧光 (Deep Sea)</h3>
+        <p>幽深的暗绿与明亮的翡翠色。寓意在知识的海洋深处，发掘出最耀眼的真理明珠。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#0f172a"></div>
+          <div class="swatch" style="background:#10b981"></div>
+          <div class="swatch" style="background:#6ee7b7"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Cosmic Nebula -->
+    <div class="color-card scheme-5">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>星云漫游 (Nebula)</h3>
+        <p>深蓝到玫紫的平滑过渡，充满宇宙探索的浪漫。献给每一个拥有星辰大海梦想的孩子。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#6366f1"></div>
+          <div class="swatch" style="background:#d946ef"></div>
+          <div class="swatch" style="background:#f472b6"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Desert Mirage -->
+    <div class="color-card scheme-6">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>大漠幻影 (Mirage)</h3>
+        <p>琥珀金与夕阳橙。展现一种厚重、沉稳的探索感，仿佛在古老文明中寻找现代答案。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#f59e0b"></div>
+          <div class="swatch" style="background:#d97706"></div>
+          <div class="swatch" style="background:#78350f"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Frozen Crystal -->
+    <div class="color-card scheme-7">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>寒霜结晶 (Frozen)</h3>
+        <p>冰蓝色与纯白的极致纯净。代表逻辑思维的冷静、透明，拒绝任何杂质的学术追求。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#93c5fd"></div>
+          <div class="swatch" style="background:#f8fafc"></div>
+          <div class="swatch" style="background:#64748b"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. Forest Myst -->
+    <div class="color-card scheme-8">
+      <div class="preview-box">
+        <svg class="logo-svg" viewBox="0 0 200 200">
+          <path class="infinite-path" d="M60,100 C60,70 80,60 100,60 C120,60 140,70 140,100 C140,130 120,140 100,140 C80,140 60,130 60,100 M100,140 C80,140 60,150 60,170 M100,60 C120,60 140,50 140,30" />
+          <circle class="center-node" cx="100" cy="100" r="15" />
+        </svg>
+      </div>
+      <div class="info">
+        <h3>迷雾森林 (Forest)</h3>
+        <p>橄榄绿与荧光黄。充满了自然界的神秘感与勃勃生机，适合主打生态、成长的学习应用。</p>
+        <div class="swatches">
+          <div class="swatch" style="background:#4d7c0f"></div>
+          <div class="swatch" style="background:#bef264"></div>
+          <div class="swatch" style="background:#ecfccb"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer style="text-align: center; margin-top: 60px; color: var(--text-dim); font-size: 0.9rem;">
+    <p>色彩是品牌的灵魂。选择一个，开启属于青少年的无限探索之旅。</p>
+  </footer>
+
+</body>
+</html>

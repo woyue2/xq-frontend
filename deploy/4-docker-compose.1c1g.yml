@@ -66,6 +66,8 @@ services:
       - "3000:3000"
     # 修改原因：在编排层强制指定 Node ESM 兼容启动参数，避免镜像内默认 CMD 不一致导致的导入失败。
     command: ["node", "--experimental-specifier-resolution=node", "dist/server.js"]
+    # 修改原因：Chromium 在容器内渲染 PDF 时依赖 /dev/shm，增大共享内存可降低崩溃概率。
+    shm_size: "256m"
     healthcheck:
       # 修改原因：后端服务端口为 3000，健康检查需与实际监听端口保持一致。
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
