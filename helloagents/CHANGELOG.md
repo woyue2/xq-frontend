@@ -12,6 +12,12 @@
   - 在 `src/pages/LoginPage.tsx` 中为注册态“本次验证码”提示新增延迟展示机制：验证码发送成功后等待 2 秒再显示提示文案；
   - 提示文案展示时增加缓慢淡入动画（`transition-all + duration-700`），降低视觉突兀；
   - 新增定时器清理与状态重置逻辑（切换登录/注册、手机号变更、请求失败、组件卸载时清理），避免旧计时器导致错误显示。
+- **移动端 PWA 安装图标链路修复（Android + iOS）**:
+  - 新增图标生成脚本 `scripts/generate-pwa-icons.mjs`，基于 `static/favicon.svg` 自动生成 `favicon-32.png`、`apple-touch-icon.png`、`pwa-192.png`、`pwa-512.png`、`pwa-maskable-192.png`、`pwa-maskable-512.png`；
+  - 在 `package.json` 中新增 `generate:icons` 与 `prebuild`，确保每次构建前自动生成规范图标资源；
+  - 更新 `vite.config.ts` 的 `VitePWA` 配置：移除 `favicon.ico` 安装回退链路，`includeAssets` 与 `manifest.icons` 全量切换为 PNG 图标并补齐 `purpose(any|maskable)`，同时新增 `manifest.id='/'`；
+  - 更新 `index.html`：新增 `favicon-32`、`apple-touch-icon` 与 iOS PWA 元信息（`apple-mobile-web-app-*`），修复 Safari 添加到主屏幕后图标不稳定问题；
+  - 保留 `static/favicon.ico` 作为历史文件但不再被安装链路引用，避免异常 `1x1` ico 干扰移动端安装图标选择。
 
 ### Fixed
 - **Mock 去除与真实链路对齐（前后端一体）**:

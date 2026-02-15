@@ -136,3 +136,34 @@
   - 新增 `userService.changePhone` 对接后端 `POST /api/users/me/change-phone`，换绑成功后同步更新本地登录用户手机号。
 - 兼容性说明：
   - ⚠️ 后端若后续关闭验证码回显，前端将不再展示“本次验证码”文案，仅保留获取验证码流程。
+
+### 十、移动端 PWA 安装图标修复（Android + iOS）（2026-02-16）
+
+- 目标：修复“网页缩略图正常但安装后图标异常/不显示”的问题，覆盖 Android Chrome 与 iOS Safari。
+- 变更文件：
+  - `scripts/generate-pwa-icons.mjs`
+  - `package.json`
+  - `vite.config.ts`
+  - `index.html`
+  - `static/favicon-32.png`
+  - `static/apple-touch-icon.png`
+  - `static/pwa-192.png`
+  - `static/pwa-512.png`
+  - `static/pwa-maskable-192.png`
+  - `static/pwa-maskable-512.png`
+- 图标生成策略：
+  - 图标统一由 `static/favicon.svg` 生成，避免手工维护多尺寸资源；
+  - 常规图标使用覆盖缩放，保证主体在安装图标中清晰可见；
+  - maskable 图标使用安全区（约 10% 边距）+ 不透明背景，避免系统圆角裁切导致主体丢失。
+- PWA 配置策略（`vite.config.ts`）：
+  - `includeAssets` 移除 `favicon.ico`，改为 `favicon.svg` + `favicon-32.png` + `apple-touch-icon.png` + `pwa*.png`；
+  - `manifest.id` 设置为 `'/'`，提升跨入口安装识别稳定性；
+  - `manifest.icons` 改为 4 个 PNG 图标并显式声明 `purpose: any | maskable`。
+- iOS 兼容策略（`index.html`）：
+  - 新增 `apple-touch-icon`（180x180）；
+  - 新增 `apple-mobile-web-app-capable`、`apple-mobile-web-app-title`、`apple-mobile-web-app-status-bar-style`；
+  - 保留 SVG favicon，并补充 `favicon-32.png` 作为常规浏览器 fallback。
+- 缓存与发布注意事项：
+  - Service Worker 与浏览器图标缓存会延迟刷新；
+  - 本地验证前需先执行：Unregister SW + Clear site data；
+  - 若设备已安装旧版本应用，需先卸载旧应用再重新安装，才能稳定看到新图标。
