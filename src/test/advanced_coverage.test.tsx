@@ -252,29 +252,24 @@ describe('Advanced Coverage Tests', () => {
             expect(submitBtn).toBeDisabled();
         });
 
-        it('STU-007: Max 3 Images', async () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
-            render(<MemoryRouter><CreateQuestionPage /></MemoryRouter>);
+	        it('STU-007: Max 3 Images', async () => {
+	            (useAuthStore as any).mockReturnValue({ user: mockUserStudent });
+	            render(<MemoryRouter><CreateQuestionPage /></MemoryRouter>);
 
-            const uploadBtn = screen.getByText('上传图片');
-            const fileInput = screen.getByTestId('create-question-image-input') as HTMLInputElement;
+	            const uploadBtn = screen.getByText('上传题目图');
+	            const fileInput = screen.getByTestId('create-question-image-input') as HTMLInputElement;
 
-            const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
+	            const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
 
-            // 通过点击按钮触发文件选择，再模拟选择文件三次
-            fireEvent.click(uploadBtn);
-            fireEvent.change(fileInput, { target: { files: [file] } });
+	            // 通过点击按钮触发文件选择，再模拟选择文件
+	            fireEvent.click(uploadBtn);
+	            fireEvent.change(fileInput, { target: { files: [file] } });
 
-            fireEvent.click(uploadBtn);
-            fireEvent.change(fileInput, { target: { files: [file] } });
-
-            fireEvent.click(uploadBtn);
-            fireEvent.change(fileInput, { target: { files: [file] } });
-
-            await waitFor(() => {
-                expect(screen.queryByText('上传图片')).toBeNull();
-            });
-        });
+	            await waitFor(() => {
+	                // 题目区最多 1 张，上传后入口应消失
+	                expect(screen.queryByText('上传题目图')).toBeNull();
+	            });
+	        });
 
         it('WL-000: Unauthenticated user is redirected away from admin page', async () => {
             // 未登录用户访问 /admin
@@ -295,7 +290,7 @@ describe('Advanced Coverage Tests', () => {
             render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
 
             await waitFor(() => {
-                expect(toast.error).toHaveBeenCalledWith('只有老师可以访问管理后台');
+                expect(toast.error).toHaveBeenCalledWith('该功能仅对老师开放');
                 expect(mockNavigate).toHaveBeenCalledWith('/profile');
             });
         });
@@ -327,7 +322,7 @@ describe('Advanced Coverage Tests', () => {
             );
 
             await waitFor(() => {
-                expect(toast.error).toHaveBeenCalledWith('只有老师可以访问测试页面');
+                expect(toast.error).toHaveBeenCalledWith('该功能仅对老师开放');
                 expect(mockNavigate).toHaveBeenCalledWith('/');
             });
         });
@@ -349,29 +344,22 @@ describe('Advanced Coverage Tests', () => {
         });
     });
 
-    // 4. DIM: Question Dimension Config (Admin UI glue only)
-    describe('DIM: Question Dimension Config', () => {
-        it('DIM-001: Admin can see dimension config card', async () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
-            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
+	    // 4. DIM: Question Dimension Config (Admin UI glue only)
+	    describe('DIM: Question Dimension Config', () => {
+	        it('DIM-001: Admin can see dimension config card', async () => {
+	            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+	            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
 
-            expect(
-                screen.getByText('题目维度配置（解题方法/办法）')
-            ).toBeDefined();
-        });
+	            // 当前产品决策：临时关闭题目维度管理入口（enableQuestionDimensionAdmin=false）
+	            expect(screen.queryByText('题目维度配置（解题方法/办法）')).toBeNull();
+	        });
 
-        it('DIM-002: Refresh button triggers adminService.getQuestionDimensions', async () => {
-            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
-            const spy = vi.spyOn(adminService, 'getQuestionDimensions');
+	        it('DIM-002: Refresh button triggers adminService.getQuestionDimensions', async () => {
+	            (useAuthStore as any).mockReturnValue({ user: mockUserTeacher });
+	            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
 
-            render(<MemoryRouter><AdminManagementPage /></MemoryRouter>);
-
-            const refreshBtn = screen.getByText('刷新配置');
-            fireEvent.click(refreshBtn);
-
-            await waitFor(() => {
-                expect(spy).toHaveBeenCalled();
-            });
-        });
-    });
+	            // 同上：入口关闭时不展示“刷新配置”按钮
+	            expect(screen.queryByText('刷新配置')).toBeNull();
+	        });
+	    });
 });

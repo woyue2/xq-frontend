@@ -88,7 +88,7 @@ describe('MyAnswersPage permissions & boundaries', () => {
 
     expect(getMyAnswersMock).not.toHaveBeenCalled();
     expect(getMyAnswerTodosMock).not.toHaveBeenCalled();
-    expect(toastErrorMock).toHaveBeenCalledWith('只有老师可以查看我的回答');
+    expect(toastErrorMock).toHaveBeenCalledWith('该功能仅对老师开放');
   });
 
   it('loads answers list for teacher user', async () => {

@@ -7,6 +7,7 @@ import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { MainLayout } from '@/layouts/MainLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mocks
 vi.mock('@/hooks/useQuestions', () => ({
@@ -40,6 +41,16 @@ vi.mock('@/lib/mock-data', async (importOriginal) => {
 });
 
 describe('Integration Tests (Super Brain)', () => {
+    const renderWithQueryClient = (ui: JSX.Element) => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } }
+        });
+        return render(
+            <QueryClientProvider client={queryClient}>
+                {ui}
+            </QueryClientProvider>
+        );
+    };
 
     beforeEach(() => {
         // Reset useQuestions mock
@@ -85,7 +96,7 @@ describe('Integration Tests (Super Brain)', () => {
     it('Flow: User views detail and sees comments', async () => {
         // Setup mock comments for this specific test if needed, or rely on global mock
 
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/question/q1']}>
                 <Routes>
                     <Route path="/question/:id" element={<QuestionDetailPage />} />
@@ -114,7 +125,7 @@ describe('Integration Tests (Super Brain)', () => {
 
     it('Feature: User can attach image to comment', async () => {
         // 1. Render Question Detail
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/question/q1']}>
                 <Routes>
                     <Route path="/question/:id" element={<QuestionDetailPage />} />
@@ -147,7 +158,7 @@ describe('Integration Tests (Super Brain)', () => {
         // We can't easily modify the source code file 'taxonomy.ts' in the test without reloading modules.
         // Instead, we verify that accessing a non-existent subject doesn't crash CreateQuestionPage.
 
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/create']}>
                 <Routes>
                     <Route path="/create" element={<CreateQuestionPage />} />
@@ -168,7 +179,7 @@ describe('Integration Tests (Super Brain)', () => {
     describe('PushPin/Top Feature Tests (TCH-003, TCH-004)', () => {
         it('PIN-001: Teacher can see pin button on question card', async () => {
             // Teacher is already set in beforeEach
-            render(
+            renderWithQueryClient(
                 <MemoryRouter initialEntries={['/']}>
                     <Routes>
                         <Route element={<MainLayout />}>
@@ -193,7 +204,7 @@ describe('Integration Tests (Super Brain)', () => {
                 user: { id: 's1', nickname: 'Student', role: 'student', avatar: 'img', phone: '123' }
             });
 
-            render(
+            renderWithQueryClient(
                 <MemoryRouter initialEntries={['/']}>
                     <Routes>
                         <Route element={<MainLayout />}>

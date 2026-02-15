@@ -112,7 +112,7 @@ describe('DiagnosticPage Integration', () => {
     );
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith('只有老师可以访问诊断工具');
+      expect(toastErrorMock).toHaveBeenCalledWith('该功能仅对老师开放');
       expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });

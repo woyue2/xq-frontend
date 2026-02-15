@@ -7,6 +7,7 @@ import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { useQuestions } from '@/hooks/useQuestions';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock `useQuestions` hook to avoid actual API/React Query logic
 vi.mock('@/hooks/useQuestions', () => ({
@@ -48,6 +49,17 @@ vi.mock('@/lib/mock-data', async (importOriginal) => {
 
 describe('Navigation Tests', () => {
 
+    const renderWithQueryClient = (ui: JSX.Element) => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } }
+        });
+        return render(
+            <QueryClientProvider client={queryClient}>
+                {ui}
+            </QueryClientProvider>
+        );
+    };
+
     beforeEach(() => {
         // Reset mock return value for useQuestions
         (useQuestions as any).mockReturnValue({
@@ -88,7 +100,7 @@ describe('Navigation Tests', () => {
     });
 
     it('navigates from HomePage to QuestionDetail when card is clicked', async () => {
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route element={<MainLayout />}>
@@ -116,7 +128,7 @@ describe('Navigation Tests', () => {
     });
 
     it('navigates to Create page via Plus button', async () => {
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/']}>
                 <Routes>
                     <Route element={<MainLayout />}>
@@ -136,7 +148,7 @@ describe('Navigation Tests', () => {
     });
 
     it('navigates back from QuestionDetail page', async () => {
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/', '/question/q1']}>
                 <Routes>
                     <Route element={<MainLayout />}>

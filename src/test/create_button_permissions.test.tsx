@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock useAuthStore so we can control user/permission state per test
 const useAuthStoreMock = vi.fn();
@@ -22,9 +23,9 @@ describe('MainLayout create button permissions', () => {
     useAuthStoreMock.mockReset();
   });
 
-  const renderWithUser = (user: any, isActiveMember: boolean | undefined = true) => {
-    useAuthStoreMock.mockReturnValue({
-      user,
+	  const renderWithUser = (user: any, isActiveMember: boolean | undefined = true) => {
+	    useAuthStoreMock.mockReturnValue({
+	      user,
       token: 'fake-token',
       isAuthenticated: !!user,
       isLoading: false,
@@ -33,18 +34,24 @@ describe('MainLayout create button permissions', () => {
       login: vi.fn(),
       logout: vi.fn(),
       updateUser: vi.fn(),
-    });
+	    });
 
-    return render(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<div>Home</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    );
-  };
+	    const queryClient = new QueryClient({
+	      defaultOptions: { queries: { retry: false } },
+	    });
+
+	    return render(
+	      <QueryClientProvider client={queryClient}>
+	        <MemoryRouter initialEntries={['/']}>
+	          <Routes>
+	            <Route element={<MainLayout />}>
+	              <Route path="/" element={<div>Home</div>} />
+	            </Route>
+	          </Routes>
+	        </MemoryRouter>
+	      </QueryClientProvider>
+	    );
+	  };
 
   it('hides create button for parent role', () => {
     renderWithUser({ id: 'p1', role: 'parent', nickname: '家长用户' }, false);

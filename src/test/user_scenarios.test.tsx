@@ -8,12 +8,24 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { AuditPage } from '@/pages/AuditPage';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mocks
 vi.mock('@/stores/useAuthStore');
 vi.mock('@/hooks/useQuestions');
 
 describe('User Scenarios (Based on 测试用例文档.md)', () => {
+
+    const renderWithQueryClient = (ui: JSX.Element) => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } }
+        });
+        return render(
+            <QueryClientProvider client={queryClient}>
+                {ui}
+            </QueryClientProvider>
+        );
+    };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -42,7 +54,7 @@ describe('User Scenarios (Based on 测试用例文档.md)', () => {
             login: vi.fn(),
         });
 
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/profile']}>
                 <Routes>
                     <Route element={<MainLayout />}>

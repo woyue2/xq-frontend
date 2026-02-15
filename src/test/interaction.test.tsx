@@ -87,7 +87,7 @@ describe('GoodQuestionBadge Interaction', () => {
         fireEvent.click(badge);
         
         await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith('网络请求失败，请重试');
+            expect(toast.error).toHaveBeenCalledWith('网络不稳定，请稍后再试');
             // Should NOT navigate on error (based on current implementation logic in GoodQuestionBadge.tsx)
             expect(mockNavigate).not.toHaveBeenCalled();
         });

@@ -6,6 +6,7 @@ import { AuditPage } from '@/pages/AuditPage';
 import { MainLayout } from '@/layouts/MainLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // 复用与原 integration.test.tsx 一致的 hooks 与 mock-data 行为，确保行为不变
 vi.mock('@/hooks/useQuestions', () => ({
@@ -38,6 +39,16 @@ vi.mock('@/lib/mock-data', async (importOriginal) => {
 });
 
 describe('Integration - Profile & Nickname AI Review', () => {
+    const renderWithQueryClient = (ui: JSX.Element) => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false } }
+        });
+        return render(
+            <QueryClientProvider client={queryClient}>
+                {ui}
+            </QueryClientProvider>
+        );
+    };
     // 保持与原集成测试相同的默认 store 与问题数据
     beforeEach(() => {
         (useQuestions as any).mockReturnValue({
@@ -79,7 +90,7 @@ describe('Integration - Profile & Nickname AI Review', () => {
     });
 
     it('Flow: Teacher navigates to Audit/Whitelist from Profile', async () => {
-        render(
+        renderWithQueryClient(
             <MemoryRouter initialEntries={['/profile']}>
                 <Routes>
                     <Route element={<MainLayout />}>
@@ -109,7 +120,7 @@ describe('Integration - Profile & Nickname AI Review', () => {
     // ===== 昵称 AI 审核测试 =====
     describe('Nickname AI Review Tests', () => {
         it('NICK-001: User can open nickname edit dialog', async () => {
-            render(
+            renderWithQueryClient(
                 <MemoryRouter initialEntries={['/profile']}>
                     <Routes>
                         <Route element={<MainLayout />}>
@@ -128,7 +139,7 @@ describe('Integration - Profile & Nickname AI Review', () => {
         });
 
         it('NICK-002: Nickname with sensitive words fails AI review', async () => {
-            render(
+            renderWithQueryClient(
                 <MemoryRouter initialEntries={['/profile']}>
                     <Routes>
                         <Route element={<MainLayout />}>
@@ -157,7 +168,7 @@ describe('Integration - Profile & Nickname AI Review', () => {
         });
 
         it('NICK-003: Valid nickname passes AI review', async () => {
-            render(
+            renderWithQueryClient(
                 <MemoryRouter initialEntries={['/profile']}>
                     <Routes>
                         <Route element={<MainLayout />}>
