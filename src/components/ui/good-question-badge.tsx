@@ -42,7 +42,7 @@ export function GoodQuestionBadge({ className, showIcon = false }: GoodQuestionB
             // Even if logging fails, we should probably still navigate or show error?
             // User requirement: "ensure user can perceive and recover when network exception"
             // So we show a toast and maybe allow retry (which is just clicking again).
-            toast.error('网络请求失败，请重试');
+            toast.error('网络不稳定，请稍后再试');
         } finally {
             setIsLoading(false);
         }

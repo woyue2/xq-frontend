@@ -175,7 +175,7 @@ export function AdminManagementPage() {
     }
 
     if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问管理后台');
+      toast.error('该功能仅对老师开放');
       navigate('/profile');
     }
   }, [user, navigate]);

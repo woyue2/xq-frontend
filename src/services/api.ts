@@ -509,7 +509,7 @@ api.interceptors.response.use(
             const { code, message } = response.data;
             // 后端约定：200 = 成功，201 = 创建成功（如注册）
             if (code !== 200 && code !== 201) {
-                toast.error(message || '请求失败');
+                toast.error(message || '操作未完成，请稍后重试');
                 return Promise.reject(new Error(message || 'Request failed'));
             }
         }
@@ -535,7 +535,7 @@ api.interceptors.response.use(
                 }
                 break;
             case 403:
-                toast.error('无权限访问');
+                toast.error('当前账号暂无权限');
                 break;
             case 429:
                 toast.error('请求过于频繁，请稍后再试');
@@ -544,7 +544,7 @@ api.interceptors.response.use(
                 toast.error('服务器繁忙，请稍后再试');
                 break;
             default:
-                toast.error(data?.message || '网络错误');
+                toast.error(data?.message || '网络不稳定，请稍后再试');
         }
         return Promise.reject(error);
     }

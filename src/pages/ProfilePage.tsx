@@ -243,10 +243,10 @@ const handleGetBindCode = async () => {
     // 修改原因：绑定场景需要给出“孩子未注册”的明确提示，避免家长误判为网络错误。
     const errorCode = (error as any)?.response?.data?.error;
     if (errorCode === 'CHILD_NOT_REGISTERED') {
-      toast.error('孩子未注册，请先注册');
+      toast.error('该手机号尚未注册，请先完成注册');
       return;
     }
-    toast.error('发送失败：请检查手机号或网络');
+    toast.error('发送失败，请检查手机号或网络后重试');
   }
 };
   const handleBindChild = async () => {

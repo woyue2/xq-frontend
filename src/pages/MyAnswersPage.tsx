@@ -28,7 +28,7 @@ export function MyAnswersPage({ view = 'pending' }: MyAnswersPageProps) {
 
         // 业务规则：只有老师才会有回答记录，学生/家长访问该页面时提示并回到个人中心
         if (user.role !== 'teacher') {
-            toast.error('只有老师可以查看我的回答');
+            toast.error('该功能仅对老师开放');
             navigate('/profile');
         }
     }, [user, navigate]);

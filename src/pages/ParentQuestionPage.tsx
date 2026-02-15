@@ -21,7 +21,7 @@ export function ParentQuestionPage() {
       return;
     }
     if (user.role !== 'parent') {
-      toast.error('只有家长可以查看孩子问题');
+      toast.error('该功能仅对家长开放');
       navigate('/');
     }
   }, [user, navigate]);

@@ -610,7 +610,7 @@ export function CreateQuestionPage() {
             {similarQuestions.length > 0 && (
               <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2 animate-in fade-in slide-in-from-top-1">
                 <div className="flex items-center gap-2 text-xs text-amber-600 font-bold">
-                  <span className="bg-amber-100 px-1.5 py-0.5 rounded">AI 智能拦截</span>
+                  <span className="bg-amber-100 px-1.5 py-0.5 rounded">内容检查</span>
                   <span>发现相似问题，看看有没有你想要的答案？</span>
                 </div>
                 <div className="space-y-2">

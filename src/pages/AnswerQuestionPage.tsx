@@ -126,7 +126,7 @@ export function AnswerQuestionPage() {
     }
 
     if (user.role !== 'teacher') {
-      toast.error('只有老师可以回答问题');
+      toast.error('该功能仅对老师开放');
       navigate(-1);
     }
   }, [user, navigate]);
@@ -799,7 +799,7 @@ export function AnswerQuestionPage() {
           {/* 审核提示 */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
-              ⚠️ 回答内容将通过AI+人工审核，违规内容将不予展示
+              提示：回答内容会进行内容检查与人工复核，违规内容将不予展示
             </p>
           </div>
         </div>

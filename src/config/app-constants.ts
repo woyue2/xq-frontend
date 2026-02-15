@@ -10,7 +10,7 @@ export const BADGE_LABELS = {
 } as const;
 
 export const TOAST_MESSAGES = {
-  onlyTeacherCanPin: '只有老师可以置顶问题',
+  onlyTeacherCanPin: '该功能仅对老师开放',
   pinned: '已置顶',
   unpinned: '已取消置顶',
   liked: '点赞成功',

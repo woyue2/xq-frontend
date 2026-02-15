@@ -24,7 +24,7 @@ export function DiagnosticPage() {
       return;
     }
     if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问诊断工具');
+      toast.error('该功能仅对老师开放');
       navigate('/');
     }
   }, [user, navigate]);
@@ -41,7 +41,7 @@ export function DiagnosticPage() {
     }
 
     if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问诊断工具');
+      toast.error('该功能仅对老师开放');
       navigate('/');
       return;
     }

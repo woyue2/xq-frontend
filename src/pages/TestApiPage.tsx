@@ -45,7 +45,7 @@ export function TestApiPage() {
       return;
     }
     if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问测试页面');
+      toast.error('该功能仅对老师开放');
       navigate('/');
     }
 
@@ -191,7 +191,7 @@ export function TestApiPage() {
       const msg = err?.message || '上传过程中发生错误';
       setError(msg);
       appendLog(`错误: ${msg}`);
-      toast.error('上传失败，请查看日志');
+      toast.error('上传失败，请稍后重试（可在下方查看日志）');
     } finally {
       setUploading(false);
     }
@@ -259,7 +259,7 @@ export function TestApiPage() {
                         }
                         toast.success('分享域名已保存，前端分享链接将使用该地址');
                       } catch {
-                        toast.error('保存分享域名失败，请检查浏览器存储权限');
+                        toast.error('保存失败：浏览器可能禁止了本地存储');
                       }
                     }}
                   >

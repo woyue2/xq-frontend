@@ -523,7 +523,7 @@ export function QuestionDetailPage() {
 
     const shareUrl = buildQuestionShareUrl(question.id, shareMeta.shareToken);
     if (!shareUrl) {
-      toast.error('暂未配置分享域名，当前不支持复制分享链接');
+      toast.error('分享功能尚未开启（未配置分享域名）');
       return;
     }
 
@@ -540,13 +540,13 @@ export function QuestionDetailPage() {
     if (currentUser?.role === 'teacher') {
       navigate(`/answer/${question.id}`);
     } else {
-      toast.error('暂无回答权限');
+      toast.error('当前账号暂无作答权限');
     }
   };
 
   const handleAuthorClick = () => {
     if (!currentUser) {
-      toast.error('请先登录');
+      toast.error('请先登录后继续');
       navigate('/login');
       return;
     }

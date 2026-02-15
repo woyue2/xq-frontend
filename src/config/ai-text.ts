@@ -13,13 +13,13 @@ export const aiTextConfig = {
     "知识改变命运"
   ],
 
-  // AI审核相关提示语
+  // 内容检查相关提示语（面向用户展示，尽量克制、可理解）
   auditMessages: {
-    pending: "AI正在智能审核您的内容，请稍候...",
-    approved: "AI审核通过，内容合规",
-    rejected: "内容涉及敏感信息，AI审核未通过",
+    pending: "正在进行内容检查，请稍候...",
+    approved: "内容检查已通过",
+    rejected: "内容检查未通过，请修改后重试",
     warning: "请注意文明用语，共建和谐社区",
-    checking: "AI正在分析图片内容...",
+    checking: "正在检查图片内容...",
     imageApproved: "图片内容安全",
     imageRejected: "图片包含不当内容",
     
@@ -41,7 +41,7 @@ export const aiTextConfig = {
   placeholders: {
     search: "搜索感兴趣的知识点...",
     comment: "写下你的见解...",
-    question: "描述你的问题，AI辅助分析中...",
+    question: "描述你的问题，帮你一起梳理思路...",
     rejectReason: "请输入驳回原因..."
   }
 };

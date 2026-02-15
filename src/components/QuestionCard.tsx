@@ -261,9 +261,9 @@ export function QuestionCard({
 
                         const shareUrl = buildQuestionShareUrl(question.id);
                         if (!shareUrl) {
-                            toast.error('暂未配置分享域名，当前不支持复制分享链接');
+                            toast.error('分享功能尚未开启（未配置分享域名）');
                             return;
-                        }
+                          }
 
                         const copied = await copyToClipboardSafe(shareUrl);
                         if (copied) {

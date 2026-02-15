@@ -65,7 +65,7 @@ export function App() {
   }, [isAuthenticated, token, updateUser]);
 
   return (
-    <ErrorBoundary fallback={<div className="flex items-center justify-center min-h-screen text-red-500">应用加载失败，请刷新页面</div>}>
+    <ErrorBoundary fallback={<div className="flex items-center justify-center min-h-screen text-red-500">页面加载失败，请稍后重试</div>}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>

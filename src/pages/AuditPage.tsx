@@ -72,7 +72,7 @@ export const AuditPage = () => {
     }
 
     if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问审核页面');
+      toast.error('该功能仅对老师开放');
       navigate('/profile');
     }
   }, [user, navigate]);
@@ -431,7 +431,7 @@ export const AuditPage = () => {
                     {q.aiResult && (
                       <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
                         <WarningCircle className="w-3 h-3" />
-                        AI初筛：{q.aiResult}
+                        内容初筛：{q.aiResult}
                       </div>
                     )}
                   </div>
@@ -581,7 +581,7 @@ export const AuditPage = () => {
                   {a.aiResult && (
                     <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
                       <WarningCircle className="w-3 h-3" />
-                      AI初筛：{a.aiResult}
+                      内容初筛：{a.aiResult}
                     </div>
                   )}
                 </div>
@@ -667,7 +667,7 @@ export const AuditPage = () => {
                     <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded w-fit ${c.aiResult.includes('违规') ? 'text-red-500 bg-red-50' : 'text-orange-500 bg-orange-50'
                       }`}>
                       <WarningCircle className="w-3 h-3" />
-                      AI初筛：{c.aiResult}
+                      内容初筛：{c.aiResult}
                     </div>
                   )}
                 </div>
@@ -725,7 +725,7 @@ export const AuditPage = () => {
         )}
 
         <div className="text-center py-6">
-          <p className="text-[10px] text-gray-400">问题、回答及评论需人工二次审核，AI初筛仅作参考</p>
+          <p className="text-[10px] text-gray-400">问题、回答及评论需人工二次审核，内容初筛仅作参考</p>
         </div>
       </div>
 
