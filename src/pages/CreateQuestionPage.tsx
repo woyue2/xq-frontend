@@ -762,7 +762,7 @@ export function CreateQuestionPage() {
           {/* 审核提示 */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
             <p className="text-sm text-indigo-800">
-              💡 AI 小贴士：准确选择 <b>知识点</b> 和 <b>做到哪一步了</b> 能让老师更快回答哦！
+              💡 小贴士：准确选择 <b>知识点</b> 和 <b>做到哪一步了</b> 能让老师更快回答哦！
             </p>
           </div>
         </div>
