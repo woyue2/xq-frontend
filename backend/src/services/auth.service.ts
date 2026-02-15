@@ -22,9 +22,38 @@ interface SendCodeResult {
 const lastSendMap = new Map<string, number>();
 const CODE_EXPIRE_SECONDS = 300;
 const SEND_COOLDOWN_SECONDS = 60;
+const PREDEFINED_AVATARS = [
+  // 修改原因：新用户注册成功后需要随机分配系统默认头像，避免 avatar 为空。
+  '/avators/notionists-1771014027111.png',
+  '/avators/notionists-1771014089130.png',
+  '/avators/notionists-1771014089350.png',
+  '/avators/notionists-1771014137113.png',
+  '/avators/notionists-1771014137573.png',
+  '/avators/notionists-1771014137633.png',
+  '/avators/notionists-1771014141476.png',
+  '/avators/notionists-1771014149388.png',
+  '/avators/notionists-1771014149586.png',
+  '/avators/notionists-1771014149624.png',
+  '/avators/notionists-1771014151440.png',
+  '/avators/notionists-1771014154427.png',
+  '/avators/notionists-1771014156462.png',
+  '/avators/notionists-1771014160192.png',
+  '/avators/notionists-1771014162379.png',
+  '/avators/notionists-1771014166621.png',
+  '/avators/notionists-1771014171488.png',
+  '/avators/notionists-1771014181034.png',
+  '/avators/notionists-1771014181107.png',
+  '/avators/notionists-1771014181485.png'
+];
 
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function pickRandomDefaultAvatar(): string {
+  // ⚠️ 不确定因素：若 static/avators 文件后续删改，这里的硬编码列表需同步维护。
+  const randomIndex = Math.floor(Math.random() * PREDEFINED_AVATARS.length);
+  return PREDEFINED_AVATARS[randomIndex];
 }
 
 export class AuthService {
@@ -734,6 +763,8 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    // 修改原因：用户从“未注册”变为“已注册”时，自动分配随机默认头像。
+    const defaultAvatar = pickRandomDefaultAvatar();
 
     let user;
     try {
@@ -742,7 +773,7 @@ export class AuthService {
           phone: normalizedPhone,
           name: effectiveName,
           nickname: effectiveNickname,
-          avatar: null,
+          avatar: defaultAvatar,
           role,
           grade: effectiveGrade,
           age: age ?? null,
@@ -778,7 +809,8 @@ export class AuthService {
          phone: normalizedPhone,
          name: effectiveName,
          nickname: effectiveNickname,
-         avatar: null,
+         // 修改原因：保持降级模式与正式注册行为一致，返回随机默认头像而非空值。
+         avatar: defaultAvatar,
          role,
          grade: effectiveGrade ?? null,
          age: age ?? null,

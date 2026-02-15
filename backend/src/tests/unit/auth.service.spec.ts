@@ -32,6 +32,9 @@ describe('AuthService - 单元测试', () => {
     prismaAny.loginLog = {
       create: jest.fn()
     };
+    prismaAny.notification = {
+      create: jest.fn()
+    };
   });
 
   afterEach(() => {
@@ -62,6 +65,8 @@ describe('AuthService - 单元测试', () => {
       expect(result.phone).toBe('13800138000');
       expect(result.expireIn).toBeGreaterThan(0);
       expect(result.cooldown).toBeGreaterThan(0);
+      // 修改原因：测试环境改为随机码，断言为 6 位数字即可。
+      expect(result.code).toMatch(/^\d{6}$/);
       expect(prismaAny.verificationCode.create).toHaveBeenCalled();
     });
 
@@ -109,6 +114,57 @@ describe('AuthService - 单元测试', () => {
       ).rejects.toMatchObject<Partial<AppError>>({
         status: 500,
         code: 'INTERNAL_SERVER_ERROR'
+      });
+    });
+
+    it('注册发码成功时不应创建老师通知（验证码直发用户）', async () => {
+      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue({
+        id: 'wl-register-001',
+        phone: '13800138000',
+        role: 'student',
+        deletedAt: null
+      });
+      (prismaAny.verificationCode.create as jest.Mock).mockResolvedValue({});
+
+      const result = await service.sendCode('13800138000', 'register');
+
+      expect(result.phone).toBe('13800138000');
+      expect(prismaAny.verificationCode.create).toHaveBeenCalled();
+      expect(prismaAny.notification.create).not.toHaveBeenCalled();
+    });
+
+    it('绑定孩子发码成功时应写入孩子通知', async () => {
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'child-user-001',
+        phone: '13600136000',
+        isActive: true,
+        isBanned: false
+      });
+      (prismaAny.verificationCode.create as jest.Mock).mockResolvedValue({});
+      (prismaAny.notification.create as jest.Mock).mockResolvedValue({});
+
+      const result = await service.sendCode('13600136000', 'bind_child');
+
+      expect(result.phone).toBe('13600136000');
+      expect(prismaAny.verificationCode.create).toHaveBeenCalled();
+      expect(prismaAny.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'child-user-001',
+            type: 'bind_child_code'
+          })
+        })
+      );
+    });
+
+    it('绑定孩子发码时若孩子未注册应抛出 CHILD_NOT_REGISTERED', async () => {
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.sendCode('13600136001', 'bind_child')
+      ).rejects.toMatchObject<Partial<AppError>>({
+        code: 'CHILD_NOT_REGISTERED',
+        status: 404
       });
     });
   });
@@ -303,6 +359,51 @@ describe('AuthService - 单元测试', () => {
       expect(result.user.nickname.slice(-4)).toBe('8000');
     });
 
+    it('应当在注册成功时为新用户分配随机默认头像', async () => {
+      (prismaAny.verificationCode.findFirst as jest.Mock).mockResolvedValue({
+        id: 'vc-avatar-001',
+        phone: '13800138000',
+        code: '123456',
+        type: 'register',
+        used: false,
+        expireAt: new Date(Date.now() + 60 * 1000)
+      });
+      (prismaAny.verificationCode.update as jest.Mock).mockResolvedValue({});
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prismaAny.userWhitelist.findUnique as jest.Mock).mockResolvedValue(null);
+      (prismaAny.refreshToken.create as jest.Mock).mockResolvedValue({});
+      (prismaAny.loginLog.create as jest.Mock).mockResolvedValue({});
+      (prismaAny.user.create as jest.Mock).mockImplementation((args: any) => ({
+        id: 'user-avatar-001',
+        phone: args.data.phone,
+        nickname: args.data.nickname,
+        avatar: args.data.avatar,
+        role: args.data.role
+      }));
+
+      jest.spyOn(jwtUtils, 'signAccessToken').mockReturnValue('access-token');
+      jest
+        .spyOn(jwtUtils, 'signRefreshToken')
+        .mockReturnValue('refresh-token');
+
+      const result = await service.register({
+        phone: '13800138000',
+        code: '123456',
+        password: '12345678',
+        name: '张三'
+      } as any);
+
+      // 修改原因：注册后 avatar 不应为空，且应命中本地默认头像池路径规则。
+      expect(result.user.avatar).toMatch(/^\/avators\/notionists-\d+\.png$/);
+      expect(prismaAny.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            avatar: expect.stringMatching(/^\/avators\/notionists-\d+\.png$/)
+          })
+        })
+      );
+    });
+
     it('应当在验证码无效时抛出 INVALID_CODE', async () => {
       (prismaAny.verificationCode.findFirst as jest.Mock).mockResolvedValue(
         null
@@ -347,6 +448,47 @@ describe('AuthService - 单元测试', () => {
         code: 'USER_EXISTS',
         status: 409
       });
+    });
+
+    it('应当在请求角色与白名单角色不一致时拒绝注册', async () => {
+      (prismaAny.verificationCode.findFirst as jest.Mock).mockResolvedValue({
+        id: 'vc-role-mismatch',
+        phone: '13800138000',
+        code: '123456',
+        type: 'register',
+        used: false,
+        expireAt: new Date(Date.now() + 60 * 1000)
+      });
+      (prismaAny.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prismaAny.userWhitelist.findUnique as jest.Mock)
+        .mockResolvedValueOnce({
+          id: 'wl-role-mismatch',
+          phone: '13800138000',
+          role: 'student',
+          name: '张三'
+        })
+        .mockResolvedValueOnce({
+          id: 'wl-role-mismatch',
+          phone: '13800138000',
+          role: 'student',
+          name: '张三'
+        });
+
+      await expect(
+        service.register({
+          phone: '13800138000',
+          code: '123456',
+          nickname: '新用户',
+          password: '12345678',
+          name: '张三',
+          role: 'parent'
+        })
+      ).rejects.toMatchObject<Partial<AppError>>({
+        code: 'ROLE_MISMATCH_WHITELIST',
+        status: 403
+      });
+
+      expect(prismaAny.user.create).not.toHaveBeenCalled();
     });
 
     it('应当在注册成功时返回 token 与用户信息', async () => {
