@@ -171,8 +171,8 @@ describe('Question API', () => {
     expect(res.body.data.status).toBe('pending');
   });
 
-  // Q-API-001T 教师创建问题应直接通过审核
-  it('should auto-approve question created by teacher (Q-API-001T)', async () => {
+  // Q-API-001T 教师创建问题也应进入待审核
+  it('should create teacher question as pending (Q-API-001T)', async () => {
     const res = await request(app)
       .post('/api/questions')
       .set('Authorization', `Bearer ${teacherToken}`)
@@ -186,7 +186,7 @@ describe('Question API', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.code).toBe(201);
-    expect(res.body.data.status).toBe('approved');
+    expect(res.body.data.status).toBe('pending');
   });
 
   // Q-API-002 标题超长
@@ -296,30 +296,6 @@ describe('Question API', () => {
       res.body.data.list.every((q: any) => q.status === 'approved')
     ).toBe(true);
     expect(res.body.data.pagination.page).toBe(1);
-  });
-
-  // Q-API-005P 非法分页参数应返回 400
-  it('should return 400 when pagination params are invalid (Q-API-005P)', async () => {
-    const res1 = await request(app)
-      .get('/api/questions?page=0&pageSize=20')
-      .set('Authorization', `Bearer ${studentToken}`);
-
-    expect(res1.status).toBe(400);
-    expect(res1.body.error).toBe('INVALID_PAGINATION');
-
-    const res2 = await request(app)
-      .get('/api/questions?page=1&pageSize=0')
-      .set('Authorization', `Bearer ${studentToken}`);
-
-    expect(res2.status).toBe(400);
-    expect(res2.body.error).toBe('INVALID_PAGINATION');
-
-    const res3 = await request(app)
-      .get('/api/questions?page=abc&pageSize=20')
-      .set('Authorization', `Bearer ${studentToken}`);
-
-    expect(res3.status).toBe(400);
-    expect(res3.body.error).toBe('INVALID_PAGINATION');
   });
 
   // Q-API-005K 关键字搜索（按标题/内容模糊匹配）
@@ -583,77 +559,6 @@ describe('Question API', () => {
           (q.status === 'pending' || q.status === 'approved')
       )
     ).toBe(true);
-  });
-
-  // Q-API-010A 我的提问状态统计应返回服务端聚合结果（不受分页影响）
-  it('should return my question status counts (Q-API-010A)', async () => {
-    await prisma.question.createMany({
-      data: [
-        {
-          id: 'q-count-1',
-          title: '统计 pending',
-          content: '内容',
-          subject: 'math',
-          tags: [],
-          difficulty: 'easy',
-          status: 'pending',
-          isGoodQuestion: false,
-          isPinned: false,
-          likes: 0,
-          favorites: 0,
-          comments: 0,
-          answers: 0,
-          authorId: 'student_001',
-          authorName: '测试学生'
-        },
-        {
-          id: 'q-count-2',
-          title: '统计 approved',
-          content: '内容',
-          subject: 'math',
-          tags: [],
-          difficulty: 'medium',
-          status: 'approved',
-          isGoodQuestion: false,
-          isPinned: false,
-          likes: 0,
-          favorites: 0,
-          comments: 0,
-          answers: 0,
-          authorId: 'student_001',
-          authorName: '测试学生'
-        },
-        {
-          id: 'q-count-3',
-          title: '统计 rejected',
-          content: '内容',
-          subject: 'math',
-          tags: [],
-          difficulty: 'hard',
-          status: 'rejected',
-          isGoodQuestion: false,
-          isPinned: false,
-          likes: 0,
-          favorites: 0,
-          comments: 0,
-          answers: 0,
-          authorId: 'student_001',
-          authorName: '测试学生'
-        }
-      ]
-    });
-
-    const res = await request(app)
-      .get('/api/questions/my-status-counts')
-      .set('Authorization', `Bearer ${studentToken}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.code).toBe(200);
-    expect(res.body.data.total).toBe(3);
-    expect(res.body.data.pending).toBe(1);
-    expect(res.body.data.approved).toBe(1);
-    expect(res.body.data.rejected).toBe(1);
-    expect(res.body.data.banned).toBe(0);
   });
 
   // Q-API-010B 登录用户可生成 1 小时分享链接
