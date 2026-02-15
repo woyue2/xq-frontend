@@ -38,7 +38,7 @@ describe('Parent Flow Integration', () => {
     });
   });
 
-  test('LoginPage shows parent registration without binding fields for PARENT2024', async () => {
+  test('LoginPage parent registration no longer requires invite code', async () => {
     render(
       <BrowserRouter>
         <LoginPage />
@@ -58,19 +58,13 @@ describe('Parent Flow Integration', () => {
 
     // Now should be in register mode with parent fields
     await waitFor(() => {
-      expect(screen.getByLabelText('邀请码 *')).toBeInTheDocument();
+      expect(screen.getByLabelText('手机号')).toBeInTheDocument();
+      expect(screen.queryByLabelText('邀请码 *')).not.toBeInTheDocument();
     });
-
-    // Enter Parent Invite Code
-    const inviteInput = screen.getByLabelText('邀请码 *');
-    fireEvent.change(inviteInput, { target: { value: 'PARENT2024' } });
 
     // Check that binding fields do NOT appear (parent registration doesn't require child binding)
     expect(screen.queryByText('绑定孩子信息')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('孩子姓名 *')).not.toBeInTheDocument();
-    
-    // Check that real name field shows as optional for parent
-    expect(screen.getByText('真实姓名（可选）')).toBeInTheDocument();
   });
 
   test('ProfilePage shows My Children section for parent', async () => {

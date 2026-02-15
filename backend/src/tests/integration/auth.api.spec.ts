@@ -188,11 +188,19 @@ describe('Auth API', () => {
       }
     });
 
+    // 修改原因：测试环境验证码改为随机后，注册前需先发码并使用返回码。
+    const sendCodeRes = await request(app)
+      .post('/api/auth/send-code')
+      .send({ phone, type: 'register' });
+    expect(sendCodeRes.status).toBe(200);
+    const registerCode = sendCodeRes.body?.data?.code as string;
+    expect(registerCode).toMatch(/^\d{6}$/);
+
     const res = await request(app)
       .post('/api/auth/register')
       .send({
         phone,
-        code: '123456',
+        code: registerCode,
         password: '12345678',
         nickname: '新学生',
         grade: '初三',

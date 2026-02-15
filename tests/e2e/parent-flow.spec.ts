@@ -323,11 +323,15 @@ test.describe('家长角色端到端业务链路', () => {
       }
     });
     expect(sendCodeRes.ok()).toBeTruthy();
+    // 修改原因：测试环境验证码改为随机后，绑定流程需读取发码接口返回值。
+    const sendCodeBody: any = await sendCodeRes.json();
+    const bindCode = sendCodeBody?.data?.code as string;
+    expect(bindCode).toMatch(/^\d{6}$/);
 
     const bindRes = await apiContext.post('/api/parent/bind', {
       data: {
         phone: studentUser.phone,
-        code: '123456',
+        code: bindCode,
         childName: 'E2E 孩子',
         school: 'Playwright 小学'
       },

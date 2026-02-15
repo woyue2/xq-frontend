@@ -16,20 +16,17 @@ test.describe('登录与注册页面基础交互', () => {
     ).toBeVisible();
   });
 
-  test('切换到注册时显示邀请码输入区域', async ({ page }) => {
+  test('切换到注册并选择学生身份后显示学校/年级字段（无邀请码）', async ({ page }) => {
     await page.goto('/login');
 
     // 点击“快速注册”按钮
     await page.getByRole('button', { name: '快速注册' }).click();
+    await page.getByRole('button', { name: '学生' }).click();
 
-    // 注册模式下应出现邀请码输入框提示
-    await expect(
-      page.getByText('需输入有效邀请码方可注册')
-    ).toBeVisible();
+    // 注册模式下不再出现邀请码输入框
+    await expect(page.getByLabel('邀请码 *')).toHaveCount(0);
 
-    // 学生邀请码时应展示年级/年龄/学校字段（只验证基本存在）
-    await page.getByLabel('邀请码 *').fill('STUDENT2024');
-
+    // 学生身份默认展示年级/年龄/学校字段
     await expect(page.getByLabel('年级 *')).toBeVisible();
     await expect(page.getByLabel('年龄 *')).toBeVisible();
     await expect(page.getByLabel('学校 *')).toBeVisible();

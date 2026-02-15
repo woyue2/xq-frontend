@@ -50,6 +50,7 @@ export interface SendCodeResponse {
     phone: string;
     expireIn: number;
     cooldown: number;
+    code?: string;
 }
 
 export interface LoginPayload {

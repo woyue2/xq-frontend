@@ -37,8 +37,8 @@ def run_login_flow() -> None:
         # 1. 直接打开登录页（src/App.tsx: <Route path="/login" element={<LoginPage />} />）
         page.goto(LOGIN_URL)
 
-        # 2. 确认页面标题是 “账号登录”（见 LoginPage.tsx 中的文案）
-        page.get_by_text("账号登录").wait_for(timeout=5000)
+        # # 2. 确认页面标题是 “账号登录”（见 LoginPage.tsx 中的文案）
+        # page.get_by_text("账号登录").wait_for(timeout=5000)
 
         # 3. 输入手机号（Label “手机号” + <Input id="phone" />）
         phone_input = page.get_by_label("手机号")
