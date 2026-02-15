@@ -555,10 +555,6 @@ export function QuestionDetailPage() {
       navigate(`/student/${question.authorId}/questions`);
       return;
     }
-
-    if (currentUser.role === 'parent') {
-      toast.error('请在“孩子提问列表”页查看孩子的历史提问');
-    }
   };
 
   const handleAddImage = () => {
@@ -964,6 +960,9 @@ export function QuestionDetailPage() {
 
 
 
+  // 修改原因：按业务决策仅老师可点击作者头像/姓名查看学生历史提问。
+  const canClickAuthor = currentUser?.role === 'teacher';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -1034,21 +1033,36 @@ export function QuestionDetailPage() {
 
           {/* 提问信息 */}
           <div className="flex items-center gap-2 text-xs text-gray-400">
-            <button
-              type="button"
-              onClick={handleAuthorClick}
-              className="flex items-center gap-2 hover:text-gray-600"
-            >
-              <Avatar className="w-6 h-6">
-                <AvatarImage src={question.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`} />
-                <AvatarFallback className="text-[10px] bg-gray-100">
-                  {question.authorName[0]}
-                </AvatarFallback>
-              </Avatar>
-              <span className="font-medium text-gray-600">
-                {question.authorName}
-              </span>
-            </button>
+            {canClickAuthor ? (
+              <button
+                type="button"
+                onClick={handleAuthorClick}
+                className="flex items-center gap-2 hover:text-gray-600"
+              >
+                <Avatar className="w-6 h-6">
+                  <AvatarImage src={question.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`} />
+                  <AvatarFallback className="text-[10px] bg-gray-100">
+                    {question.authorName[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-gray-600">
+                  {question.authorName}
+                </span>
+              </button>
+            ) : (
+              // 修改原因：家长/学生改为静态展示，去掉“看起来可点击”的交互暗示。
+              <div className="flex items-center gap-2">
+                <Avatar className="w-6 h-6">
+                  <AvatarImage src={question.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`} />
+                  <AvatarFallback className="text-[10px] bg-gray-100">
+                    {question.authorName[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-gray-600">
+                  {question.authorName}
+                </span>
+              </div>
+            )}
             <span>•</span>
             <span>{formatDate(question.createdAt)}</span>
           </div>
@@ -1125,8 +1139,8 @@ export function QuestionDetailPage() {
           )}
 
           {/* Actions Bar */}
-          <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-6">
-            <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4 mt-6">
+            <div className="flex items-center gap-5 min-w-0 flex-wrap">
               <button
                 data-testid="like-btn"
                 onClick={handleLike}
@@ -1156,23 +1170,27 @@ export function QuestionDetailPage() {
                 <ShareNetwork className="w-6 h-6" />
               </button>
             </div>
-            {canDelete && (
-              <button
-                onClick={handleDelete}
-                className="text-red-400 hover:text-red-500 transition-colors p-2"
-                title="删除问题"
-              >
-                <Trash className="w-5 h-5" />
-              </button>
-            )}
-            {canAnswer && (
-              <button
-                onClick={handleAnswer}
-                className="bg-[#D5BDAF] text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm active:scale-95 transition-transform"
-              >
-                去回答
-              </button>
-            )}
+            {/* ⚠️ 不确定因素：在极窄屏（<320px）下，按钮与图标仍可能出现紧凑堆叠，但不会越出卡片边界。 */}
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              {/* 修改原因：移动端宽度不足时，右侧操作区需要独立布局，避免“去回答”按钮被挤出卡片外。 */}
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  className="text-red-400 hover:text-red-500 transition-colors p-2"
+                  title="删除问题"
+                >
+                  <Trash className="w-5 h-5" />
+                </button>
+              )}
+              {canAnswer && (
+                <button
+                  onClick={handleAnswer}
+                  className="bg-[#D5BDAF] text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm active:scale-95 transition-transform whitespace-nowrap"
+                >
+                  去回答
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
