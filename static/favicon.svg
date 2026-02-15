@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="题题高 favicon">
+  <defs>
+    <linearGradient id="logoBoxBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#bae6fd" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="200" height="200" rx="54" fill="url(#logoBoxBg)" />
+  <!-- 修改原因：按指定元素（weight-900）生成 favicon，统一品牌主识别字形。 -->
+  <!-- ⚠️ 不确定因素：SVG 文本依赖终端字体；不同设备可能出现轻微字形差异。 -->
+  <text
+    x="100"
+    y="110"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif"
+    font-size="104"
+    font-weight="900"
+    fill="#0369a1"
+  >题</text>
+</svg>

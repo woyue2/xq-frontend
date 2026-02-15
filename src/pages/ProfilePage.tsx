@@ -1,4 +1,4 @@
-import { ArrowLeft, ChatCentered, PencilSimple, CaretRight, SignOut, ShieldCheck, Camera, Check, Users, Pencil, SpinnerGap, Baby, Phone, Plus, Key, Printer } from '@phosphor-icons/react';
+import { ArrowLeft, ChatCentered, PencilSimple, CaretRight, SignOut, ShieldCheck, Camera, Check, Users, Pencil, SpinnerGap, Baby, Phone, Plus, Key, Printer, DownloadSimple } from '@phosphor-icons/react';
 // 修改原因：按需求保持点赞/收藏图标为原始样式，并为"我的提问"使用与 MyQuestionsPage 一致的 ChatCentered 图标。
 import { Heart, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -64,6 +64,11 @@ const PREDEFINED_AVATARS = [
 ];
 
 export function ProfilePage() {
+  type BeforeInstallPromptEvent = Event & {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+  };
+
   const navigate = useNavigate();
   const { user: currentUser, logout, updateUser } = useAuthStore();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -82,6 +87,7 @@ export function ProfilePage() {
   const [showChangePhoneHint, setShowChangePhoneHint] = useState(false);
   const [isSubmittingChangePhone, setIsSubmittingChangePhone] = useState(false);
   const changePhoneHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
 
   // 家长绑定相关状态
   const [children, setChildren] = useState<ChildInfo[]>([]);
@@ -171,6 +177,28 @@ export function ProfilePage() {
       if (changePhoneHintTimerRef.current) {
         clearTimeout(changePhoneHintTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    // 修改原因：浏览器不会稳定自动弹出安装提示，前端需要缓存事件以支持“安装应用”手动触发。
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPromptEvent(event as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      // 修改原因：安装成功后清理一次性事件，避免按钮继续触发旧事件对象。
+      setInstallPromptEvent(null);
+      toast.success('应用已安装');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -560,6 +588,22 @@ const handleGetBindCode = async () => {
     }
   };
 
+  const handleInstallApp = async () => {
+    if (!installPromptEvent) {
+      // 修改原因：在不满足浏览器安装策略时给出明确提示，避免用户误判为按钮失效。
+      // ⚠️ 不确定因素：不同浏览器策略不同，可能只支持“浏览器菜单安装”而不触发 beforeinstallprompt。
+      toast.info('当前环境暂不可弹出安装，请使用浏览器菜单中的“安装应用”');
+      return;
+    }
+
+    await installPromptEvent.prompt();
+    const choiceResult = await installPromptEvent.userChoice;
+    if (choiceResult.outcome === 'accepted') {
+      toast.success('安装请求已提交');
+    }
+    setInstallPromptEvent(null);
+  };
+
   const menuItems = [
     {
       icon: ShieldCheck,
@@ -617,9 +661,17 @@ const handleGetBindCode = async () => {
       icon: Printer,
       label: '打印题目',
       color: 'text-indigo-500',
-      visible: currentUser.role === 'parent',
-      // 修改原因：家长从个人页可直接进入打印选题流程，减少路径跳转成本。
-      onClick: () => navigate('/print/questions/select'),
+      // 修改原因：按需求开放学生/家长/老师三类角色的打印入口。
+      visible: currentUser.role === 'parent' || currentUser.role === 'student' || currentUser.role === 'teacher',
+      // 修改原因：进入打印流程前显式记录“业务返回目标”，避免后续依赖 history 导致页面来回跳转。
+      onClick: () => {
+        try {
+          sessionStorage.setItem('print:returnTo', '/profile');
+        } catch {
+          // ⚠️ 不确定因素：极端隐私模式可能禁用 sessionStorage；此时打印页会使用默认回退目标。
+        }
+        navigate('/print/questions/select');
+      },
     },
     {
       // 修改原因：为"我的提问"分配独立问题语义图标，避免与"待回答"入口图标重复。
@@ -792,6 +844,17 @@ const handleGetBindCode = async () => {
           {/* 账号操作区域 */}
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden p-2">
             <button
+              onClick={handleInstallApp}
+              className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
+            >
+              <div className="p-2 rounded-2xl">
+                <DownloadSimple className="w-5 h-5 text-sky-500" />
+              </div>
+              <span className="flex-1 text-left font-medium text-gray-700">安装应用</span>
+              <CaretRight className="w-5 h-5 text-gray-300" />
+            </button>
+
+            <button
               onClick={() => setShowChangePhoneDialog(true)}
               className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
             >
@@ -828,8 +891,8 @@ const handleGetBindCode = async () => {
 
         {/* 版本信息 */}
         <div className="text-center text-xs text-gray-400 py-6">
-          <p>——————————————————————————</p>
-          <p className="mt-1">v1.0</p>
+          {/* <p>——————————————————————————</p>
+          <p className="mt-1">v1.0</p> */}
         </div>
       </div>
 

@@ -4,9 +4,6 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Only enable PWA in production builds
-const isProduction = process.env.NODE_ENV === 'production'
-
 export default defineConfig({
   // 修改原因：当前头像资源存放在根目录 static/avators，指定为 publicDir 后才能通过 /avators/* 正常访问。
   // ⚠️ 不确定因素：若未来新增同名 public 目录并希望继续默认行为，需要同步调整此配置。
@@ -14,36 +11,48 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    ...(isProduction
-      ? [
-          VitePWA({
-            registerType: 'autoUpdate',
-            // 修改原因：仓库当前仅存在 static/favicon.ico，移除不存在的资源引用，避免构建期和运行期找不到资源。
-            includeAssets: ['favicon.ico'],
-            manifest: {
-              name: '知识星球问答小程序',
-              short_name: '知否',
-              description: '初中知识问答平台',
-              // 修改原因：显式声明 standalone，确保安装后按独立应用窗口启动。
-              display: 'standalone',
-              // 修改原因：补充 start_url，避免不同宿主环境下安装入口默认值不一致。
-              start_url: '/',
-              // 修改原因：补充背景色，降低启动白屏时的视觉跳变。
-              background_color: '#ffffff',
-              theme_color: '#ffffff',
-              icons: [
-                {
-                  // 修改原因：当前项目未提供 192/512 PNG 图标，先复用已存在的 favicon 以保证 PWA 可构建可安装。
-                  // ⚠️ 不确定因素：favicon 分辨率较低，移动端安装图标清晰度可能不足；后续拿到品牌图后应替换为 192/512 PNG。
-                  src: 'favicon.ico',
-                  sizes: '64x64 32x32 24x24 16x16',
-                  type: 'image/x-icon'
-                }
-              ]
-            }
-          })
+    VitePWA({
+      registerType: 'autoUpdate',
+      // 修改原因：你要求“全部开启”，开发环境也启用 PWA。
+      devOptions: {
+        enabled: true
+      },
+      // 修改原因：补充 favicon.svg，确保 PWA 构建产物包含新图标资源。
+      includeAssets: ['favicon.ico', 'favicon.svg', 'pwa-192.png', 'pwa-512.png'],
+      manifest: {
+        name: '知识星球问答小程序',
+        short_name: '知否',
+        description: '初中知识问答平台',
+        // 修改原因：显式声明 standalone，确保安装后按独立应用窗口启动。
+        display: 'standalone',
+        // 修改原因：补充 start_url，避免不同宿主环境下安装入口默认值不一致。
+        start_url: '/',
+        // 修改原因：补充背景色，降低启动白屏时的视觉跳变。
+        background_color: '#ffffff',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            // 修改原因：补齐 192x192 PNG 图标，满足主流浏览器 PWA 安装校验要求。
+            src: 'pwa-192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            // 修改原因：补齐 512x512 PNG 图标，满足主流浏览器 PWA 安装校验要求。
+            src: 'pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            // 修改原因：当前项目未提供 192/512 PNG 图标，先复用已存在的 favicon 以保证 PWA 可构建可安装。
+            // ⚠️ 不确定因素：部分环境可能仍优先展示该 ico；若出现清晰度不足，可在后续发布中移除该回退项。
+            src: 'favicon.ico',
+            sizes: '64x64 32x32 24x24 16x16',
+            type: 'image/x-icon'
+          }
         ]
-      : [])
+      }
+    })
   ],
   resolve: {
     alias: {
