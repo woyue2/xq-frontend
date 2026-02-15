@@ -113,6 +113,13 @@ export function MyQuestionsPage() {
 
     return (
         <div className="flex flex-col pb-10">
+            {/* 修改原因：补齐二级页面返回入口，统一固定返回个人中心，避免依赖 history 栈。 */}
+            <div className="flex items-center gap-2 mb-2">
+                <button onClick={() => navigate('/profile')} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                </button>
+            </div>
+
             {/* 统计信息 */}
             <div className="bg-white rounded-3xl p-6 mb-4 shadow-sm">
                 <div className="grid grid-cols-3 gap-4 text-center">

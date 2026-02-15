@@ -1,4 +1,4 @@
-import { ChatCentered, CaretRight } from '@phosphor-icons/react';
+import { ArrowLeft, ChatCentered, CaretRight } from '@phosphor-icons/react';
 // 修改原因：按需求保持点赞/收藏图标为原始样式，Heart/Star 回退到 lucide-react。
 import { Heart, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +58,13 @@ export function MyFavoritesPage() {
 
     return (
         <div className="flex flex-col pb-10">
+            {/* 修改原因：补齐二级页面返回入口，统一固定返回个人中心，避免依赖 history 栈。 */}
+            <div className="flex items-center gap-2 mb-2">
+                <button onClick={() => navigate('/profile')} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                </button>
+            </div>
+
             {/* 统计信息 */}
             <div className="bg-white rounded-3xl p-6 mb-4 shadow-sm">
                 <div className="text-center">
