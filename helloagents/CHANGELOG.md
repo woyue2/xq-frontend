@@ -18,6 +18,10 @@
   - 更新 `vite.config.ts` 的 `VitePWA` 配置：移除 `favicon.ico` 安装回退链路，`includeAssets` 与 `manifest.icons` 全量切换为 PNG 图标并补齐 `purpose(any|maskable)`，同时新增 `manifest.id='/'`；
   - 更新 `index.html`：新增 `favicon-32`、`apple-touch-icon` 与 iOS PWA 元信息（`apple-mobile-web-app-*`），修复 Safari 添加到主屏幕后图标不稳定问题；
   - 保留 `static/favicon.ico` 作为历史文件但不再被安装链路引用，避免异常 `1x1` ico 干扰移动端安装图标选择。
+- **PWA 图标生成去除字体依赖（修复 Android/桌面出现“9898”字符图标）**:
+  - 将 `scripts/generate-pwa-icons.mjs` 的输入从 `static/favicon.svg` 改为 `static/icon-source.png`，避免构建机缺少中文字体时 `sharp` 渲染 SVG 文本失真；
+  - `index.html` 不再引用 `favicon.svg`，统一使用 `favicon-32.png` 与 `apple-touch-icon.png`；
+  - `vite.config.ts` 的 `includeAssets` 移除 `favicon.svg`，安装链路仅保留 PNG 图标资产。
 
 ### Fixed
 - **Mock 去除与真实链路对齐（前后端一体）**:

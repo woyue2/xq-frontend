@@ -152,7 +152,7 @@
   - `static/pwa-maskable-192.png`
   - `static/pwa-maskable-512.png`
 - 图标生成策略：
-  - 图标统一由 `static/favicon.svg` 生成，避免手工维护多尺寸资源；
+  - 图标统一由 `static/icon-source.png` 生成，避免构建机字体差异导致 SVG 文本渲染异常；
   - 常规图标使用覆盖缩放，保证主体在安装图标中清晰可见；
   - maskable 图标使用安全区（约 10% 边距）+ 不透明背景，避免系统圆角裁切导致主体丢失。
 - PWA 配置策略（`vite.config.ts`）：
@@ -162,7 +162,7 @@
 - iOS 兼容策略（`index.html`）：
   - 新增 `apple-touch-icon`（180x180）；
   - 新增 `apple-mobile-web-app-capable`、`apple-mobile-web-app-title`、`apple-mobile-web-app-status-bar-style`；
-  - 保留 SVG favicon，并补充 `favicon-32.png` 作为常规浏览器 fallback。
+  - 使用 `favicon-32.png` 作为常规浏览器 favicon，避免依赖运行环境字体渲染。
 - 缓存与发布注意事项：
   - Service Worker 与浏览器图标缓存会延迟刷新；
   - 本地验证前需先执行：Unregister SW + Clear site data；
