@@ -90,10 +90,9 @@ export function NotificationsPage() {
   };
 
   const handleMarkAllRead = async () => {
-    const ids = items.filter((n) => !n.isRead).map((n) => n.id);
-    if (ids.length === 0) return;
+    if (unreadCount <= 0) return;
     try {
-      await notificationService.markAsRead({ ids });
+      await notificationService.markAllAsRead();
       setItems((prev) => prev.map((it) => ({ ...it, isRead: true })));
       setUnreadCount(0);
     } catch {

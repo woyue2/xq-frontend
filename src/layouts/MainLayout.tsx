@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef, type PointerEvent } from 'react';
 import { getCurrentSlogan } from '@/config/ai-text';
+import { NOTIFICATION_CHANGED_EVENT } from '@/lib/notification-events';
 import { notificationService } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -105,26 +106,47 @@ export function MainLayout() {
 
     useEffect(() => {
         let cancelled = false;
-        if (!user) {
-            setUnreadCount(0);
-            return;
-        }
 
-        notificationService
-            .getUnreadCount()
-            .then(({ unreadCount }) => {
-                if (!cancelled) {
-                    setUnreadCount(unreadCount);
-                }
-            })
-            .catch(() => {
-                // 失败由全局拦截器提示，这里忽略
-            });
+        const loadUnreadCount = () => {
+            if (!user) {
+                setUnreadCount(0);
+                return;
+            }
+
+            notificationService
+                .getUnreadCount()
+                .then(({ unreadCount }) => {
+                    if (!cancelled) {
+                        setUnreadCount(unreadCount);
+                    }
+                })
+                .catch(() => {
+                    // 失败由全局拦截器提示，这里忽略
+                });
+        };
+
+        const handleWindowFocus = () => {
+            loadUnreadCount();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                loadUnreadCount();
+            }
+        };
+
+        loadUnreadCount();
+        window.addEventListener(NOTIFICATION_CHANGED_EVENT, loadUnreadCount);
+        window.addEventListener('focus', handleWindowFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
             cancelled = true;
+            window.removeEventListener(NOTIFICATION_CHANGED_EVENT, loadUnreadCount);
+            window.removeEventListener('focus', handleWindowFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [user]);
+    }, [user, location.pathname]);
 
     const handleSearch = () => {
         if (searchQuery.trim()) {

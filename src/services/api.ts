@@ -2,6 +2,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { mockQuestions, mockUsers, mockChildren, mockNotifications } from '@/lib/mock-data';
 import { compressImage } from '@/lib/image-compress';
+import { emitNotificationChanged } from '@/lib/notification-events';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { USE_MOCK } from '@/lib/mock-env';
 import type {
@@ -1154,6 +1155,7 @@ export const notificationService = {
             '/notifications/read',
             payload
         );
+        emitNotificationChanged();
         return data.data;
     },
     markAllAsRead: async () => {
@@ -1161,6 +1163,7 @@ export const notificationService = {
         const { data } = await api.post<ApiResponse<{ success: boolean; updatedCount: number }>>(
             '/notifications/read-all'
         );
+        emitNotificationChanged();
         return data.data;
     },
     deleteNotification: async (id: string) => {
@@ -1168,6 +1171,7 @@ export const notificationService = {
         const { data } = await api.delete<ApiResponse<{ success: boolean }>>(
             `/notifications/${id}`
         );
+        emitNotificationChanged();
         return data.data;
     },
     getUnreadCount: async () => {
