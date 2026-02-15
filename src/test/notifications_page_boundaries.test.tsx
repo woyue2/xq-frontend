@@ -7,11 +7,13 @@ import { useAuthStore } from '@/stores/useAuthStore';
 // Mock notificationService to control data/side effects
 const getNotificationsMock = vi.fn();
 const markAsReadMock = vi.fn();
+const markAllAsReadMock = vi.fn();
 
 vi.mock('@/services/api', () => ({
   notificationService: {
     getNotifications: (...args: any[]) => getNotificationsMock(...args),
     markAsRead: (...args: any[]) => markAsReadMock(...args),
+    markAllAsRead: (...args: any[]) => markAllAsReadMock(...args),
     getUnreadCount: vi.fn(),
   },
 }));
@@ -34,6 +36,7 @@ describe('NotificationsPage boundaries', () => {
   beforeEach(() => {
     getNotificationsMock.mockReset();
     markAsReadMock.mockReset();
+    markAllAsReadMock.mockReset();
     mockNavigate.mockReset();
 
     // 默认模拟已登录学生用户
@@ -61,7 +64,7 @@ describe('NotificationsPage boundaries', () => {
 
   it('handles malformed new_answer content without crashing', async () => {
     getNotificationsMock.mockResolvedValue({
-      notifications: [
+      list: [
         {
           id: 'n1',
           userId: 'u1',
@@ -75,7 +78,7 @@ describe('NotificationsPage boundaries', () => {
         },
       ],
       unreadCount: 1,
-      total: 1,
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
     });
     markAsReadMock.mockResolvedValue({ success: true, updatedCount: 1 });
 
@@ -92,7 +95,7 @@ describe('NotificationsPage boundaries', () => {
 
   it('handles notification without targetId gracefully (no navigation)', async () => {
     getNotificationsMock.mockResolvedValue({
-      notifications: [
+      list: [
         {
           id: 'n2',
           userId: 'u1',
@@ -106,7 +109,7 @@ describe('NotificationsPage boundaries', () => {
         } as any,
       ],
       unreadCount: 1,
-      total: 1,
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
     });
     markAsReadMock.mockResolvedValue({ success: true, updatedCount: 1 });
 
@@ -123,7 +126,7 @@ describe('NotificationsPage boundaries', () => {
 
   it('marks all unread notifications as read when clicking mark all', async () => {
     getNotificationsMock.mockResolvedValue({
-      notifications: [
+      list: [
         {
           id: 'n3',
           userId: 'u1',
@@ -137,9 +140,9 @@ describe('NotificationsPage boundaries', () => {
         },
       ],
       unreadCount: 1,
-      total: 1,
+      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
     });
-    markAsReadMock.mockResolvedValue({ success: true, updatedCount: 1 });
+    markAllAsReadMock.mockResolvedValue({ success: true, updatedCount: 1 });
 
     await renderPage();
 
@@ -147,7 +150,7 @@ describe('NotificationsPage boundaries', () => {
     fireEvent.click(markAllBtn);
 
     await waitFor(() => {
-      expect(markAsReadMock).toHaveBeenCalledWith(['n3']);
+      expect(markAllAsReadMock).toHaveBeenCalled();
     });
 
     // 未读计数应更新为 0
