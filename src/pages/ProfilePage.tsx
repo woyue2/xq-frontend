@@ -27,14 +27,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { UI_CONFIG } from '@/config/ui-config';
 import { aiTextConfig } from '@/config/ai-text';
 import { parentService } from '@/services/parentService';
-import { authService, userService, questionService, auditService } from '@/services/api';
+import { api, authService, userService, questionService, auditService } from '@/services/api';
 import type { ChildInfo } from '@/types/parent';
 import { Label } from '@/components/ui/label';
 
@@ -74,6 +74,14 @@ export function ProfilePage() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  const [showChangePhoneDialog, setShowChangePhoneDialog] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [changePhoneCode, setChangePhoneCode] = useState('');
+  const [changePhoneCountdown, setChangePhoneCountdown] = useState(0);
+  const [changePhoneHintCode, setChangePhoneHintCode] = useState('');
+  const [showChangePhoneHint, setShowChangePhoneHint] = useState(false);
+  const [isSubmittingChangePhone, setIsSubmittingChangePhone] = useState(false);
+  const changePhoneHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 家长绑定相关状态
   const [children, setChildren] = useState<ChildInfo[]>([]);
@@ -148,6 +156,24 @@ export function ProfilePage() {
       console.error('Failed to load children', error);
     }
   };
+
+  const resetChangePhoneHint = () => {
+    if (changePhoneHintTimerRef.current) {
+      clearTimeout(changePhoneHintTimerRef.current);
+      changePhoneHintTimerRef.current = null;
+    }
+    setShowChangePhoneHint(false);
+    setChangePhoneHintCode('');
+  };
+
+  useEffect(() => {
+    return () => {
+      if (changePhoneHintTimerRef.current) {
+        clearTimeout(changePhoneHintTimerRef.current);
+      }
+    };
+  }, []);
+
 const handleGetBindCode = async () => {
   // 先检查孩子的姓名是否已填写
   if (!bindName || !bindName.trim()) {
@@ -186,6 +212,12 @@ const handleGetBindCode = async () => {
       clearInterval(timer);
     }
     setBindCountdown(0);
+    // 修改原因：绑定场景需要给出“孩子未注册”的明确提示，避免家长误判为网络错误。
+    const errorCode = (error as any)?.response?.data?.error;
+    if (errorCode === 'CHILD_NOT_REGISTERED') {
+      toast.error('孩子未注册，请先注册');
+      return;
+    }
     toast.error('发送失败：请检查手机号或网络');
   }
 };
@@ -442,6 +474,92 @@ const handleGetBindCode = async () => {
     }
   };
 
+  const handleGetChangePhoneCode = async () => {
+    if (!newPhone || newPhone.length !== 11) {
+      toast.error('请输入正确的新手机号');
+      return;
+    }
+
+    if (newPhone === currentUser.phone) {
+      toast.error('新手机号不能与当前手机号一致');
+      return;
+    }
+
+    if (changePhoneCountdown > 0) return;
+
+    let timer: number | null = null;
+    try {
+      setChangePhoneCountdown(60);
+      timer = setInterval(() => {
+        setChangePhoneCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer!);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      const response = await authService.sendCode({
+        phone: newPhone,
+        type: 'change_phone' as any
+      });
+      toast.success('验证码已发送');
+
+      const sentCode = response.data.data?.code ?? '';
+      resetChangePhoneHint();
+      if (sentCode) {
+        setChangePhoneHintCode(sentCode);
+        changePhoneHintTimerRef.current = setTimeout(() => {
+          setShowChangePhoneHint(true);
+          changePhoneHintTimerRef.current = null;
+        }, 2000);
+      }
+      // ⚠️ 不确定因素：后端在生产环境可能切换为不返回 code；此时前端不展示“本次验证码”文案。
+    } catch {
+      if (timer) {
+        clearInterval(timer);
+      }
+      setChangePhoneCountdown(0);
+      resetChangePhoneHint();
+    }
+  };
+
+  const handleChangePhone = async () => {
+    if (!newPhone || newPhone.length !== 11) {
+      toast.error('请输入正确的新手机号');
+      return;
+    }
+
+    if (!changePhoneCode || changePhoneCode.length < 4) {
+      toast.error('请输入验证码');
+      return;
+    }
+
+    try {
+      setIsSubmittingChangePhone(true);
+      const { data: res } = await api.post('/users/me/change-phone', {
+        newPhone,
+        code: changePhoneCode
+      });
+      // 修改原因：只为本次换绑场景最小接入，不扩展全局 service 层。
+      const updatedPhone = (res as any)?.data?.phone;
+      if (!updatedPhone) {
+        toast.error('手机号换绑失败，请稍后重试');
+        return;
+      }
+      updateUser({ phone: updatedPhone });
+      toast.success('手机号换绑成功');
+      setShowChangePhoneDialog(false);
+      setNewPhone('');
+      setChangePhoneCode('');
+      setChangePhoneCountdown(0);
+      resetChangePhoneHint();
+    } finally {
+      setIsSubmittingChangePhone(false);
+    }
+  };
+
   const menuItems = [
     {
       icon: ShieldCheck,
@@ -673,6 +791,16 @@ const handleGetBindCode = async () => {
 
           {/* 账号操作区域 */}
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden p-2">
+            <button
+              onClick={() => setShowChangePhoneDialog(true)}
+              className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 active:scale-[0.98]"
+            >
+              <div className="p-2 rounded-2xl">
+                <Phone className="w-5 h-5 text-indigo-500" />
+              </div>
+              <span className="flex-1 text-left font-medium text-gray-700">换绑手机号</span>
+              <CaretRight className="w-5 h-5 text-gray-300" />
+            </button>
 
             <button
               onClick={() => setShowPasswordDialog(true)}
@@ -879,6 +1007,78 @@ const handleGetBindCode = async () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 换绑手机号对话框 */}
+      <Dialog
+        open={showChangePhoneDialog}
+        onOpenChange={(open) => {
+          setShowChangePhoneDialog(open);
+          if (!open) {
+            setNewPhone('');
+            setChangePhoneCode('');
+            setChangePhoneCountdown(0);
+            resetChangePhoneHint();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">换绑手机号</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="change-phone-new">新手机号</Label>
+              <Input
+                id="change-phone-new"
+                value={newPhone}
+                onChange={(e) => {
+                  setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 11));
+                  resetChangePhoneHint();
+                }}
+                placeholder="请输入新的手机号"
+                maxLength={11}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="change-phone-code">验证码</Label>
+              <Input
+                id="change-phone-code"
+                value={changePhoneCode}
+                onChange={(e) => setChangePhoneCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="请输入验证码"
+                maxLength={6}
+              />
+            </div>
+
+            <Button
+              onClick={handleChangePhone}
+              disabled={isSubmittingChangePhone}
+              className="w-full bg-morandi-5 hover:bg-morandi-5/90 rounded-xl"
+            >
+              {isSubmittingChangePhone ? '提交中...' : '确认换绑'}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleGetChangePhoneCode}
+              disabled={changePhoneCountdown > 0 || !newPhone}
+              className="w-full rounded-xl"
+            >
+              {changePhoneCountdown > 0 ? `${changePhoneCountdown}s` : '获取验证码'}
+            </Button>
+
+            {changePhoneHintCode && (
+              <p
+                className={`text-xs text-amber-600 transition-all duration-700 ease-out ${
+                  showChangePhoneHint ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
+                }`}
+              >
+                本次验证码：{changePhoneHintCode}
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 设置密码对话框 */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
