@@ -128,9 +128,22 @@ export class AiAuditService {
     private readonly maxRequestAttempts = 2;
 
     constructor() {
-        this.baseUrl = env.AI_AUDIT_BASE_URL || '';
-        this.apiKey = env.AI_AUDIT_API_KEY || '';
+        this.baseUrl = (env.AI_AUDIT_BASE_URL || '').trim();
+
+        // 修改原因：线上环境常见只配置了 AI_INTERNAL_TOKEN（用于 /api/internal/ai-check），
+        // 但遗漏 AI_AUDIT_API_KEY 会导致文本/图片审核同时 disabled。
+        // 这里仅做“读取兼容”兜底，避免因变量命名不一致引发全量人工复核。
+        // ⚠️ 不确定因素：若部署方希望 AI_INTERNAL_TOKEN 与外部审核 API Key 严格隔离，
+        // 则应在环境配置层显式提供 AI_AUDIT_API_KEY，本兜底仅用于兼容历史配置。
+        this.apiKey = (env.AI_AUDIT_API_KEY || env.AI_INTERNAL_TOKEN || '').trim();
         this.enabled = !!(this.baseUrl && this.apiKey);
+
+        if (!env.AI_AUDIT_API_KEY && env.AI_INTERNAL_TOKEN) {
+            coreLogger.warn(
+                { feature: 'ai-audit' },
+                'AI audit API key fallback to AI_INTERNAL_TOKEN due to missing AI_AUDIT_API_KEY'
+            );
+        }
 
         if (!this.enabled) {
             coreLogger.warn(

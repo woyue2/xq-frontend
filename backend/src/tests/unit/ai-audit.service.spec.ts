@@ -1,11 +1,41 @@
 import { AiAuditService } from '../../services/ai-audit.service';
+import { env } from '../../config/env';
 
 describe('AiAuditService retry strategy', () => {
   const originalFetch = global.fetch;
+  const originalAuditBaseUrl = env.AI_AUDIT_BASE_URL;
+  const originalAuditApiKey = env.AI_AUDIT_API_KEY;
+  const originalInternalToken = env.AI_INTERNAL_TOKEN;
 
   afterEach(() => {
     global.fetch = originalFetch;
+    (env as any).AI_AUDIT_BASE_URL = originalAuditBaseUrl;
+    (env as any).AI_AUDIT_API_KEY = originalAuditApiKey;
+    (env as any).AI_INTERNAL_TOKEN = originalInternalToken;
     jest.restoreAllMocks();
+  });
+
+  it('should enable audit service when AI_AUDIT_API_KEY is missing but AI_INTERNAL_TOKEN is configured', () => {
+    (env as any).AI_AUDIT_BASE_URL = 'https://mock-audit.example.com/api';
+    (env as any).AI_AUDIT_API_KEY = undefined;
+    (env as any).AI_INTERNAL_TOKEN = 'fallback-internal-token';
+
+    const service = new AiAuditService() as any;
+
+    // 修改原因：覆盖“云端仅配置 AI_INTERNAL_TOKEN”场景，避免服务被误判为 disabled。
+    expect(service.enabled).toBe(true);
+    expect(service.apiKey).toBe('fallback-internal-token');
+  });
+
+  it('should keep audit service disabled when both AI_AUDIT_API_KEY and AI_INTERNAL_TOKEN are missing', () => {
+    (env as any).AI_AUDIT_BASE_URL = 'https://mock-audit.example.com/api';
+    (env as any).AI_AUDIT_API_KEY = undefined;
+    (env as any).AI_INTERNAL_TOKEN = undefined;
+
+    const service = new AiAuditService() as any;
+
+    // 修改原因：确保兼容兜底不会掩盖真实缺参问题。
+    expect(service.enabled).toBe(false);
   });
 
   it('should retry once on timeout-like error and then succeed for text audit', async () => {

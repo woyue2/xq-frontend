@@ -56,6 +56,8 @@ services:
     volumes:
       # 修改原因：为音频文件提供独立持久卷，容器重建后仍可读取历史录音。
       - audio_data:/data/audio
+      # 修改原因：为本地图片兜底目录提供持久卷，避免 backend 重建后丢失 /static/image 文件。
+      - image_data:/app/static/image
     # 修改原因：后端敏感环境变量统一放入 deploy/.env.prod，降低误提交风险。
     env_file:
       - ./.env.prod
@@ -116,6 +118,8 @@ volumes:
   # 修改原因：给 backend 音频文件单独持久化，降低实例重建导致文件丢失风险。
   # ⚠️ 不确定因素：多节点部署时，named volume 默认不跨主机共享，需外部共享存储。
   audio_data:
+  # 修改原因：持久化 backend 图片兜底目录（/app/static/image），保障容器重建后图片可访问。
+  image_data:
   # 修改原因：预留网关运行时持久目录，后续启用 HTTPS 可直接复用。
   caddy_data:
   caddy_config:
