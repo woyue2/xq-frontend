@@ -17,16 +17,26 @@ export default defineConfig({
       devOptions: {
         enabled: true
       },
-      // 修改原因：补充 favicon.svg，确保 PWA 构建产物包含新图标资源。
-      includeAssets: ['favicon.ico', 'favicon.svg', 'pwa-192.png', 'pwa-512.png'],
+      // 修改原因：仅纳入规范图标资产，避免异常 favicon.ico 参与安装图标决策。
+      includeAssets: [
+        'favicon.svg',
+        'favicon-32.png',
+        'apple-touch-icon.png',
+        'pwa-192.png',
+        'pwa-512.png',
+        'pwa-maskable-192.png',
+        'pwa-maskable-512.png'
+      ],
       manifest: {
-        name: '知识星球问答小程序',
-        short_name: '知否',
+        name: '题题高',
+        short_name: '题题高',
         description: '初中知识问答平台',
         // 修改原因：显式声明 standalone，确保安装后按独立应用窗口启动。
         display: 'standalone',
         // 修改原因：补充 start_url，避免不同宿主环境下安装入口默认值不一致。
         start_url: '/',
+        // 修改原因：设置稳定 id，减少不同入口安装时被识别为不同应用。
+        id: '/',
         // 修改原因：补充背景色，降低启动白屏时的视觉跳变。
         background_color: '#ffffff',
         theme_color: '#ffffff',
@@ -35,20 +45,29 @@ export default defineConfig({
             // 修改原因：补齐 192x192 PNG 图标，满足主流浏览器 PWA 安装校验要求。
             src: 'pwa-192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             // 修改原因：补齐 512x512 PNG 图标，满足主流浏览器 PWA 安装校验要求。
             src: 'pwa-512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            // 修改原因：当前项目未提供 192/512 PNG 图标，先复用已存在的 favicon 以保证 PWA 可构建可安装。
-            // ⚠️ 不确定因素：部分环境可能仍优先展示该 ico；若出现清晰度不足，可在后续发布中移除该回退项。
-            src: 'favicon.ico',
-            sizes: '64x64 32x32 24x24 16x16',
-            type: 'image/x-icon'
+            // 修改原因：为 Android 等平台提供 maskable 图标，避免圆角裁切损坏主体。
+            src: 'pwa-maskable-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            // 修改原因：提供高分辨率 maskable 图标，适配高密度设备安装图标渲染。
+            src: 'pwa-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }
