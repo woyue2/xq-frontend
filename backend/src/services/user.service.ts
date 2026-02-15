@@ -153,6 +153,95 @@ export class UserService {
 
         return updated;
     }
+
+    /**
+     * 换绑手机号（登录态）
+     */
+    async changePhone(userId: string, params: { newPhone: string; code: string }) {
+        const normalizedPhone = params.newPhone.replace(/\D/g, '');
+        const verifyCode = (params.code || '').trim();
+
+        if (!/^\d{11}$/.test(normalizedPhone)) {
+            throw new AppError(400, 'INVALID_PHONE_FORMAT', '手机号格式错误');
+        }
+
+        if (!verifyCode) {
+            throw new AppError(400, 'INVALID_CODE', '请输入验证码');
+        }
+
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!currentUser) {
+            throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
+        }
+
+        if (currentUser.phone === normalizedPhone) {
+            throw new AppError(400, 'SAME_PHONE', '新手机号不能与当前手机号一致');
+        }
+
+        const phoneOwner = await prisma.user.findUnique({
+            where: { phone: normalizedPhone }
+        });
+
+        if (phoneOwner && phoneOwner.id !== userId) {
+            throw new AppError(409, 'PHONE_ALREADY_IN_USE', '该手机号已被占用');
+        }
+
+        const codeRecord = await prisma.verificationCode.findFirst({
+            where: {
+                phone: normalizedPhone,
+                type: 'change_phone',
+                used: false
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (
+            !codeRecord ||
+            codeRecord.code !== verifyCode ||
+            codeRecord.expireAt.getTime() < Date.now()
+        ) {
+            throw new AppError(400, 'INVALID_CODE', '验证码错误或已过期');
+        }
+
+        const currentWhitelist = await prisma.userWhitelist.findFirst({
+            where: {
+                OR: [{ userId }, { phone: currentUser.phone }]
+            }
+        });
+        const targetWhitelist = await prisma.userWhitelist.findUnique({
+            where: { phone: normalizedPhone }
+        });
+
+        if (targetWhitelist && targetWhitelist.userId !== userId) {
+            throw new AppError(409, 'PHONE_ALREADY_IN_USE', '该手机号已被占用');
+        }
+
+        const [, updatedUser] = await prisma.$transaction([
+            prisma.verificationCode.update({
+                where: { id: codeRecord.id },
+                data: { used: true, usedAt: new Date() }
+            }),
+            prisma.user.update({
+                where: { id: userId },
+                data: { phone: normalizedPhone }
+            }),
+            ...(currentWhitelist && !targetWhitelist
+                ? [
+                    prisma.userWhitelist.update({
+                        where: { id: currentWhitelist.id },
+                        // 修改原因：登录依赖白名单手机号，换绑后同步当前用户白名单手机号，避免换绑后无法登录。
+                        data: { phone: normalizedPhone, userId, isRegistered: true }
+                    })
+                ]
+                : [])
+        ]);
+
+        // ⚠️ 不确定因素：若用户历史上不存在白名单记录，当前实现仅换绑 User.phone，不会自动创建白名单。
+        return updatedUser;
+    }
 }
 
 export const userService = new UserService();

@@ -276,6 +276,43 @@ userMeRouter.patch(
   }
 );
 
+userMeRouter.post(
+  '/change-phone',
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'UNAUTHORIZED', '未登录');
+      }
+
+      const { newPhone, code } = req.body as {
+        newPhone?: string;
+        code?: string;
+      };
+
+      if (typeof newPhone !== 'string' || typeof code !== 'string') {
+        throw new AppError(400, 'INVALID_PARAMS', '参数错误');
+      }
+
+      const updatedUser = await userService.changePhone(req.user.id, {
+        newPhone,
+        code
+      });
+
+      return res.json({
+        code: 200,
+        message: '手机号换绑成功',
+        data: {
+          id: updatedUser.id,
+          phone: updatedUser.phone
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /**
  * @swagger
  * /users/me/likes:
