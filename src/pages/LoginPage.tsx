@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Eye, EyeSlash, X, Users, Baby } from '@phosphor-icons/react';
-import { validInviteCodes } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -32,10 +31,12 @@ export function LoginPage() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [loginMode, setLoginMode] = useState<'code' | 'password'>('code');
+  const [lastSentCode, setLastSentCode] = useState('');
+  const [showRegisterCodeHint, setShowRegisterCodeHint] = useState(false);
+  const registerCodeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 注册场景下的真实姓名（可选）
   const [name, setName] = useState('');
@@ -51,12 +52,22 @@ export function LoginPage() {
   const [showRoleSelect, setShowRoleSelect] = useState(false);
   const [selectedRole, setSelectedRole] = useState<'student' | 'parent' | null>(null);
 
-  // 判断是否为学生邀请码
-  const isStudentInvite = !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
-  // 判断是否为家长邀请码
-  const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
-  // 判断是否为老师邀请码
-  const isTeacherInvite = !isLogin && inviteCode === 'TEACHER2024';
+  const resetRegisterCodeHint = () => {
+    if (registerCodeRevealTimerRef.current) {
+      clearTimeout(registerCodeRevealTimerRef.current);
+      registerCodeRevealTimerRef.current = null;
+    }
+    setShowRegisterCodeHint(false);
+    setLastSentCode('');
+  };
+
+  useEffect(() => {
+    return () => {
+      if (registerCodeRevealTimerRef.current) {
+        clearTimeout(registerCodeRevealTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleGetCode = async () => {
     if (!phone || phone.length !== 11) {
@@ -76,14 +87,30 @@ export function LoginPage() {
     }, 1000);
 
     try {
-      await authService.sendCode({
+      const response = await authService.sendCode({
         phone,
         type: isLogin ? 'login' : 'register'
       });
       toast.success('验证码已发送');
+
+      if (!isLogin) {
+        // ⚠️ 不确定因素：后端在部分环境可能不返回 code；无 code 时不展示“本次验证码”文案。
+        const sentCode = response.data.data?.code ?? '';
+        resetRegisterCodeHint();
+        if (sentCode) {
+          setLastSentCode(sentCode);
+          registerCodeRevealTimerRef.current = setTimeout(() => {
+            setShowRegisterCodeHint(true);
+            registerCodeRevealTimerRef.current = null;
+          }, 2000);
+        }
+      } else {
+        resetRegisterCodeHint();
+      }
     } catch {
       // 统一错误已经在拦截器中处理，这里只停止倒计时
       setCountdown(0);
+      resetRegisterCodeHint();
     }
   };
 
@@ -114,24 +141,20 @@ export function LoginPage() {
       return;
     }
 
-    if (!isLogin && !inviteCode) {
-      toast.error('请输入邀请码');
+    if (!isLogin && !selectedRole) {
+      // 修改原因：注册改为角色驱动，不再依赖邀请码；未选角色时阻止提交。
+      toast.error('请先选择注册身份');
       return;
     }
 
-    if (!isLogin && !validInviteCodes.includes(inviteCode)) {
-      toast.error('邀请码无效');
-      return;
-    }
-
-    // 姓名验证：家长（包括通过邀请码识别的家长）可选，其他角色必填
-    if (!isLogin && !(selectedRole === 'parent' || isParentInvite) && !name.trim()) {
+    // 姓名验证：家长可选，学生必填
+    if (!isLogin && selectedRole !== 'parent' && !name.trim()) {
       toast.error('请输入真实姓名');
       return;
     }
 
     // 学生注册需要年级和年龄
-    if (isStudentInvite) {
+    if (selectedRole === 'student') {
       if (!grade) {
         toast.error('请选择年级');
         return;
@@ -178,10 +201,8 @@ export function LoginPage() {
       }
 
       // 注册走后端 /auth/register
-      // 优先使用用户选择的身份，否则根据邀请码判断
-      const desiredRole: UserRole = selectedRole === 'parent' ? 'parent' :
-                                    selectedRole === 'student' ? 'student' :
-                                    isStudentInvite ? 'student' : isParentInvite ? 'parent' : 'teacher';
+      // 修改原因：注册角色来源统一为前端角色选择，不再从邀请码推断。
+      const desiredRole: UserRole = selectedRole === 'parent' ? 'parent' : 'student';
 
       const registerResult = await authService.register({
         phone,
@@ -189,9 +210,9 @@ export function LoginPage() {
         password,
         name: name.trim(),
         nickname: nickname.trim() || `用户${phone.slice(-4)}`,
-        grade: isStudentInvite ? grade : undefined,
-        age: isStudentInvite ? parseInt(age, 10) : undefined,
-        school: isStudentInvite ? school : undefined,
+        grade: selectedRole === 'student' ? grade : undefined,
+        age: selectedRole === 'student' ? parseInt(age, 10) : undefined,
+        school: selectedRole === 'student' ? school : undefined,
         role: desiredRole
       });
 
@@ -212,14 +233,14 @@ export function LoginPage() {
       (loginMode === 'password' && !!password));
   const registerValid =
     !isLogin &&
-    !!inviteCode &&
+    !!selectedRole &&
     !!code &&
     password.length >= 8 &&
     (selectedRole === 'student'
       ? grade && age && school
       : selectedRole === 'parent'
       ? true  // 家长注册不需要额外字段验证
-      : (!isStudentInvite || (grade && age && school)));
+      : false);
   const canSubmit = basePhoneValid && (loginValid || registerValid);
 
   return (
@@ -294,12 +315,18 @@ export function LoginPage() {
                 type="tel"
                 placeholder="请输入11位手机号"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                onChange={(e) => {
+                  setPhone(e.target.value.replace(/\D/g, '').slice(0, 11));
+                  resetRegisterCodeHint();
+                }}
                 className="pr-8"
               />
               {phone && (
                 <button
-                  onClick={() => setPhone('')}
+                  onClick={() => {
+                    setPhone('');
+                    resetRegisterCodeHint();
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
@@ -362,11 +389,20 @@ export function LoginPage() {
                 </Button>
               )}
             </div>
+            {!isLogin && lastSentCode && (
+              <p
+                className={`text-xs text-amber-600 transition-all duration-700 ease-out ${
+                  showRegisterCodeHint ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
+                }`}
+              >
+                本次验证码：{lastSentCode}
+              </p>
+            )}
           </div>
 
           {/* 注册真实姓名输入（仅注册模式） */}
           {/* 注册真实姓名输入（仅注册模式，家长不显示） */}
-          {!isLogin && !(selectedRole === 'parent' || isParentInvite) && (
+          {!isLogin && selectedRole !== 'parent' && (
             <div className="space-y-2">
               <Label htmlFor="registerName">真实姓名 *</Label>
               <Input
@@ -417,33 +453,8 @@ export function LoginPage() {
             </div>
           )}
 
-          {/* 邀请码输入（仅注册时显示） */}
-          {!isLogin && (
-            <div className="space-y-2">
-              <Label htmlFor="invite">邀请码 *</Label>
-              <Input
-                id="invite"
-                type="text"
-                placeholder="需输入有效邀请码方可注册"
-                value={inviteCode}
-                onChange={(e) => {
-                  setInviteCode(e.target.value);
-                  // 切换邀请码时重置学生字段
-                  setGrade('');
-                  setAge('');
-                }}
-              />
-              <p className="text-xs text-gray-500">
-                需输入有效邀请码方可注册
-              </p>
-              <p className="text-xs text-gray-500">
-                提示：学生邀请码 STUDENT2024 | 老师邀请码 TEACHER2024 | 家长邀请码 PARENT2024
-              </p>
-            </div>
-          )}
-
-          {/* 学生专属字段（仅注册且使用学生邀请码时显示） */}
-          {isStudentInvite && (
+          {/* 学生专属字段（仅学生注册时显示） */}
+          {selectedRole === 'student' && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="grade">年级 *</Label>
@@ -501,13 +512,19 @@ export function LoginPage() {
                 if (isLogin) {
                   // 从登录切换到注册时，显示角色选择弹窗
                   setShowRoleSelect(true);
+                  resetRegisterCodeHint();
                 } else {
                   // 从注册切换到登录
                   setIsLogin(true);
-                  setInviteCode('');
                   setGrade('');
                   setAge('');
+                  setSchool('');
+                  setName('');
+                  setNickname('');
+                  setPassword('');
+                  setCode('');
                   setSelectedRole(null);
+                  resetRegisterCodeHint();
                 }
               }}
               variant="outline"
