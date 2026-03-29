@@ -12,7 +12,8 @@
 |---|---|
 | `auth.middleware.ts` | JWT 验证 + 角色注入 |
 | `error.middleware.ts` | 统一错误格式响应 |
-| `rateLimiter.ts`（若有） | API 限流 |
+| `logger.middleware.ts` | 请求日志（pino-http）+ coreLogger 导出 |
+| `membership.middleware.ts` | 会员有效期校验中间件 |
 
 ## 规则
 

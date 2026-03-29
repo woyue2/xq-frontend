@@ -18,6 +18,7 @@
 | `admin.service.ts` | adminService + auditService + answerService + commentService + profileService + classHoursService |
 | `api.ts` | ⚠️ Re-export 桶文件，向后兼容所有现有 import，禁止在此添加业务逻辑 |
 | `parentService.ts` | 家长子功能服务（独立文件，通过 api.ts 统一导出） |
+| `subjectConfig.service.ts` | subjectConfigService（学科/话题维度配置 API） |
 
 ## 质量红线
 
