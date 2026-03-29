@@ -73,6 +73,21 @@ const buildInitialWhitelist = (): WhitelistUserItem[] => {
     return [];
 };
 
+/** WhitelistUserApi → WhitelistUserItem 映射（统一消除两处重复）*/
+function mapApiToItem(u: WhitelistUserApi): WhitelistUserItem {
+    return {
+        id: u.id,
+        userId: (u as any).userId,
+        phone: u.phone,
+        name: u.name,
+        role: u.role as UserRole,
+        isRegistered: u.isRegistered,
+        createdAt: u.createdAt,
+        registeredAt: u.registeredAt,
+        expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined,
+    };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useAdminWhitelist() {
     const navigate = useNavigate();
@@ -129,20 +144,7 @@ export function useAdminWhitelist() {
                 setLoadingWhitelist(true);
                 const res = await adminService.getWhitelist({ page: 1, limit: 50 });
                 if (cancelled || !res || !Array.isArray(res.items)) return;
-                const items = (res.items as WhitelistUserApi[]).map(
-                    (u): WhitelistUserItem => ({
-                        id: u.id,
-                        userId: (u as any).userId,
-                        phone: u.phone,
-                        name: u.name,
-                        role: u.role as UserRole,
-                        isRegistered: u.isRegistered,
-                        createdAt: u.createdAt,
-                        registeredAt: u.registeredAt,
-                        expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined,
-                    })
-                );
-                setWhitelist(items);
+                setWhitelist((res.items as WhitelistUserApi[]).map(mapApiToItem));
             } catch {
                 if (!cancelled) toast.error('加载白名单失败，请稍后重试');
             } finally {
@@ -208,17 +210,7 @@ export function useAdminWhitelist() {
                 payload.validUntil = new Date(calculateNewExpiry(3)).toISOString();
             }
             const created = await adminService.addToWhitelist(payload);
-            const mapped: WhitelistUserItem = {
-                id: created.id,
-                userId: (created as any).userId,
-                phone: created.phone,
-                name: created.name,
-                role: created.role as UserRole,
-                isRegistered: created.isRegistered,
-                createdAt: created.createdAt,
-                registeredAt: created.registeredAt,
-                expiresAt: created.validUntil ? created.validUntil.slice(0, 10) : undefined,
-            };
+            const mapped = mapApiToItem(created as unknown as WhitelistUserApi);
             setWhitelist([mapped, ...whitelist]);
             toast.success('添加成功！用户可以使用该手机号注册');
             setNewPhone(''); setNewName(''); setNewRole('student'); setAddDialogOpen(false);

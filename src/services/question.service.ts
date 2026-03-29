@@ -48,7 +48,7 @@ type UploadImageContext = {
     receiverName?: string;
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers（领域工具）──────────────────────────────────────────────────────
 function buildUploadFileName(ctx?: UploadImageContext): string | undefined {
     try {
         const now = new Date();
@@ -74,7 +74,6 @@ function buildUploadFileName(ctx?: UploadImageContext): string | undefined {
         const purpose  = sanitize(ctx?.purpose, '图片');
         const sender   = sanitize(ctx?.senderName, '用户A');
         const receiver = sanitize(ctx?.receiverName, '用户B');
-
         return `${purpose}-${sender}-${receiver}-${datePart}.jpg`;
     } catch {
         return undefined;
@@ -122,6 +121,47 @@ function normalizeListItem(q: BackendQuestionListItem): Question {
         isLiked: false,
         isFavorited: false,
     };
+}
+
+/** 解析图片上传目标 URL 和 Auth Header（消除 uploadImage 内嵌的 URL 解析逻辑）*/
+function resolveUploadTarget(uploadUrl: string): { targetUrl: string; authHeader?: string } {
+    try {
+        const parsed = new URL(uploadUrl);
+        const targetUrl = `${parsed.origin}${parsed.pathname}`;
+        const tokenFromQuery = parsed.searchParams.get('token');
+        if (!tokenFromQuery) return { targetUrl };
+        const authHeader = tokenFromQuery.toLowerCase().startsWith('bearer ')
+            ? tokenFromQuery
+            : `Bearer ${tokenFromQuery}`;
+        return { targetUrl, authHeader };
+    } catch {
+        return { targetUrl: uploadUrl };
+    }
+}
+
+/** 从上传响应 JSON 中提取图片 URL（递归兜底）*/
+function parseImageUrlFromResponse(json: Record<string, unknown>): string | undefined {
+    if (json.data && typeof (json.data as any).url === 'string') return (json.data as any).url;
+    if (typeof json.url === 'string') return json.url;
+
+    const collectFirstUrl = (value: unknown): string | undefined => {
+        if (!value) return undefined;
+        if (typeof value === 'string') {
+            const str = value.trim();
+            return /^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str) ? str : undefined;
+        }
+        if (Array.isArray(value)) {
+            for (const item of value) { const found = collectFirstUrl(item); if (found) return found; }
+        }
+        if (typeof value === 'object') {
+            for (const k of Object.keys(value as object)) {
+                const found = collectFirstUrl((value as Record<string, unknown>)[k]);
+                if (found) return found;
+            }
+        }
+        return undefined;
+    };
+    return collectFirstUrl(json);
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -194,53 +234,38 @@ export const questionService = {
         return { audioUrl };
     },
 
+    /**
+     * 上传图片
+     * 流程：压缩 → 获取签名 → 直传图床 → 解析返回 URL
+     */
     uploadImage: async (file: File, context?: UploadImageContext) => {
+        // 1. 压缩
         const compressed = await compressImage(file, {
-            maxWidth: 1600,
-            maxHeight: 1600,
-            maxSizeKB: 1024,
-            initialQuality: 0.85,
-            minQuality: 0.6,
+            maxWidth: 1600, maxHeight: 1600, maxSizeKB: 1024,
+            initialQuality: 0.85, minQuality: 0.6,
         });
 
-        let finalFile: File = compressed;
+        // 2. 构造自定义文件名（可选）
         const customName = buildUploadFileName(context);
-        if (customName) {
-            finalFile = new File([compressed], customName, { type: compressed.type });
-        }
+        const finalFile = customName
+            ? new File([compressed], customName, { type: compressed.type })
+            : compressed;
 
+        // 3. 获取上传签名
         const { data } = await api.get<
-            ApiResponse<{
-                uploadUrl: string;
-                key: string;
-                policy: string;
-                signature: string;
-                expireAt: number;
-            }>
+            ApiResponse<{ uploadUrl: string; key: string; policy: string; signature: string; expireAt: number }>
         >('/upload/signature', { params: { type: 'image' } });
 
         const { uploadUrl, key } = data.data;
 
+        // 4. Mock 模式直接返回
         if (USE_MOCK) {
             const base = uploadUrl.split('?')[0].replace(/\/upload$/, '');
             return { imageUrl: `${base}/${key}` };
         }
 
-        let targetUrl = uploadUrl;
-        let authHeader: string | undefined;
-        try {
-            const parsed = new URL(uploadUrl);
-            targetUrl = `${parsed.origin}${parsed.pathname}`;
-            const tokenFromQuery = parsed.searchParams.get('token');
-            if (tokenFromQuery) {
-                authHeader = tokenFromQuery.toLowerCase().startsWith('bearer ')
-                    ? tokenFromQuery
-                    : `Bearer ${tokenFromQuery}`;
-            }
-        } catch {
-            // URL 解析失败，直接使用原始 uploadUrl
-        }
-
+        // 5. 直传图床
+        const { targetUrl, authHeader } = resolveUploadTarget(uploadUrl);
         const formData = new FormData();
         formData.append('file', finalFile);
 
@@ -252,38 +277,11 @@ export const questionService = {
 
         if (!response.ok) throw new Error('图片上传失败，请稍后重试');
 
+        // 6. 解析返回 URL
         let imageUrl: string | undefined;
         try {
             const json: Record<string, unknown> = await response.json();
-            if (json && typeof json === 'object') {
-                if (json.data && typeof (json.data as any).url === 'string') {
-                    imageUrl = (json.data as any).url;
-                } else if (typeof json.url === 'string') {
-                    imageUrl = json.url;
-                } else {
-                    const collectFirstUrl = (value: unknown): string | undefined => {
-                        if (!value) return undefined;
-                        if (typeof value === 'string') {
-                            const str = value.trim();
-                            return /^https?:\/\/.+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(str) ? str : undefined;
-                        }
-                        if (Array.isArray(value)) {
-                            for (const item of value) {
-                                const found = collectFirstUrl(item);
-                                if (found) return found;
-                            }
-                        }
-                        if (typeof value === 'object') {
-                            for (const k of Object.keys(value as object)) {
-                                const found = collectFirstUrl((value as Record<string, unknown>)[k]);
-                                if (found) return found;
-                            }
-                        }
-                        return undefined;
-                    };
-                    imageUrl = collectFirstUrl(json);
-                }
-            }
+            imageUrl = parseImageUrlFromResponse(json);
         } catch {
             // 忽略 JSON 解析失败
         }
