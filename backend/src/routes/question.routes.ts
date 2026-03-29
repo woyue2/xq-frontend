@@ -1,3 +1,25 @@
+/**
+ * [POS] backend/src/routes/question.routes.ts
+ *   所属：路由层 | 角色：题目路由（发布、查询、搜索题目）
+ *
+ * [INPUT]
+ *   - express                              → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware        → authMiddleware / AuthenticatedRequest
+ *   - ../middlewares/membership.middleware  → requireActiveMembership
+ *   - ../services/question.service         → questionService
+ *   - ../services/answer.service           → answerService
+ *   - ../services/comment.service          → commentService
+ *   - ../services/interaction.service      → interactionService
+ *   - ../errors/AppError                   → AppError
+ *   - ../config/database                   → prisma（⚠ TODO: 迁移到 service 层）
+ *
+ * [OUTPUT]
+ *   - questionRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {
@@ -41,7 +63,6 @@ questionRouter.post(
       };
 
       const authorId = req.user!.id;
-      const authorName = '当前用户'; // 简化处理，后续可从 User 表查询
       const authorRole = req.user!.role;
 
       const created = await questionService.create({
@@ -52,7 +73,6 @@ questionRouter.post(
         difficulty,
         subject,
         authorId,
-        authorName,
         authorRole
       });
 

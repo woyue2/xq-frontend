@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/services/question.service.ts
+ *   所属：服务层 | 角色：题目业务逻辑（发布、查询、搜索、AI 审核触发）
+ *
+ * [INPUT]
+ *   - ../config/database            → prisma
+ *   - ../errors/AppError            → AppError
+ *   - ../middlewares/logger.middleware → coreLogger
+ *   - ./ai-audit.service            → aiAuditService
+ *
+ * [OUTPUT]
+ *   - questionService（QuestionService 单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 import { coreLogger } from '../middlewares/logger.middleware';
@@ -12,7 +29,6 @@ export class QuestionService {
     difficulty?: string;
     subject?: string;
     authorId: string;
-    authorName: string;
     authorAvatar?: string;
     authorRole?: string;
   }) {
@@ -24,7 +40,6 @@ export class QuestionService {
       difficulty,
       subject,
       authorId,
-      authorName,
       authorAvatar,
       authorRole
     } = params;
@@ -69,7 +84,7 @@ export class QuestionService {
           data: {
             id: authorId,
             phone: fallbackPhone,
-            nickname: authorName || '未命名用户',
+            nickname: '未命名用户',
             role: fallbackRole,
             isActive: true,
             isBanned: false
@@ -160,7 +175,7 @@ export class QuestionService {
         comments: 0,
         answers: 0,
         authorId,
-        authorName: author.name || author.nickname || authorName,
+        authorName: author.name || author.nickname || '未命名用户',
         authorAvatar: authorAvatar ?? author.avatar ?? null
       }
     });
