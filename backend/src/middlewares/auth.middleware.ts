@@ -1,3 +1,21 @@
+/**
+ * [POS] backend/src/middlewares/auth.middleware.ts
+ *   所属：中间件层 | 角色：JWT 验证 + 角色注入，导出 authMiddleware / requireTeacher 等 guard
+ *
+ * [INPUT]
+ *   - express           → NextFunction / Request / Response
+ *   - ../utils/jwt      → verifyToken
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - authMiddleware（JWT 验证中间件）
+ *   - requireTeacher / createRequireTeacher（角色 guard）
+ *   - AuthenticatedRequest（扩展 Request 类型）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/middlewares/CLAUDE.md 的文件清单
+ */
 import type { NextFunction, Request, Response } from 'express';
 import { verifyToken } from '../utils/jwt';
 import { AppError } from '../errors/AppError';
