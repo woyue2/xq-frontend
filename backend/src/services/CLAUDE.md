@@ -11,6 +11,7 @@
 | 文件 | 职责 |
 |---|---|
 | `auth.service.ts` | 验证码发送、登录、注册、Token 刷新、密码重置 |
+| `password.service.ts` | 密码设置、通过验证码重置密码 |
 | `user.service.ts` | 用户信息查询与更新 |
 | `question.service.ts` | 题目发布、查询、搜索、AI 审核触发 |
 | `answer.service.ts` | 回答发布、查询、AI 审核触发 |
@@ -24,6 +25,8 @@
 | `class-hours.service.ts` | 课时记录管理 |
 | `question-dimension.service.ts` | 题目维度标签管理 |
 | `parent.service.ts` | 家长端：孩子绑定、学习报告生成 |
+| `audit-callback.service.ts` | AI 审核回调写回（question/answer/comment 状态机） |
+| `test-token.service.ts` | 测试环境令牌生成（仅 Playwright / E2E，非生产） |
 
 ## 规则
 

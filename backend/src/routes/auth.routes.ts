@@ -1,6 +1,24 @@
+/**
+ * [POS] backend/src/routes/auth.routes.ts
+ *   所属：路由层 | 角色：认证路由（登录、注册、刷新 token、登出）
+ *
+ * [INPUT]
+ *   - express                    → Router / Request / Response / NextFunction
+ *   - ../services/auth.service   → authService
+ *   - ../services/password.service → passwordService
+ *   - ../middlewares/auth.middleware → authMiddleware / AuthenticatedRequest
+ *
+ * [OUTPUT]
+ *   - authRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
+import { passwordService } from '../services/password.service';
 import {
   authMiddleware,
   type AuthenticatedRequest
@@ -170,7 +188,7 @@ authRouter.post(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { newPassword } = req.body as { newPassword: string };
-      await authService.setPassword(req.user!.id, newPassword);
+      await passwordService.setPassword(req.user!.id, newPassword);
       return res.json({
         code: 200,
         message: '密码已更新',
@@ -191,7 +209,7 @@ authRouter.post(
         code: string;
         newPassword: string;
       };
-      await authService.resetPasswordWithCode({
+      await passwordService.resetWithCode({
         phone,
         code,
         newPassword

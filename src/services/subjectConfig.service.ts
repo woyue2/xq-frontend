@@ -1,5 +1,21 @@
+/**
+ * [POS] src/services/subjectConfig.service.ts
+ *   所属：services 层 | 角色：学科/话题维度配置 API 服务
+ *   兄弟：admin.service.ts / api.ts（re-export 桶）
+ *
+ * [INPUT]
+ *   - ./api             → api（axios 实例）
+ *   - @/config/taxonomy → TAXONOMY / SubjectConfig
+ *   - @/types/api       → SubjectDto / TopicDto
+ *
+ * [OUTPUT]
+ *   - subjectConfigService（学科配置 API 调用对象）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/services/CLAUDE.md 的文件清单
+ */
 import { api } from './api';
-import { TAXONOMY } from '@/config/taxonomy';
 import type { SubjectDto, TopicDto } from '@/types/api';
 import type { SubjectConfig } from '@/config/taxonomy';
 
@@ -32,7 +48,10 @@ class SubjectConfigService {
 
       return subjects;
     } catch (error) {
-      console.warn('[SubjectConfigService] Failed to load subjects from backend, falling back to static config:', error);
+      console.warn(
+        '[SubjectConfigService] Failed to load subjects from backend, falling back to static config:',
+        error,
+      );
 
       // 3. 降级：转换本地 TAXONOMY 为 SubjectDto 格式
       const fallback = this.transformTaxonomyToDto(TAXONOMY);
@@ -45,7 +64,7 @@ class SubjectConfigService {
    */
   async getSubjectOptions(): Promise<{ key: string; name: string; order: number }[]> {
     const subjects = await this.getSubjects();
-    return subjects.map(s => ({ key: s.key, name: s.name, order: s.order }));
+    return subjects.map((s) => ({ key: s.key, name: s.name, order: s.order }));
   }
 
   /**
@@ -53,7 +72,7 @@ class SubjectConfigService {
    */
   async getTopicsBySubject(subjectKey: string): Promise<TopicDto[]> {
     const subjects = await this.getSubjects();
-    const subject = subjects.find(s => s.key === subjectKey);
+    const subject = subjects.find((s) => s.key === subjectKey);
     return subject?.topics || [];
   }
 
@@ -80,8 +99,8 @@ class SubjectConfigService {
       taxonomy[subjectValue] = {
         label: subject.name,
         value: subjectValue,
-        topics: subject.topics.map(t => t.label),
-        methods: [] // methods 来自另一个维度
+        topics: subject.topics.map((t) => t.label),
+        methods: [], // methods 来自另一个维度
       };
     }
 
@@ -99,8 +118,8 @@ class SubjectConfigService {
       topics: config.topics.map((topic, index) => ({
         value: `${value}_${topic.toLowerCase().replace(/\s+/g, '_')}`,
         label: topic,
-        order: index * 10
-      }))
+        order: index * 10,
+      })),
     }));
   }
 }

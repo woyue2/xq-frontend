@@ -21,7 +21,14 @@ components/
 | 文件 | 职责 |
 |---|---|
 | `QuestionCard.tsx` | 问题卡片（列表+详情复用） |
-| `QuestionCardSkeleton.tsx` | 骨架屏 |
+| `QuestionFilter.tsx` | 问题列表筛选器（学科/话题/状态等） |
+| `QuestionList.tsx` | 问题列表容器（无限滚动 + 骨架屏） |
+
+## 子目录文件
+
+| 文件 | 目录 | 职责 |
+|---|---|---|
+| `figma/ImageWithFallback.tsx` | figma/ | 带 fallback 的图片组件（Figma 导出） |
 
 ## 质量红线
 

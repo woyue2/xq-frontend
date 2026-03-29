@@ -15,6 +15,9 @@
 | `mock-env.ts` | `USE_MOCK` 标志 |
 | `image-compress.ts` | 图片压缩工具 |
 | `share.ts` | 分享 URL 构建 + 剪贴板写入 |
+| `permissions.ts` | 权限标识常量 + 角色权限判断工具函数 |
+| `permissions.test.ts` | permissions.ts 的单元测试 |
+| `test-runner.ts` | 诊断用 API 测试执行器（dev 模式） |
 
 ## 质量红线
 

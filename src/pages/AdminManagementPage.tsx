@@ -4,11 +4,8 @@
  *   兄弟：AuditPage.tsx / StatusListPage.tsx
  *
  * [INPUT]
- *   - react                         → useState / useEffect
  *   - react-router-dom              → useNavigate
- *   - @/services/api                → adminService
- *   - @/stores/*                    → useAuthStore
- *   - @/hooks/useAdminWhitelist     → WhitelistUserItem / needsExpiryForRole 等
+ *   - @/hooks/useAdminWhitelist     → useAdminWhitelist / isExpiredDate
  *   - @/hooks/useAdminDimension     → useAdminDimension（维度管理 state + handler）
  *
  * [OUTPUT]
@@ -18,7 +15,6 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -64,92 +60,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast } from 'sonner';
 import type { UserRole } from '@/types';
-import { adminService } from '@/services/api';
-import { useAuthStore } from '@/stores/useAuthStore';
-import type { WhitelistUser as WhitelistUserApi, AddWhitelistPayload } from '@/types/api';
-import type { WhitelistUserItem } from '@/hooks/useAdminWhitelist';
-import { needsExpiryForRole, isExpiredDate, isExpiringSoonDate } from '@/hooks/useAdminWhitelist';
+import { useAdminWhitelist, isExpiredDate } from '@/hooks/useAdminWhitelist';
 import { useAdminDimension } from '@/hooks/useAdminDimension';
+import { ROUTES } from '@/config/app-constants';
 
 export function AdminManagementPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  // 测试环境下提供一组默认白名单数据，便于前端单测等场景；
-  // 实际运行时将在挂载后通过 adminService.getWhitelist 覆盖为后端数据。
-  const initialWhitelist: WhitelistUserItem[] =
-    typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test'
-      ? [
-          {
-            id: '1',
-            phone: '13800138000',
-            name: '张三',
-            role: 'student',
-            isRegistered: true,
-            createdAt: '2024-01-15 10:00:00',
-            registeredAt: '2024-01-15 10:30:00',
-            expiresAt: '2026-06-30',
-          },
-          {
-            id: '2',
-            phone: '13900139000',
-            name: '李四',
-            role: 'teacher',
-            isRegistered: true,
-            createdAt: '2024-01-16 09:00:00',
-            registeredAt: '2024-01-16 09:15:00',
-          },
-          {
-            id: '3',
-            phone: '13700137000',
-            name: '王五',
-            role: 'student',
-            isRegistered: false,
-            createdAt: '2024-01-20 14:00:00',
-            expiresAt: '2026-03-31',
-          },
-          {
-            id: '4',
-            phone: '13600136000',
-            name: '赵六',
-            role: 'parent',
-            isRegistered: false,
-            createdAt: '2024-01-21 11:00:00',
-            expiresAt: '2026-03-31',
-          },
-        ]
-      : [];
 
-  const [whitelist, setWhitelist] = useState<WhitelistUserItem[]>(initialWhitelist);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterExpiry, setFilterExpiry] = useState<'all' | 'expiring' | 'expired'>('all');
-
-  // 添加用户对话框
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [newPhone, setNewPhone] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<UserRole>('student');
-
-  // 删除确认对话框
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<WhitelistUserItem | null>(null);
-
-  // 课时管理对话框
-  const [expiryDialogOpen, setExpiryDialogOpen] = useState(false);
-  const [expiryTarget, setExpiryTarget] = useState<WhitelistUserItem | null>(null);
-  const [expiryMonths, setExpiryMonths] = useState(1);
-  const [customExpiryDate, setCustomExpiryDate] = useState('');
-
-  // 二次确认对话框
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingExpiry, setPendingExpiry] = useState<{
-    user: WhitelistUserItem;
-    date: string;
-  } | null>(null);
+  // [IMPL] 白名单全量 state + API 逻辑已下沉到 useAdminWhitelist
+  const {
+    whitelist,
+    filteredList,
+    loadingWhitelist,
+    stats,
+    expiryStats,
+    searchTerm,
+    setSearchTerm,
+    filterRole,
+    setFilterRole,
+    filterStatus,
+    setFilterStatus,
+    filterExpiry,
+    setFilterExpiry,
+    addDialogOpen,
+    setAddDialogOpen,
+    newPhone,
+    setNewPhone,
+    newName,
+    setNewName,
+    newRole,
+    setNewRole,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    deleteTarget,
+    expiryDialogOpen,
+    setExpiryDialogOpen,
+    expiryTarget,
+    expiryMonths,
+    setExpiryMonths,
+    customExpiryDate,
+    setCustomExpiryDate,
+    confirmDialogOpen,
+    setConfirmDialogOpen,
+    pendingExpiry,
+    handleAddUser,
+    handleDeleteUser,
+    confirmDelete,
+    handleManageExpiry,
+    handleExpirySubmit,
+    confirmExpiryChange,
+  } = useAdminWhitelist();
 
   // [IMPL] 维度管理 state + handler 已下沉到 useAdminDimension
   const {
@@ -165,96 +126,6 @@ export function AdminManagementPage() {
     handleAddMethodOption,
   } = useAdminDimension();
 
-  const [loadingWhitelist, setLoadingWhitelist] = useState(false);
-
-  // 基础权限校验：仅允许老师访问后台管理页面
-  useEffect(() => {
-    if (!user) {
-      toast.error('请先登录');
-      navigate('/login');
-      return;
-    }
-
-    if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问管理后台');
-      navigate('/profile');
-    }
-  }, [user, navigate]);
-
-  // 从后端加载白名单列表
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadWhitelistFromApi = async () => {
-      // 仅在已登录且为老师/管理员时才调用后台白名单接口
-      if (!user || user.role !== 'teacher') {
-        return;
-      }
-
-      try {
-        setLoadingWhitelist(true);
-        const res = await adminService.getWhitelist({
-          page: 1,
-          limit: 50,
-        });
-
-        if (cancelled || !res || !Array.isArray(res.items)) return;
-
-        const items = (res.items as WhitelistUserApi[]).map(
-          (u): WhitelistUserItem => ({
-            id: u.id,
-            // 后端若已将白名单绑定到真实用户，则返回 userId，可用于跳转到学生历史提问页
-            userId: (u as any).userId,
-            phone: u.phone,
-            name: u.name,
-            role: u.role as UserRole,
-            isRegistered: u.isRegistered,
-            createdAt: u.createdAt,
-            registeredAt: u.registeredAt,
-            expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined,
-          }),
-        );
-
-        setWhitelist(items);
-      } catch {
-        if (!cancelled) {
-          toast.error('加载白名单失败，请稍后重试');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingWhitelist(false);
-        }
-      }
-    };
-
-    loadWhitelistFromApi();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  // 过滤逻辑
-  const filteredList = whitelist.filter((user) => {
-    const matchSearch = user.phone.includes(searchTerm) || user.name.includes(searchTerm);
-    const matchRole = filterRole === 'all' || user.role === filterRole;
-    const matchStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'registered' && user.isRegistered) ||
-      (filterStatus === 'pending' && !user.isRegistered);
-
-    const needsExpiry = needsExpiryForRole(user.role);
-    const expired = needsExpiry && isExpiredDate(user.expiresAt);
-    const expiringSoon = needsExpiry && isExpiringSoonDate(user.expiresAt) && !expired;
-
-    const matchExpiry =
-      filterExpiry === 'all' ? true : filterExpiry === 'expiring' ? expiringSoon : expired;
-
-    const includeByExpiry = needsExpiry ? matchExpiry : filterExpiry === 'all';
-
-    return matchSearch && matchRole && matchStatus && includeByExpiry;
-  });
-
   const getRoleBadge = (role: UserRole) => {
     const roleMap = {
       student: { label: '学生', className: 'bg-[#BDE0FE] text-blue-700' },
@@ -264,176 +135,13 @@ export function AdminManagementPage() {
     return roleMap[role];
   };
 
-  // 检查是否过期
-  const isExpired = (expiresAt?: string) => {
-    return isExpiredDate(expiresAt);
-  };
-
-  // 计算新的过期时间
-  const calculateNewExpiry = (months: number) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() + months);
-    return date.toISOString().split('T')[0];
-  };
-
-  const handleAddUser = async () => {
-    // 验证手机号
-    if (!newPhone || newPhone.length !== 11) {
-      toast.error('请输入正确的11位手机号');
-      return;
-    }
-
-    // 验证姓名
-    if (!newName.trim()) {
-      toast.error('请输入用户姓名');
-      return;
-    }
-
-    // 检查是否已存在（前端快速拦截，后端仍会做最终校验）
-    if (whitelist.some((u) => u.phone === newPhone)) {
-      toast.error('该手机号已在白名单中');
-      return;
-    }
-
-    try {
-      const payload: AddWhitelistPayload = {
-        phone: newPhone,
-        name: newName,
-        role: newRole as 'student' | 'teacher' | 'parent',
-      };
-
-      // 学生和家长默认设置 3 个月有效期
-      if (newRole === 'student' || newRole === 'parent') {
-        const expiry = calculateNewExpiry(3);
-        payload.validUntil = new Date(expiry).toISOString();
-      }
-
-      const created = await adminService.addToWhitelist(payload);
-
-      const mapped: WhitelistUserItem = {
-        id: created.id,
-        userId: (created as any).userId,
-        phone: created.phone,
-        name: created.name,
-        role: created.role as UserRole,
-        isRegistered: created.isRegistered,
-        createdAt: created.createdAt,
-        registeredAt: created.registeredAt,
-        expiresAt: created.validUntil ? created.validUntil.slice(0, 10) : undefined,
-      };
-
-      setWhitelist([mapped, ...whitelist]);
-      toast.success('添加成功！用户可以使用该手机号注册');
-
-      // 重置表单
-      setNewPhone('');
-      setNewName('');
-      setNewRole('student');
-      setAddDialogOpen(false);
-    } catch {
-      // 具体错误提示由 axios 拦截器统一处理（如 PHONE_EXISTS 等）
-    }
-  };
-
-  const handleDeleteUser = (user: WhitelistUserItem) => {
-    setDeleteTarget(user);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (deleteTarget) {
-      try {
-        await adminService.removeFromWhitelist(deleteTarget.id);
-        setWhitelist(whitelist.filter((u) => u.id !== deleteTarget.id));
-        toast.success('已从白名单移除');
-      } catch {
-        // 错误提示由拦截器处理
-      } finally {
-        setDeleteDialogOpen(false);
-        setDeleteTarget(null);
-      }
-    }
-  };
-
-  // 打开课时管理对话框
-  const handleManageExpiry = (user: WhitelistUserItem) => {
-    setExpiryTarget(user);
-    setExpiryMonths(1);
-    // 默认显示当前有效期，如果没有则显示当前计算的有效期
-    setCustomExpiryDate(user.expiresAt || calculateNewExpiry(1));
-    setExpiryDialogOpen(true);
-  };
-
-  // 第一步：预览新的过期时间
-  const handleExpirySubmit = () => {
-    if (expiryTarget) {
-      // 优先使用自定义日期
-      const newExpiry = customExpiryDate || calculateNewExpiry(expiryMonths);
-      setPendingExpiry({ user: expiryTarget, date: newExpiry });
-      setExpiryDialogOpen(false);
-      setConfirmDialogOpen(true);
-    }
-  };
-
-  // 第二步：确认修改
-  const confirmExpiryChange = async () => {
-    if (pendingExpiry) {
-      try {
-        const updated = await adminService.updateValidity(
-          pendingExpiry.user.id,
-          new Date(pendingExpiry.date).toISOString(),
-        );
-
-        setWhitelist(
-          whitelist.map((u) =>
-            u.id === updated.id
-              ? {
-                  ...u,
-                  expiresAt: updated.validUntil
-                    ? updated.validUntil.slice(0, 10)
-                    : pendingExpiry.date,
-                }
-              : u,
-          ),
-        );
-        toast.success('课时有效期已更新');
-      } catch {
-        // 错误提示交由拦截器
-      } finally {
-        setConfirmDialogOpen(false);
-        setPendingExpiry(null);
-        setExpiryTarget(null);
-      }
-    }
-  };
-
-  const stats = {
-    total: whitelist.length,
-    registered: whitelist.filter((u) => u.isRegistered).length,
-    pending: whitelist.filter((u) => !u.isRegistered).length,
-    students: whitelist.filter((u) => u.role === 'student').length,
-    teachers: whitelist.filter((u) => u.role === 'teacher').length,
-    parents: whitelist.filter((u) => u.role === 'parent').length,
-  };
-
-  const expiryStats = {
-    expiringSoon: whitelist.filter(
-      (u) =>
-        needsExpiryForRole(u.role) &&
-        isExpiringSoonDate(u.expiresAt) &&
-        !isExpiredDate(u.expiresAt),
-    ).length,
-    expired: whitelist.filter((u) => needsExpiryForRole(u.role) && isExpiredDate(u.expiresAt))
-      .length,
-  };
-
   return (
     <div className="min-h-screen bg-[#EDEDE9] flex flex-col">
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate(ROUTES.profile)}
             className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
           >
             <ChevronLeft className="w-6 h-6 text-gray-600" />
@@ -446,7 +154,7 @@ export function AdminManagementPage() {
             <p className="text-[9px] text-[#D5BDAF] font-bold leading-none">好好学习，天天向上</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('/diagnostic')}>
+            <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.diagnostic)}>
               系统诊断
             </Button>
             <Button
@@ -567,7 +275,7 @@ export function AdminManagementPage() {
           ) : (
             filteredList.map((user) => {
               const roleBadge = getRoleBadge(user.role);
-              const expired = isExpired(user.expiresAt);
+              const expired = isExpiredDate(user.expiresAt);
               const needsExpiry = user.role === 'student' || user.role === 'parent';
 
               const canViewHistory = user.role === 'student' && user.isRegistered && user.userId;
@@ -583,7 +291,7 @@ export function AdminManagementPage() {
                         {canViewHistory ? (
                           <button
                             type="button"
-                            onClick={() => navigate(`/student/${user.userId}/questions`)}
+                            onClick={() => navigate(ROUTES.studentHistory(user.userId))}
                             className="flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 transition-colors"
                             data-testid="whitelist-student-history"
                           >
@@ -928,7 +636,7 @@ export function AdminManagementPage() {
                   onChange={(e) => setCustomExpiryDate(e.target.value)}
                   className="w-full h-11 px-4 text-base border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all bg-white rounded-xl shadow-sm"
                 />
-                {expiryTarget?.expiresAt && isExpired(expiryTarget.expiresAt) && (
+                {expiryTarget?.expiresAt && isExpiredDate(expiryTarget.expiresAt) && (
                   <div className="text-xs text-red-600 mt-1 ml-1">
                     原有效期: {expiryTarget.expiresAt} (已过期)
                   </div>

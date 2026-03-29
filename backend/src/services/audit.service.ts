@@ -1,3 +1,18 @@
+/**
+ * [POS] backend/src/services/audit.service.ts
+ *   所属：服务层 | 角色：人工审核业务逻辑（审核通过/驳回 question/answer/comment）
+ *
+ * [INPUT]
+ *   - ../config/database → prisma
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - auditService（单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 

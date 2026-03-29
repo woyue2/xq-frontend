@@ -1,3 +1,21 @@
+/**
+ * [POS] src/pages/AnswerQuestionPage.tsx
+ *   所属：pages 层 | 角色：教师回答问题页，路由 `/answer/:id`，教师可见
+ *   兄弟：QuestionDetailPage.tsx / AuditPage.tsx
+ *
+ * [INPUT]
+ *   - react          → useState / useRef / useEffect
+ *   - lucide-react   → ArrowLeft / Upload / X / Mic / Square / Play / Pause
+ *   - @/components/ui/* → Button
+ *   - @/services/api → answerService / questionService
+ *
+ * [OUTPUT]
+ *   - AnswerQuestionPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Upload, X, Mic, Square, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +36,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { Question } from '@/types';
 import { questionService, answerService } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { ROUTES } from '@/config/app-constants';
 
 export function AnswerQuestionPage() {
   const navigate = useNavigate();
@@ -46,7 +65,7 @@ export function AnswerQuestionPage() {
   useEffect(() => {
     if (!user) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
 
@@ -108,12 +127,12 @@ export function AnswerQuestionPage() {
         const { imageUrl } = await questionService.uploadImage(file, {
           purpose: '回答问题',
           senderName: user?.nickname ?? user?.name ?? '老师',
-          receiverName: question?.authorName ?? '学生'
+          receiverName: question?.authorName ?? '学生',
         });
         uploaded.push(imageUrl);
       }
       if (uploaded.length > 0) {
-        setImages(prev => [...prev, ...uploaded]);
+        setImages((prev) => [...prev, ...uploaded]);
         toast.success('图片上传成功');
       }
     } catch (error) {
@@ -133,7 +152,11 @@ export function AnswerQuestionPage() {
   const handleStartRecording = async () => {
     if (isRecording) return;
 
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia
+    ) {
       toast.error('当前浏览器不支持录音功能');
       return;
     }
@@ -253,8 +276,7 @@ export function AnswerQuestionPage() {
       setIsPlaying(false);
       toast.success('暂停播放');
     } else {
-      el
-        .play()
+      el.play()
         .then(() => {
           setIsPlaying(true);
           toast.success('开始播放');
@@ -275,7 +297,7 @@ export function AnswerQuestionPage() {
     if (content || images.length > 0 || audioUrl) {
       setShowExitDialog(true);
     } else {
-      navigate(`/question/${questionId}`);
+      navigate(ROUTES.question(questionId));
     }
   };
 
@@ -300,7 +322,7 @@ export function AnswerQuestionPage() {
       const result = await answerService.create(questionId, {
         content: content.trim() || undefined,
         images: images.length > 0 ? images : undefined,
-        audioUrl: audioUrl ?? undefined
+        audioUrl: audioUrl ?? undefined,
       });
 
       // 处理 AI 审核结果
@@ -312,7 +334,7 @@ export function AnswerQuestionPage() {
       }
 
       toast.success('回答已提交');
-      navigate(`/question/${questionId}`);
+      navigate(ROUTES.question(questionId));
     } catch {
       toast.error('提交回答失败，请稍后重试');
     } finally {
@@ -321,18 +343,14 @@ export function AnswerQuestionPage() {
   };
 
   const canSubmit =
-    !isSubmitting &&
-    (content.trim().length > 0 || images.length > 0 || audioUrl !== null);
+    !isSubmitting && (content.trim().length > 0 || images.length > 0 || audioUrl !== null);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition"
-          >
+          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full transition">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl flex-1 text-center">回答问题</h1>
@@ -351,9 +369,7 @@ export function AnswerQuestionPage() {
         {/* 问题卡片 */}
         <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-teal-500">
           <p className="text-sm text-gray-500 mb-2">回答以下问题：</p>
-          <h3 className="line-clamp-2">
-            {question?.title ?? '问题加载中...'}
-          </h3>
+          <h3 className="line-clamp-2">{question?.title ?? '问题加载中...'}</h3>
         </div>
 
         {/* 回答编辑区 */}
@@ -368,9 +384,7 @@ export function AnswerQuestionPage() {
               onChange={(e) => setContent(e.target.value.slice(0, 2000))}
               className="min-h-[200px] resize-none"
             />
-            <div className="text-sm text-gray-500 text-right">
-              {content.length}/2000
-            </div>
+            <div className="text-sm text-gray-500 text-right">{content.length}/2000</div>
           </div>
 
           {/* 图片上传区 */}
@@ -454,7 +468,11 @@ export function AnswerQuestionPage() {
                       onClick={handlePlayAudio}
                       className="w-10 h-10 bg-teal-500 hover:bg-teal-600 text-white rounded-full flex items-center justify-center transition shadow-md"
                     >
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                      {isPlaying ? (
+                        <Pause className="w-5 h-5" />
+                      ) : (
+                        <Play className="w-5 h-5 ml-0.5" />
+                      )}
                     </button>
                     <div>
                       <p className="text-sm text-teal-700">录音文件</p>
@@ -487,13 +505,11 @@ export function AnswerQuestionPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>是否放弃回答？</AlertDialogTitle>
-            <AlertDialogDescription>
-              当前编辑的内容将不会被保存
-            </AlertDialogDescription>
+            <AlertDialogDescription>当前编辑的内容将不会被保存</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate(`/question/${questionId}`)}>
+            <AlertDialogAction onClick={() => navigate(ROUTES.question(questionId))}>
               确认放弃
             </AlertDialogAction>
           </AlertDialogFooter>

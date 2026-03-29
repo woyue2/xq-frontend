@@ -1,14 +1,22 @@
+/**
+ * [POS] src/pages/AuditPage.tsx
+ *   所属：pages 层 | 角色：AI 审核管理页，路由 `/audit`，教师可见
+ *   兄弟：AdminManagementPage.tsx / StatusListPage.tsx
+ *
+ * [INPUT]
+ *   - react          → useState / useEffect
+ *   - framer-motion  → motion
+ *   - @/services/api → auditService / questionService
+ *
+ * [OUTPUT]
+ *   - AuditPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  ChevronLeft,
-  Check,
-  X,
-  Star,
-  AlertCircle,
-  MessageSquare,
-  ThumbsUp
-} from 'lucide-react';
+import { ChevronLeft, Check, X, Star, AlertCircle, MessageSquare, ThumbsUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -27,66 +35,77 @@ import type { Question, Comment, AuditStatus } from '@/types';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useNavigate } from 'react-router-dom';
 import { aiTextConfig } from '@/config/ai-text';
-import { auditService } from '@/services/api';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAudit } from '@/hooks/useAudit';
+import { ROUTES } from '@/config/app-constants';
 
 export const AuditPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'questions' | 'comments'>('questions');
-  const [filter, setFilter] = useState<AuditStatus>('pending');
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(false);
-
-  // 驳回相关状态
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [currentAuditItem, setCurrentAuditItem] = useState<{ id: string; type: 'question' | 'comment' } | null>(null);
-
-  // 评分相关状态
-  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
-  const [currentScore, setCurrentScore] = useState(0);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const {
+    activeTab,
+    setActiveTab,
+    filter,
+    setFilter,
+    filteredQuestions,
+    filteredComments,
+    pendingQuestionsCount,
+    pendingCommentsCount,
+    loadingQuestions,
+    loadingComments,
+    rejectDialogOpen,
+    setRejectDialogOpen,
+    rejectReason,
+    setRejectReason,
+    scoreDialogOpen,
+    currentScore,
+    setCurrentScore,
+    selectedImage,
+    setSelectedImage,
+    handleAudit,
+    openRejectDialog,
+    confirmReject,
+    openScoreDialog,
+    confirmScore,
+    toggleGoodQuestion,
+  } = useAudit();
 
   // 基础权限校验：仅允许老师访问审核页面
   useEffect(() => {
     if (!user) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
 
     if (user.role !== 'teacher') {
       toast.error('只有老师可以访问审核页面');
-      navigate('/profile');
+      navigate(ROUTES.profile);
     }
   }, [user, navigate]);
 
   useEffect(() => {
     const isTestEnv =
-      typeof import.meta !== 'undefined' &&
-      import.meta.env &&
-      import.meta.env.MODE === 'test';
+      typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'test';
 
     const loadQuestions = async () => {
       setLoadingQuestions(true);
       try {
         const res = await auditService.getPendingQuestions({ page: 1, pageSize: 20 });
-        const items = res.list.map((item) => ({
-          id: item.id,
-          title: item.title,
-          content: item.content,
-          authorId: item.authorId,
-          authorName: item.authorName,
-          createdAt: item.createdAt,
-          status: item.status as AuditStatus,
-          stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
-          subject: 'math',
-          difficulty: 'medium',
-          aiResult: item.aiResult ?? undefined
-        } as Question));
+        const items = res.list.map(
+          (item) =>
+            ({
+              id: item.id,
+              title: item.title,
+              content: item.content,
+              authorId: item.authorId,
+              authorName: item.authorName,
+              createdAt: item.createdAt,
+              status: item.status as AuditStatus,
+              stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
+              subject: 'math',
+              difficulty: 'medium',
+              aiResult: item.aiResult ?? undefined,
+            }) as Question,
+        );
         setQuestions(items);
       } catch (error) {
         if (isTestEnv) {
@@ -101,8 +120,8 @@ export const AuditPage = () => {
               status: 'pending',
               stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
               subject: 'math',
-              difficulty: 'medium'
-            } as Question
+              difficulty: 'medium',
+            } as Question,
           ];
           setQuestions(demoQuestions);
         } else {
@@ -118,18 +137,21 @@ export const AuditPage = () => {
       setLoadingComments(true);
       try {
         const res = await auditService.getPendingComments({ page: 1, pageSize: 20 });
-        const items = res.list.map((item) => ({
-          id: item.id,
-          questionId: item.questionId,
-          questionTitle: item.questionTitle,
-          content: item.content,
-          image: item.image,
-          authorId: item.authorId,
-          authorName: item.authorName,
-          status: item.status as AuditStatus,
-          aiResult: item.aiResult ?? undefined,
-          createdAt: item.createdAt
-        } as Comment));
+        const items = res.list.map(
+          (item) =>
+            ({
+              id: item.id,
+              questionId: item.questionId,
+              questionTitle: item.questionTitle,
+              content: item.content,
+              image: item.image,
+              authorId: item.authorId,
+              authorName: item.authorName,
+              status: item.status as AuditStatus,
+              aiResult: item.aiResult ?? undefined,
+              createdAt: item.createdAt,
+            }) as Comment,
+        );
         setComments(items);
       } catch {
         setComments([]);
@@ -145,34 +167,44 @@ export const AuditPage = () => {
     }
   }, [activeTab]);
 
-  const filteredQuestions = questions.filter(q => q.status === filter);
-  const filteredComments = comments.filter(c => c.status === filter);
+  const filteredQuestions = questions.filter((q) => q.status === filter);
+  const filteredComments = comments.filter((c) => c.status === filter);
 
-  const pendingQuestionsCount = questions.filter(q => q.status === 'pending').length;
-  const pendingCommentsCount = comments.filter(c => c.status === 'pending').length;
+  const pendingQuestionsCount = questions.filter((q) => q.status === 'pending').length;
+  const pendingCommentsCount = comments.filter((c) => c.status === 'pending').length;
 
-  const handleAudit = (id: string, type: 'question' | 'comment', status: AuditStatus, extraData?: any) => {
+  const handleAudit = (
+    id: string,
+    type: 'question' | 'comment',
+    status: AuditStatus,
+    extraData?: any,
+  ) => {
     if (type === 'question') {
-      setQuestions(prev => prev.map(q => {
-        if (q.id === id) {
-          return { ...q, status, ...extraData };
-        }
-        return q;
-      }));
+      setQuestions((prev) =>
+        prev.map((q) => {
+          if (q.id === id) {
+            return { ...q, status, ...extraData };
+          }
+          return q;
+        }),
+      );
     } else {
-      setComments(prev => prev.map(c => {
-        if (c.id === id) {
-          return { ...c, status, ...extraData };
-        }
-        return c;
-      }));
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === id) {
+            return { ...c, status, ...extraData };
+          }
+          return c;
+        }),
+      );
     }
 
-    const statusText = status === 'approved' 
-      ? aiTextConfig.auditMessages.statusApproved 
-      : status === 'rejected' 
-        ? aiTextConfig.auditMessages.statusRejected 
-        : aiTextConfig.auditMessages.statusBanned;
+    const statusText =
+      status === 'approved'
+        ? aiTextConfig.auditMessages.statusApproved
+        : status === 'rejected'
+          ? aiTextConfig.auditMessages.statusRejected
+          : aiTextConfig.auditMessages.statusBanned;
     toast.success(`${aiTextConfig.auditMessages.auditComplete}：${statusText}`);
   };
 
@@ -214,7 +246,7 @@ export const AuditPage = () => {
 
   const openScoreDialog = (id: string) => {
     setCurrentAuditItem({ id, type: 'question' });
-    const q = questions.find(item => item.id === id);
+    const q = questions.find((item) => item.id === id);
     setCurrentScore(q?.score || 0);
     setScoreDialogOpen(true);
   };
@@ -224,12 +256,14 @@ export const AuditPage = () => {
     auditService
       .approveQuestion(currentAuditItem.id, { score: currentScore })
       .then(() => {
-        setQuestions(prev => prev.map(q => {
-          if (q.id === currentAuditItem.id) {
-            return { ...q, score: currentScore, status: 'approved' as AuditStatus };
-          }
-          return q;
-        }));
+        setQuestions((prev) =>
+          prev.map((q) => {
+            if (q.id === currentAuditItem.id) {
+              return { ...q, score: currentScore, status: 'approved' as AuditStatus };
+            }
+            return q;
+          }),
+        );
         setScoreDialogOpen(false);
         toast.success('评分已更新');
       })
@@ -242,12 +276,14 @@ export const AuditPage = () => {
     auditService
       .approveQuestion(id, { isGoodQuestion: checked })
       .then(() => {
-        setQuestions(prev => prev.map(q => {
-          if (q.id === id) {
-            return { ...q, isGoodQuestion: checked };
-          }
-          return q;
-        }));
+        setQuestions((prev) =>
+          prev.map((q) => {
+            if (q.id === id) {
+              return { ...q, isGoodQuestion: checked };
+            }
+            return q;
+          }),
+        );
       })
       .catch(() => {
         toast.error('更新“好问题”状态失败，请稍后重试');
@@ -259,7 +295,7 @@ export const AuditPage = () => {
       {/* 顶部导航栏 */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
         <button
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate(ROUTES.profile)}
           className="p-2 -ml-2 active:scale-90 transition-transform"
         >
           <ChevronLeft className="w-6 h-6 text-gray-600" />
@@ -271,11 +307,21 @@ export const AuditPage = () => {
           )}
         </h1>
         <div className="flex items-center gap-2">
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as AuditStatus)} className="w-auto">
+          <Tabs
+            value={filter}
+            onValueChange={(v) => setFilter(v as AuditStatus)}
+            className="w-auto"
+          >
             <TabsList className="h-8 bg-gray-100 p-0.5">
-              <TabsTrigger value="pending" className="px-3 text-xs h-7">待审核</TabsTrigger>
-              <TabsTrigger value="approved" className="px-3 text-xs h-7">已通过</TabsTrigger>
-              <TabsTrigger value="rejected" className="px-3 text-xs h-7">已驳回</TabsTrigger>
+              <TabsTrigger value="pending" className="px-3 text-xs h-7">
+                待审核
+              </TabsTrigger>
+              <TabsTrigger value="approved" className="px-3 text-xs h-7">
+                已通过
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="px-3 text-xs h-7">
+                已驳回
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -286,15 +332,17 @@ export const AuditPage = () => {
         <div className="flex gap-2 p-1">
           <button
             onClick={() => setActiveTab('questions')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors relative ${activeTab === 'questions' ? 'bg-[#D5BDAF] text-white' : 'bg-gray-100 text-gray-500'
-              }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors relative ${
+              activeTab === 'questions' ? 'bg-[#D5BDAF] text-white' : 'bg-gray-100 text-gray-500'
+            }`}
           >
             问题审核 {pendingQuestionsCount > 0 && `(${pendingQuestionsCount})`}
           </button>
           <button
             onClick={() => setActiveTab('comments')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === 'comments' ? 'bg-[#D5BDAF] text-white' : 'bg-gray-100 text-gray-500'
-              }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              activeTab === 'comments' ? 'bg-[#D5BDAF] text-white' : 'bg-gray-100 text-gray-500'
+            }`}
           >
             评论审核 {pendingCommentsCount > 0 && `(${pendingCommentsCount})`}
           </button>
@@ -318,16 +366,14 @@ export const AuditPage = () => {
                     <div className="flex items-center gap-2 text-[10px] text-gray-400">
                       <button
                         type="button"
-                        onClick={() => navigate(`/student/${q.authorId}/questions`)}
+                        onClick={() => navigate(ROUTES.studentHistory(q.authorId))}
                         className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-gray-700 cursor-pointer"
                         data-testid="audit-question-author"
                       >
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-100 text-[8px] text-gray-500">
                           {q.authorName?.[0] ?? '学'}
                         </span>
-                        <span className="truncate max-w-[120px] font-medium">
-                          {q.authorName}
-                        </span>
+                        <span className="truncate max-w-[120px] font-medium">{q.authorName}</span>
                       </button>
                       <span>•</span>
                       <span>{new Date(q.createdAt).toLocaleString()}</span>
@@ -340,7 +386,9 @@ export const AuditPage = () => {
                     )}
                   </div>
                   {q.isGoodQuestion && (
-                    <Badge className="bg-red-500 text-white border-none text-[10px] h-5">好问题</Badge>
+                    <Badge className="bg-red-500 text-white border-none text-[10px] h-5">
+                      好问题
+                    </Badge>
                   )}
                 </div>
                 {/* Subject/Topics */}
@@ -357,9 +405,7 @@ export const AuditPage = () => {
                   ))}
                 </div>
 
-                <div className="text-sm text-gray-600 line-clamp-3">
-                  {q.content}
-                </div>
+                <div className="text-sm text-gray-600 line-clamp-3">{q.content}</div>
 
                 {q.images && q.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto py-1">
@@ -369,7 +415,11 @@ export const AuditPage = () => {
                         className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100 cursor-pointer active:scale-95 transition-transform"
                         onClick={() => setSelectedImage(img)}
                       >
-                        <ImageWithFallback src={img} alt="preview" className="w-full h-full object-cover" />
+                        <ImageWithFallback
+                          src={img}
+                          alt="preview"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                     ))}
                   </div>
@@ -384,8 +434,9 @@ export const AuditPage = () => {
                   </button>
                   <button
                     onClick={() => openScoreDialog(q.id)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-medium active:scale-95 transition-transform flex items-center justify-center gap-1 ${q.score ? 'bg-orange-50 text-orange-500' : 'bg-gray-50 text-gray-500'
-                      }`}
+                    className={`flex-1 py-2 rounded-xl text-xs font-medium active:scale-95 transition-transform flex items-center justify-center gap-1 ${
+                      q.score ? 'bg-orange-50 text-orange-500' : 'bg-gray-50 text-gray-500'
+                    }`}
                   >
                     <Star className={`w-3 h-3 ${q.score ? 'fill-orange-500' : ''}`} />
                     {q.score ? `${q.score}分` : '打分'}
@@ -397,7 +448,12 @@ export const AuditPage = () => {
                       onCheckedChange={(checked) => toggleGoodQuestion(q.id, checked as boolean)}
                       className="w-4 h-4 border-gray-300"
                     />
-                    <label htmlFor={`good-${q.id}`} className="ml-1.5 text-[10px] text-gray-500 whitespace-nowrap">好问题</label>
+                    <label
+                      htmlFor={`good-${q.id}`}
+                      className="ml-1.5 text-[10px] text-gray-500 whitespace-nowrap"
+                    >
+                      好问题
+                    </label>
                   </div>
                   <button
                     onClick={() => {
@@ -406,7 +462,7 @@ export const AuditPage = () => {
                           isGoodQuestion: q.isGoodQuestion,
                           score: q.score,
                           tags: q.tags,
-                          difficulty: q.difficulty
+                          difficulty: q.difficulty,
                         })
                         .then(() => {
                           handleAudit(q.id, 'question', 'approved');
@@ -428,87 +484,102 @@ export const AuditPage = () => {
               <p className="text-sm">暂无待审核内容</p>
             </div>
           )
-        ) : (
-          filteredComments.length > 0 ? (
-            filteredComments.map((c) => (
-              <motion.div
-                key={c.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl shadow-sm p-4 space-y-3"
-              >
-                <div className="space-y-1">
-                  <div className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded w-fit mb-1 font-medium truncate max-w-full">
-                    源自：{c.questionTitle || '未知问题'}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full overflow-hidden">
-                        <ImageWithFallback src={c.authorAvatar || ''} alt="avatar" className="w-full h-full object-cover" />
-                      </div>
-                      <span className="text-xs font-bold text-gray-700">{c.authorName}</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleString()}</span>
-                  </div>
-                  {c.aiResult && (
-                    <div className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded w-fit ${c.aiResult.includes('违规') ? 'text-red-500 bg-red-50' : 'text-orange-500 bg-orange-50'
-                      }`}>
-                      <AlertCircle className="w-3 h-3" />
-                      AI初筛：{c.aiResult}
-                    </div>
-                  )}
+        ) : filteredComments.length > 0 ? (
+          filteredComments.map((c) => (
+            <motion.div
+              key={c.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl shadow-sm p-4 space-y-3"
+            >
+              <div className="space-y-1">
+                <div className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded w-fit mb-1 font-medium truncate max-w-full">
+                  源自：{c.questionTitle || '未知问题'}
                 </div>
-
-                <div className={`text-sm ${c.aiResult?.includes('违规') ? 'text-red-600' : 'text-gray-600'}`}>
-                  {c.content}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full overflow-hidden">
+                      <ImageWithFallback
+                        src={c.authorAvatar || ''}
+                        alt="avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700">{c.authorName}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400">
+                    {new Date(c.createdAt).toLocaleString()}
+                  </span>
                 </div>
-
-                {c.image && (
+                {c.aiResult && (
                   <div
-                    className="w-24 h-24 rounded-lg overflow-hidden border border-gray-100 cursor-pointer active:scale-95 transition-transform"
-                    onClick={() => setSelectedImage(c.image || null)}
+                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded w-fit ${
+                      c.aiResult.includes('违规')
+                        ? 'text-red-500 bg-red-50'
+                        : 'text-orange-500 bg-orange-50'
+                    }`}
                   >
-                    <ImageWithFallback src={c.image} alt="comment" className="w-full h-full object-cover" />
+                    <AlertCircle className="w-3 h-3" />
+                    AI初筛：{c.aiResult}
                   </div>
                 )}
+              </div>
 
-                <div className="flex gap-2 pt-2 border-t border-gray-50">
-                  <button
-                    onClick={() => openRejectDialog(c.id, 'comment')}
-                    className="flex-1 py-2 bg-red-100 text-red-600 rounded-xl text-xs font-bold active:scale-95 transition-transform"
-                  >
-                    封禁
-                  </button>
-                  <button
-                    onClick={() => openRejectDialog(c.id, 'comment')}
-                    className="flex-1 py-2 bg-orange-50 text-orange-600 rounded-xl text-xs font-medium active:scale-95 transition-transform"
-                  >
-                    驳回
-                  </button>
-                  <button
-                    onClick={() => {
-                      auditService
-                        .approveComment(c.id)
-                        .then(() => {
-                          handleAudit(c.id, 'comment', 'approved');
-                        })
-                        .catch(() => {
-                          toast.error('审核通过失败，请稍后重试');
-                        });
-                    }}
-                    className="flex-1 py-2 bg-[#BDE0FE] text-[#1D4ED8] rounded-xl text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"
-                  >
-                    <Check className="w-3 h-3" /> 通过
-                  </button>
+              <div
+                className={`text-sm ${c.aiResult?.includes('违规') ? 'text-red-600' : 'text-gray-600'}`}
+              >
+                {c.content}
+              </div>
+
+              {c.image && (
+                <div
+                  className="w-24 h-24 rounded-lg overflow-hidden border border-gray-100 cursor-pointer active:scale-95 transition-transform"
+                  onClick={() => setSelectedImage(c.image || null)}
+                >
+                  <ImageWithFallback
+                    src={c.image}
+                    alt="comment"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              </motion.div>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-              <MessageSquare className="w-10 h-10 mb-2 opacity-20" />
-              <p className="text-sm">暂无待审核内容</p>
-            </div>
-          )
+              )}
+
+              <div className="flex gap-2 pt-2 border-t border-gray-50">
+                <button
+                  onClick={() => openRejectDialog(c.id, 'comment')}
+                  className="flex-1 py-2 bg-red-100 text-red-600 rounded-xl text-xs font-bold active:scale-95 transition-transform"
+                >
+                  封禁
+                </button>
+                <button
+                  onClick={() => openRejectDialog(c.id, 'comment')}
+                  className="flex-1 py-2 bg-orange-50 text-orange-600 rounded-xl text-xs font-medium active:scale-95 transition-transform"
+                >
+                  驳回
+                </button>
+                <button
+                  onClick={() => {
+                    auditService
+                      .approveComment(c.id)
+                      .then(() => {
+                        handleAudit(c.id, 'comment', 'approved');
+                      })
+                      .catch(() => {
+                        toast.error('审核通过失败，请稍后重试');
+                      });
+                  }}
+                  className="flex-1 py-2 bg-[#BDE0FE] text-[#1D4ED8] rounded-xl text-xs font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"
+                >
+                  <Check className="w-3 h-3" /> 通过
+                </button>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+            <MessageSquare className="w-10 h-10 mb-2 opacity-20" />
+            <p className="text-sm">暂无待审核内容</p>
+          </div>
         )}
 
         <div className="text-center py-6">
@@ -532,8 +603,19 @@ export const AuditPage = () => {
             />
           </div>
           <DialogFooter className="flex-row gap-2">
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)} className="flex-1 rounded-xl">取消</Button>
-            <Button onClick={confirmReject} className="flex-1 rounded-xl bg-red-500 hover:bg-red-600">确认驳回</Button>
+            <Button
+              variant="outline"
+              onClick={() => setRejectDialogOpen(false)}
+              className="flex-1 rounded-xl"
+            >
+              取消
+            </Button>
+            <Button
+              onClick={confirmReject}
+              className="flex-1 rounded-xl bg-red-500 hover:bg-red-600"
+            >
+              确认驳回
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -558,8 +640,19 @@ export const AuditPage = () => {
             ))}
           </div>
           <DialogFooter className="flex-row gap-2">
-            <Button variant="outline" onClick={() => setScoreDialogOpen(false)} className="flex-1 rounded-xl">取消</Button>
-            <Button onClick={confirmScore} className="flex-1 rounded-xl bg-orange-400 hover:bg-orange-500">保存评分</Button>
+            <Button
+              variant="outline"
+              onClick={() => setScoreDialogOpen(false)}
+              className="flex-1 rounded-xl"
+            >
+              取消
+            </Button>
+            <Button
+              onClick={confirmScore}
+              className="flex-1 rounded-xl bg-orange-400 hover:bg-orange-500"
+            >
+              保存评分
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

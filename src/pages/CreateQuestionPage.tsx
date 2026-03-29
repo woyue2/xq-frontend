@@ -1,3 +1,21 @@
+/**
+ * [POS] src/pages/CreateQuestionPage.tsx
+ *   所属：pages 层 | 角色：学生/家长发布问题页，路由 `/create`
+ *   兄弟：QuestionDetailPage.tsx / HomePage.tsx
+ *
+ * [INPUT]
+ *   - react          → useState / useEffect / useRef / ChangeEvent
+ *   - lucide-react   → ArrowLeft / Upload / X
+ *   - @/components/ui/* → Button
+ *   - @/services/api → questionService
+ *
+ * [OUTPUT]
+ *   - CreateQuestionPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +48,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { questionService, configService } from '@/services/api';
 import type { Question } from '@/types';
 import type { QuestionDimensionDto } from '@/types/api';
+import { ROUTES } from '@/config/app-constants';
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
@@ -39,7 +58,7 @@ export function CreateQuestionPage() {
   useEffect(() => {
     if (user && !isMemberActive(user)) {
       toast.error('您的会员已过期，请联系老师续费');
-      navigate('/');
+      navigate(ROUTES.home);
     }
   }, [user, navigate]);
 
@@ -92,7 +111,7 @@ export function CreateQuestionPage() {
             .map((opt) => ({
               value: opt.value,
               label: opt.label,
-              order: opt.order ?? 0
+              order: opt.order ?? 0,
             }));
 
           setMethodDimension(methodDim);
@@ -151,12 +170,12 @@ export function CreateQuestionPage() {
         const { imageUrl } = await questionService.uploadImage(file, {
           purpose: '提问',
           senderName: user?.nickname ?? user?.name ?? '学生',
-          receiverName: '老师'
+          receiverName: '老师',
         });
         uploadedUrls.push(imageUrl);
       }
       if (uploadedUrls.length > 0) {
-        setImages(prev => [...prev, ...uploadedUrls]);
+        setImages((prev) => [...prev, ...uploadedUrls]);
         toast.success('图片上传成功');
       }
     } catch {
@@ -176,7 +195,7 @@ export function CreateQuestionPage() {
     if (title || content || images.length > 0) {
       setShowExitDialog(true);
     } else {
-      navigate('/');
+      navigate(ROUTES.home);
     }
   };
 
@@ -218,7 +237,7 @@ export function CreateQuestionPage() {
         content,
         subject: selectedSubject,
         tags: [selectedTopic, selectedMethod].filter(Boolean),
-        images
+        images,
       };
 
       const created = await questionService.createQuestion(payload);
@@ -241,10 +260,10 @@ export function CreateQuestionPage() {
       toast.success('问题已提交，已跳转到详情页');
       // 提交成功后跳转到该问题详情页，便于学生继续查看与分享
       if (created && (created as Question).id) {
-        navigate(`/question/${(created as Question).id}`);
+        navigate(ROUTES.question((created as Question).id));
       } else {
         // 兜底：如果后端未返回有效 ID，则回首页
-        navigate('/');
+        navigate(ROUTES.home);
       }
     } catch {
       // 具体错误提示由 axios 拦截器统一处理
@@ -262,10 +281,7 @@ export function CreateQuestionPage() {
       {/* 顶部导航栏 */}
       <div className="bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition"
-          >
+          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full transition">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl flex-1 text-center">编辑我的问题</h1>
@@ -284,7 +300,9 @@ export function CreateQuestionPage() {
         <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
           {/* 1. 科目选择 (Taxonomy) */}
           <div className="space-y-3">
-            <Label className="text-base font-bold">选择科目 <span className="text-red-500">*</span></Label>
+            <Label className="text-base font-bold">
+              选择科目 <span className="text-red-500">*</span>
+            </Label>
             <div className="flex gap-2">
               {SUBJECT_OPTIONS.map((sub) => (
                 <button
@@ -294,10 +312,11 @@ export function CreateQuestionPage() {
                     setSelectedTopic('');
                     setSelectedMethod('');
                   }}
-                  className={`px-4 py-2 rounded-full border transition-all ${selectedSubject === sub.value
-                    ? 'bg-blue-500 text-white border-blue-500 shadow-md'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                    }`}
+                  className={`px-4 py-2 rounded-full border transition-all ${
+                    selectedSubject === sub.value
+                      ? 'bg-blue-500 text-white border-blue-500 shadow-md'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
                 >
                   {sub.label}
                 </button>
@@ -308,8 +327,9 @@ export function CreateQuestionPage() {
           {/* 2. 考点与方法联动 (Dynamic Chips) */}
           {currentSubjectConfig && (
             <div
-              className={`grid grid-cols-1 ${showMethodField ? 'md:grid-cols-2' : ''
-                } gap-4 animate-in fade-in slide-in-from-top-2`}
+              className={`grid grid-cols-1 ${
+                showMethodField ? 'md:grid-cols-2' : ''
+              } gap-4 animate-in fade-in slide-in-from-top-2`}
             >
               <div className="space-y-2">
                 <Label className="text-gray-500">核心考点 (Topic)</Label>
@@ -318,8 +338,10 @@ export function CreateQuestionPage() {
                     <SelectValue placeholder="请选择考点" />
                   </SelectTrigger>
                   <SelectContent>
-                    {currentSubjectConfig.topics.map(t => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    {currentSubjectConfig.topics.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -328,12 +350,9 @@ export function CreateQuestionPage() {
               {showMethodField && (
                 <div className="space-y-2">
                   <Label className="text-gray-500">
-                    {(methodDimension?.name ?? '解题方法')} (Method)
+                    {methodDimension?.name ?? '解题方法'} (Method)
                   </Label>
-                  <Select
-                    value={selectedMethod}
-                    onValueChange={setSelectedMethod}
-                  >
+                  <Select value={selectedMethod} onValueChange={setSelectedMethod}>
                     <SelectTrigger>
                       <SelectValue placeholder="尝试了什么方法？" />
                     </SelectTrigger>
@@ -341,19 +360,19 @@ export function CreateQuestionPage() {
                       {(methodOptions.length > 0
                         ? methodOptions
                         : currentSubjectConfig.methods.map((m) => {
-                          if (m === '暂不确定') {
+                            if (m === '暂不确定') {
+                              return {
+                                value: 'unknown',
+                                label: m,
+                                order: 999,
+                              };
+                            }
                             return {
-                              value: 'unknown',
+                              value: m,
                               label: m,
-                              order: 999
+                              order: 0,
                             };
-                          }
-                          return {
-                            value: m,
-                            label: m,
-                            order: 0
-                          };
-                        })
+                          })
                       ).map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
@@ -387,28 +406,30 @@ export function CreateQuestionPage() {
                   <span>发现相似问题，看看有没有你想要的答案？</span>
                 </div>
                 <div className="space-y-2">
-                  {similarQuestions.map(q => (
+                  {similarQuestions.map((q) => (
                     <div
                       key={q.id}
                       className="flex items-center justify-between text-sm bg-white p-2 rounded border border-amber-100 cursor-pointer hover:bg-amber-50 transition"
                       onClick={() => window.open(`/question/${q.id}`, '_blank')}
                     >
                       <span className="truncate flex-1 text-gray-700">{q.title}</span>
-                      <span className="text-xs text-gray-400 whitespace-nowrap ml-2">{q.stats.answers}个回答</span>
+                      <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
+                        {q.stats.answers}个回答
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="text-sm text-gray-500 text-right">
-              {title.length}/100
-            </div>
+            <div className="text-sm text-gray-500 text-right">{title.length}/100</div>
           </div>
 
           {/* 4. 问题详情 */}
           <div className="space-y-2">
-            <Label htmlFor="content" className="text-base font-bold">问题详情</Label>
+            <Label htmlFor="content" className="text-base font-bold">
+              问题详情
+            </Label>
             <Textarea
               id="content"
               placeholder="请输入详细描述，支持公式和符号...（可选，最多500字）"
@@ -416,9 +437,7 @@ export function CreateQuestionPage() {
               onChange={(e) => setContent(e.target.value.slice(0, 500))}
               className="min-h-[120px] resize-none"
             />
-            <div className="text-sm text-gray-500 text-right">
-              {content.length}/500
-            </div>
+            <div className="text-sm text-gray-500 text-right">{content.length}/500</div>
           </div>
 
           {/* 5. 图片上传区 */}
@@ -478,15 +497,11 @@ export function CreateQuestionPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>是否放弃编辑？</AlertDialogTitle>
-            <AlertDialogDescription>
-              当前编辑的内容将不会被保存
-            </AlertDialogDescription>
+            <AlertDialogDescription>当前编辑的内容将不会被保存</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate('/')}>
-              确认放弃
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => navigate(ROUTES.home)}>确认放弃</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -11,6 +11,7 @@
  *   - framer-motion          → motion / AnimatePresence
  *   - @/lib/utils            → cn
  *   - react                  → useState / useEffect
+ *   - sonner                 → toast
  *
  * [OUTPUT]
  *   - MainLayout（布局组件）

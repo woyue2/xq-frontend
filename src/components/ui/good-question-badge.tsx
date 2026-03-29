@@ -5,6 +5,7 @@ import { UI_CONFIG } from '@/config/ui-config';
 import { featureFlags } from '@/config/feature-flags';
 import { api } from '@/services/api';
 import { toast } from 'sonner'; // Assuming sonner is used based on package.json
+import { ROUTES } from '@/config/app-constants';
 
 interface GoodQuestionBadgeProps {
     className?: string;
@@ -36,7 +37,7 @@ export function GoodQuestionBadge({ className, showIcon = false }: GoodQuestionB
                 timestamp: Date.now()
             });
             
-            navigate('/good-questions');
+            navigate(ROUTES.goodQuestions);
         } catch (error) {
             console.error('Failed to log click:', error);
             // Even if logging fails, we should probably still navigate or show error?

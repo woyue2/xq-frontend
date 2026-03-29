@@ -1,3 +1,18 @@
+/**
+ * [POS] backend/src/services/parent.service.ts
+ *   所属：服务层 | 角色：家长端业务逻辑（绑定/解绑子账号、查看孩子数据）
+ *
+ * [INPUT]
+ *   - ../config/database → prisma
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - parentService（单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 

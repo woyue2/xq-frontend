@@ -1,3 +1,19 @@
+/**
+ * [POS] backend/src/routes/answer.routes.ts
+ *   所属：路由层 | 角色：答案路由（提交答案、查看答案列表）
+ *
+ * [INPUT]
+ *   - express                        → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware  → authMiddleware / AuthenticatedRequest
+ *   - ../services/answer.service     → answerService
+ *
+ * [OUTPUT]
+ *   - answerRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {

@@ -11,6 +11,7 @@
 | 文件 | 职责 |
 |---|---|
 | `useAuthStore.ts` | 登录用户信息 + token，`zustand/persist` 持久化至 `localStorage` |
+| `useDiagnosticStore.ts` | 诊断页面的测试结果状态（dev 模式） |
 
 ## 质量红线
 

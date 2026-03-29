@@ -1,8 +1,34 @@
+/**
+ * [POS] backend/src/services/user.service.ts
+ *   所属：服务层 | 角色：用户信息业务逻辑（更新资料、头像审核）
+ *
+ * [INPUT]
+ *   - ../config/database → prisma
+ *   - ./ai-audit.service → aiAuditService
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - userService（UserService 单例，含 findById / updateProfile）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { aiAuditService } from './ai-audit.service';
 import { AppError } from '../errors/AppError';
 
 export class UserService {
+  async findById(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
+    }
+    return user;
+  }
+
     /**
      * 更新用户信息（含头像审核）
      */

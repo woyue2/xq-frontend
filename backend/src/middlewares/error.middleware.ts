@@ -1,6 +1,20 @@
+/**
+ * [POS] backend/src/middlewares/error.middleware.ts
+ *   所属：中间件层 | 角色：统一错误响应格式，处理 AppError / ZodError / 未知错误
+ *
+ * [INPUT]
+ *   - express            → NextFunction / Request / Response
+ *   - zod                → ZodError
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - errorMiddleware（Express 错误处理中间件，4 参数）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/middlewares/CLAUDE.md 的文件清单
+ */
 import type { NextFunction, Request, Response } from 'express';
-import { ZodError } from 'zod';
-import { AppError } from '../errors/AppError';
 
 type RequestWithLog = Request & {
   // pino-http 注入的日志实例

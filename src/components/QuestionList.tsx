@@ -1,3 +1,21 @@
+/**
+ * [POS] src/components/QuestionList.tsx
+ *   所属：components 层 | 角色：问题列表容器（无限滚动 + 骨架屏）
+ *   兄弟：QuestionCard.tsx / QuestionFilter.tsx
+ *
+ * [INPUT]
+ *   - react                        → useRef / useEffect
+ *   - lucide-react                 → Loader2
+ *   - @/components/QuestionCard    → QuestionCard
+ *   - @/types                      → Question
+ *
+ * [OUTPUT]
+ *   - QuestionList（问题列表组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/components/CLAUDE.md 的文件清单
+ */
 import { useRef, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { QuestionCard } from '@/components/QuestionCard';
@@ -39,7 +57,7 @@ export function QuestionList({
   onDetailClick,
   understandingStates = {},
   onToggleUnderstanding,
-  onAuthorClick
+  onAuthorClick,
 }: QuestionListProps) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -56,7 +74,7 @@ export function QuestionList({
           fetchNextPage();
         }
       },
-      { threshold: 1.0 }
+      { threshold: 1.0 },
     );
 
     if (observerTarget.current) {
@@ -70,7 +88,7 @@ export function QuestionList({
   // Assuming input is sorted or we sort here based on pinnedStates.
   // For simplicity, let's assume parent sorts it, OR we sort here.
   // HomePage sorts it. Let's sort here too if pinnedStates provided.
-  
+
   const getEffectivePinned = (question: Question) => {
     return pinnedStates[question.id] ?? question.isPinned;
   };
@@ -103,11 +121,7 @@ export function QuestionList({
       ) : (
         <>
           {sortedQuestions.map((question) => (
-            <div
-              key={question.id}
-              className="relative"
-              data-testid="question-card"
-            >
+            <div key={question.id} className="relative" data-testid="question-card">
               <QuestionCard
                 question={question}
                 // onClick prop removed as it is not part of QuestionCardProps
@@ -115,7 +129,9 @@ export function QuestionList({
                 isFavorited={favoritedQuestions.has(question.id)}
                 isPinned={getEffectivePinned(question)}
                 onLike={onLike ? (e: React.MouseEvent) => onLike(question.id, e) : undefined}
-                onFavorite={onFavorite ? (e: React.MouseEvent) => onFavorite(question.id, e) : undefined}
+                onFavorite={
+                  onFavorite ? (e: React.MouseEvent) => onFavorite(question.id, e) : undefined
+                }
                 onPin={onPin ? (e: React.MouseEvent) => onPin(question, e) : undefined}
                 understandingStatus={
                   understandingStates[question.id] ?? question.understandingStatus ?? null
@@ -126,27 +142,25 @@ export function QuestionList({
                     : undefined
                 }
                 onAuthorClick={
-                  onAuthorClick
-                    ? (e: React.MouseEvent) => onAuthorClick(question, e)
-                    : undefined
+                  onAuthorClick ? (e: React.MouseEvent) => onAuthorClick(question, e) : undefined
                 }
               />
               {showDetailButton && (
                 <div className="absolute top-4 right-4 z-10">
-                   <button 
-                     className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors"
-                     onClick={(e) => {
-                       e.stopPropagation();
-                       onDetailClick?.(question.id);
-                     }}
-                   >
-                     查看详情
-                   </button>
+                  <button
+                    className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-100 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDetailClick?.(question.id);
+                    }}
+                  >
+                    查看详情
+                  </button>
                 </div>
               )}
             </div>
           ))}
-          
+
           {/* Loading Indicator for Infinite Scroll */}
           <div ref={observerTarget} className="h-10 flex items-center justify-center">
             {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-gray-400" />}

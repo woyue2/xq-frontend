@@ -1,3 +1,19 @@
+/**
+ * [POS] src/types/index.ts
+ *   所属：types 层 | 角色：核心领域类型定义
+ *   兄弟：api.ts（DTO 类型）/ parent.ts（家长端类型）
+ *
+ * [INPUT]
+ *   （无外部依赖）
+ *
+ * [OUTPUT]
+ *   - UserRole / AuditStatus / DifficultyLevel / SubjectType 等枚举类型
+ *   - User / Question / Answer / Comment 等核心领域 interface
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/types/CLAUDE.md 的文件清单
+ */
 // 用户角色类型
 export type UserRole = 'student' | 'parent' | 'teacher';
 
@@ -8,7 +24,16 @@ export type AuditStatus = 'pending' | 'approved' | 'rejected' | 'banned';
 export type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
 // 科目类型
-export type SubjectType = 'math' | 'physics' | 'chemistry' | 'english' | 'chinese' | 'history' | 'geography' | 'biology' | 'politics';
+export type SubjectType =
+  | 'math'
+  | 'physics'
+  | 'chemistry'
+  | 'english'
+  | 'chinese'
+  | 'history'
+  | 'geography'
+  | 'biology'
+  | 'politics';
 
 // 课时状态类型
 export type ClassHoursStatus = 'active' | 'expired';
@@ -29,7 +54,7 @@ export interface UserClassHours {
 export interface User {
   id: string; // UUID
   phone: string;
-  name?: string;       // 真实姓名，可选
+  name?: string; // 真实姓名，可选
   nickname?: string;
   avatar?: string;
   role: UserRole;

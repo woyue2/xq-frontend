@@ -1,3 +1,23 @@
+/**
+ * [POS] backend/src/routes/user-me.routes.ts
+ *   所属：路由层 | 角色：当前登录用户信息查询与更新路由
+ *   兄弟：profile.routes.ts
+ *
+ * [INPUT]
+ *   - express                          → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware    → authMiddleware / AuthenticatedRequest
+ *   - ../services/interaction.service  → interactionService
+ *   - ../services/class-hours.service  → classHoursService
+ *   - ../services/user.service         → userService
+ *   - ../errors/AppError               → AppError
+ *
+ * [OUTPUT]
+ *   - userMeRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {
@@ -5,7 +25,6 @@ import {
   type AuthenticatedRequest
 } from '../middlewares/auth.middleware';
 import { interactionService } from '../services/interaction.service';
-import { prisma } from '../config/database';
 import { classHoursService } from '../services/class-hours.service';
 import { AppError } from '../errors/AppError';
 import { userService } from '../services/user.service';
@@ -23,13 +42,7 @@ userMeRouter.get(
         throw new AppError(401, 'UNAUTHORIZED', '未登录');
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id }
-      });
-
-      if (!user) {
-        throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
-      }
+      const user = await userService.findById(req.user.id);
 
       let classHours: Awaited<
         ReturnType<typeof classHoursService.getUserClassHours>

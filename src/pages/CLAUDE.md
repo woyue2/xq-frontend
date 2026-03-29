@@ -11,7 +11,7 @@
 | 文件 | 路由 | 角色限制 |
 |---|---|---|
 | `LoginPage.tsx` | `/login` | 公开 |
-| `HomePage.tsx` | `/` | 已登录 |
+| `HomePage.tsx` | `/` | 公开（游客可只读） |
 | `CreateQuestionPage.tsx` | `/create` | 学生/家长 |
 | `QuestionDetailPage.tsx` | `/question/:id` | 已登录 |
 | `AnswerQuestionPage.tsx` | `/answer/:id` | 教师 |

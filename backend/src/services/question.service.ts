@@ -210,6 +210,7 @@ export class QuestionService {
     tags?: string[];
     authorId?: string;
     search?: string;
+    userId?: string;
   }) {
     const {
       page = 1,
@@ -219,7 +220,8 @@ export class QuestionService {
       isGoodQuestion,
       tags,
       authorId,
-      search
+      search,
+      userId
     } = params;
 
     const rawPage = Number(page || 1);
@@ -304,12 +306,21 @@ export class QuestionService {
       prisma.question.count({ where })
     ]);
 
+    let understandingMap = new Map<string, string>();
+    if (userId && list.length > 0) {
+      const questionIds = list.map((q) => q.id);
+      const understandingList = await prisma.questionUnderstanding.findMany({
+        where: { questionId: { in: questionIds }, userId }
+      });
+      understandingMap = new Map(understandingList.map((u) => [u.questionId, u.status]));
+    }
+
     return {
       list: list.map((q) => ({
         id: q.id,
         title: q.title,
         content: q.content,
-        subject: q.subject, // 返回科目字段
+        subject: q.subject,
         images: q.images ?? [],
         tags: q.tags,
         difficulty: q.difficulty,
@@ -325,7 +336,8 @@ export class QuestionService {
         comments: q.comments,
         answers: q.answers,
         status: q.status,
-        createdAt: q.createdAt
+        createdAt: q.createdAt,
+        understandingStatus: understandingMap.get(q.id) ?? null
       })),
       pagination: {
         page: rawPage,
@@ -366,6 +378,27 @@ export class QuestionService {
       select: { role: true }
     });
 
+    let isLiked = false;
+    let isFavorited = false;
+    let understandingStatus: string | null = null;
+
+    if (userContext?.userId) {
+      const [like, favorite, understanding] = await Promise.all([
+        prisma.like.findUnique({
+          where: { userId_questionId: { userId: userContext.userId, questionId: id } }
+        }),
+        prisma.favorite.findUnique({
+          where: { userId_questionId: { userId: userContext.userId, questionId: id } }
+        }),
+        prisma.questionUnderstanding.findUnique({
+          where: { questionId_userId: { questionId: id, userId: userContext.userId } }
+        })
+      ]);
+      isLiked = !!like;
+      isFavorited = !!favorite;
+      understandingStatus = understanding?.status ?? null;
+    }
+
     return {
       id: q.id,
       title: q.title,
@@ -389,10 +422,59 @@ export class QuestionService {
       answers: q.answers,
       status: q.status,
       createdAt: q.createdAt,
-      isLiked: false,
-      isFavorited: false
+      isLiked,
+      isFavorited,
+      understandingStatus
     };
   }
+  async setUnderstanding(params: { questionId: string; userId: string; status: string }) {
+    const { questionId, userId, status } = params;
+
+    const question = await prisma.question.findUnique({ where: { id: questionId } });
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+    }
+    if (question.authorId !== userId) {
+      throw new AppError(403, 'PERMISSION_DENIED', '只有提问的学生可以标记是否弄懂');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.questionUnderstanding.findUnique({
+        where: { questionId_userId: { questionId, userId } }
+      });
+
+      let understoodDelta = 0;
+      let notUnderstoodDelta = 0;
+
+      if (!existing) {
+        await tx.questionUnderstanding.create({ data: { questionId, userId, status } });
+        if (status === 'understood') understoodDelta = 1;
+        else notUnderstoodDelta = 1;
+      } else if (existing.status !== status) {
+        await tx.questionUnderstanding.update({ where: { id: existing.id }, data: { status } });
+        if (existing.status === 'understood') understoodDelta = -1;
+        else if (existing.status === 'not_understood') notUnderstoodDelta = -1;
+        if (status === 'understood') understoodDelta += 1;
+        else if (status === 'not_understood') notUnderstoodDelta += 1;
+      }
+
+      const updatedQuestion = await tx.question.update({
+        where: { id: questionId },
+        data: {
+          understoodCount: { increment: understoodDelta },
+          notUnderstoodCount: { increment: notUnderstoodDelta }
+        }
+      });
+
+      return {
+        questionId,
+        status,
+        understoodCount: updatedQuestion.understoodCount,
+        notUnderstoodCount: updatedQuestion.notUnderstoodCount
+      };
+    });
+  }
+
   async delete(params: { id: string; userId: string; role: string }) {
     const { id, userId, role } = params;
 

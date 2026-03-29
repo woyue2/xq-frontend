@@ -4,24 +4,21 @@
  *   兄弟：AnswerQuestionPage.tsx / CreateQuestionPage.tsx
  *
  * [INPUT]
- *   - react                  → useState / useEffect / useRef
+ *   - react                  → useEffect
  *   - react-router-dom       → useParams / useNavigate / useLocation / useSearchParams
- *   - @/services/api         → interactionService / behaviorService / questionService 等
- *   - @/hooks/useQuestions   → useQuestions（列表缓存读取）
- *   - @/lib/mock-data        → userLikes / userFavorites（USE_MOCK 分支初始值）
- *   - @/lib/mock-env         → USE_MOCK
+ *   - @/hooks/useQuestionDetail → useQuestionDetail
+ *   - @/stores/useAuthStore  → useAuthStore
+ *   - @/lib/share            → buildQuestionShareUrl / copyToClipboardSafe
+ *   - @/config/app-constants → ROUTES
  *
  * [OUTPUT]
  *   - QuestionDetailPage（页面组件）
- *
- * [TODO] useQuestionDetail.ts 存在与本页面平行的完整实现，尚未被消费。
- *        待专项 PR：将页面 state/handler 迁移至 hook，页面只保留 JSX。
  *
  * [PROTOCOL] 变更此文件时同步更新：
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { useState, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import {
   ArrowLeft,
   Share2,
@@ -42,8 +39,8 @@ import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { userLikes, userFavorites } from '@/lib/mock-data';
-import type { Comment, DifficultyLevel, Answer } from '@/types';
+import type { DifficultyLevel } from '@/types';
+import { useQuestionDetail } from '@/hooks/useQuestionDetail';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -52,50 +49,8 @@ import { ImageCarousel } from '@/components/ui/image-carousel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UI_CONFIG } from '@/config/ui-config';
 import { Pin } from 'lucide-react';
-import {
-  interactionService,
-  behaviorService,
-  questionService,
-  answerService,
-  commentService,
-} from '@/services/api';
-import { USE_MOCK } from '@/lib/mock-env';
-import { useQuestions } from '@/hooks/useQuestions';
 import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
-
-const normalizeQuestion = (raw: any) => {
-  if (!raw) return null;
-
-  const likes =
-    (raw.stats && typeof raw.stats.likes === 'number' ? raw.stats.likes : undefined) ??
-    (typeof raw.likes === 'number' ? raw.likes : 0);
-  const favorites =
-    (raw.stats && typeof raw.stats.favorites === 'number' ? raw.stats.favorites : undefined) ??
-    (typeof raw.favorites === 'number' ? raw.favorites : 0);
-  const comments =
-    (raw.stats && typeof raw.stats.comments === 'number' ? raw.stats.comments : undefined) ??
-    (typeof raw.comments === 'number' ? raw.comments : 0);
-  const answers =
-    (raw.stats && typeof raw.stats.answers === 'number' ? raw.stats.answers : undefined) ??
-    (typeof raw.answers === 'number' ? raw.answers : 0);
-
-  return {
-    ...raw,
-    images: raw.images ?? [],
-    audioUrl: raw.audioUrl ?? undefined,
-    tags: raw.tags ?? raw.tags ?? [],
-    stats: {
-      likes,
-      favorites,
-      comments,
-      answers,
-      views:
-        raw.stats && typeof raw.stats.views === 'number'
-          ? raw.stats.views
-          : (raw.views ?? undefined),
-    },
-  };
-};
+import { ROUTES } from '@/config/app-constants';
 
 export function QuestionDetailPage() {
   const { id: questionId } = useParams();
@@ -103,145 +58,52 @@ export function QuestionDetailPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user: currentUser } = useAuthStore();
-  const { getQuestionById } = useQuestions();
   const safeQuestionId = questionId || '';
-  const commentImageInputRef = useRef<HTMLInputElement | null>(null);
 
-  // 初始优先从列表缓存中读取（Home/MyQuestions 等通过 useQuestions 已经加载的场景）
-  // 这样在前端单元测试中仍然可以通过 mock useQuestions 提供数据，无需真实网络请求。
-  const [rawQuestion, setRawQuestion] = useState<any>(() => {
-    if (!safeQuestionId) return null;
-    const fromList = getQuestionById?.(safeQuestionId);
-    return fromList ?? null;
-  });
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const {
+    question,
+    isLoadingDetail,
+    answers,
+    isLoadingAnswers,
+    comments,
+    isLoadingComments,
+    newComment,
+    setNewComment,
+    commentImage,
+    setCommentImage,
+    commentImageInputRef,
+    liked,
+    favorited,
+    isPlayingAudio,
+    playbackRate,
+    setPlaybackRate,
+    playingAnswerId,
+    selectedImage,
+    setSelectedImage,
+    showSpeedMenu,
+    setShowSpeedMenu,
+    questionAudioRef,
+    answerAudioRefs,
+    answerCardRefs,
+    highlightAnswerId,
+    handleLike,
+    handleFavorite,
+    handlePlayAudio,
+    handlePlayAnswerAudio,
+    handleAddImage,
+    handleCommentImageFileChange,
+    handleSubmitComment,
+    handleDelete,
+    setTargetAnswerId,
+  } = useQuestionDetail(safeQuestionId);
 
+  // 从路由参数/状态中读取目标 answerId，在 answers 加载后触发滚动
   useEffect(() => {
-    if (!safeQuestionId) return;
-
-    let cancelled = false;
-    setIsLoadingDetail(true);
-
-    questionService
-      .getQuestionById(safeQuestionId)
-      .then((q) => {
-        if (!cancelled && q) {
-          setRawQuestion(q);
-        }
-      })
-      .catch(() => {
-        // 出错时保持现有状态，由下方 fallback 处理
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingDetail(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [safeQuestionId]);
-
-  const question = normalizeQuestion(rawQuestion);
-
-  // 回答列表：仅依赖后端接口
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
-
-  useEffect(() => {
-    if (!safeQuestionId) return;
-
-    let cancelled = false;
-    setIsLoadingAnswers(true);
-
-    answerService
-      .listByQuestion(safeQuestionId)
-      .then((res) => {
-        if (!cancelled && res && Array.isArray(res.list)) {
-          // 若已通过测试注入或 Mock 提供本地 answers，则只在本地为空时覆盖
-          setAnswers((prev) => (prev && prev.length > 0 ? prev : res.list));
-        }
-      })
-      .catch(() => {
-        // 失败时保留现有 answers（通常来自 mock），由 UI 做兜底展示
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingAnswers(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [safeQuestionId]);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [commentImage, setCommentImage] = useState<string | null>(null);
-  // [FIX] USE_MOCK 为编译时常量，生产构建（VITE_USE_MOCK=false）Vite 会消除此分支
-  const [liked, setLiked] = useState(USE_MOCK ? userLikes.has(safeQuestionId) : false);
-  const [favorited, setFavorited] = useState(USE_MOCK ? userFavorites.has(safeQuestionId) : false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
-  const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const questionAudioRef = useRef<HTMLAudioElement | null>(null);
-  const answerAudioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
-  const answerCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [targetAnswerId, setTargetAnswerId] = useState<string | null>(() => {
     const fromQuery = searchParams.get('answerId');
     const fromState = (location.state as any)?.answerId as string | undefined;
-    return (fromQuery || fromState) ?? null;
-  });
-  const [highlightAnswerId, setHighlightAnswerId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!safeQuestionId) return;
-
-    let cancelled = false;
-    setIsLoadingComments(true);
-
-    commentService
-      .listByQuestion(safeQuestionId)
-      .then((res) => {
-        if (!cancelled && res && Array.isArray(res.list)) {
-          setComments(res.list);
-        }
-      })
-      .catch(() => {
-        // 出错时保持当前 comments 状态，由 UI 做兜底展示
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingComments(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [safeQuestionId]);
-
-  // 当回答列表加载完成并且存在目标 answerId 时，自动滚动并高亮目标回答卡片
-  useEffect(() => {
-    if (!targetAnswerId) return;
-    if (!answers || answers.length === 0) return;
-
-    const card = answerCardRefs.current[targetAnswerId];
-    if (card) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setHighlightAnswerId(targetAnswerId);
-      const timer = setTimeout(() => {
-        setHighlightAnswerId((prev) => (prev === targetAnswerId ? null : prev));
-      }, 3000);
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-  }, [answers, targetAnswerId]);
+    const target = fromQuery || fromState || null;
+    if (target) setTargetAnswerId(target);
+  }, [searchParams, location.state]);
 
   if (!question) {
     // 统一在“加载中 / 未找到”状态下也提供返回按钮，
@@ -270,7 +132,7 @@ export function QuestionDetailPage() {
         <div className="min-h-screen bg-[#EDEDE9] flex items-center justify-center flex-col gap-4">
           <p className="text-gray-500">{isLoadingDetail ? '问题加载中...' : '问题不存在'}</p>
           {!isLoadingDetail && (
-            <button onClick={() => navigate('/')} className="text-blue-500 underline">
+            <button onClick={() => navigate(ROUTES.home)} className="text-blue-500 underline">
               返回首页
             </button>
           )}
@@ -290,62 +152,6 @@ export function QuestionDetailPage() {
 
   const difficultyConfig = getDifficultyConfig(question.difficulty);
 
-  const handleLike = async () => {
-    if (!currentUser) {
-      toast.error('请先登录');
-      navigate('/login');
-      return;
-    }
-
-    const nextLiked = !liked;
-    setLiked(nextLiked);
-
-    try {
-      await interactionService.like({
-        targetType: 'question',
-        targetId: question.id,
-        action: nextLiked ? 'like' : 'unlike',
-      });
-
-      await behaviorService.log('question_like', {
-        questionId: question.id,
-        action: nextLiked ? 'like' : 'unlike',
-      });
-
-      toast.success(nextLiked ? '点赞成功' : '已取消点赞');
-    } catch {
-      // 回滚本地状态
-      setLiked(!nextLiked);
-    }
-  };
-
-  const handleFavorite = async () => {
-    if (!currentUser) {
-      toast.error('请先登录');
-      navigate('/login');
-      return;
-    }
-
-    const nextFavorited = !favorited;
-    setFavorited(nextFavorited);
-
-    try {
-      await interactionService.favorite({
-        questionId: question.id,
-        action: nextFavorited ? 'favorite' : 'unfavorite',
-      });
-
-      await behaviorService.log('question_favorite', {
-        questionId: question.id,
-        action: nextFavorited ? 'favorite' : 'unfavorite',
-      });
-
-      toast.success(nextFavorited ? '收藏成功' : '已取消收藏');
-    } catch {
-      setFavorited(!nextFavorited);
-    }
-  };
-
   const handleShare = async () => {
     const shareUrl = buildQuestionShareUrl(question.id);
     if (!shareUrl) {
@@ -364,7 +170,7 @@ export function QuestionDetailPage() {
 
   const handleAnswer = () => {
     if (currentUser?.role === 'teacher') {
-      navigate(`/answer/${question.id}`);
+      navigate(ROUTES.answer(question.id));
     } else {
       toast.error('暂无回答权限');
     }
@@ -373,183 +179,18 @@ export function QuestionDetailPage() {
   const handleAuthorClick = () => {
     if (!currentUser) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
 
     if (currentUser.role === 'teacher') {
-      navigate(`/student/${question.authorId}/questions`);
+      navigate(ROUTES.studentHistory(question.authorId));
       return;
     }
 
     if (currentUser.role === 'parent') {
       toast.error('请在“孩子提问列表”页查看孩子的历史提问');
     }
-  };
-
-  const handleAddImage = () => {
-    // 在单元测试环境或纯前端 Mock 场景下，直接模拟添加一张图片，保证预览与测试稳定
-    const isTestEnv =
-      typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'test';
-
-    if (isTestEnv) {
-      const mockPreview =
-        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=300&fit=crop';
-      setCommentImage(mockPreview);
-      toast.success('已添加图片');
-      return;
-    }
-
-    commentImageInputRef.current?.click();
-  };
-
-  const handleCommentImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) {
-      event.target.value = '';
-      return;
-    }
-
-    const file = files[0];
-    try {
-      const { imageUrl } = await questionService.uploadImage(file, {
-        purpose: '评论',
-        senderName: currentUser?.nickname ?? currentUser?.name ?? '用户A',
-        receiverName: question?.authorName ?? '用户B',
-      });
-      setCommentImage(imageUrl);
-      toast.success('已添加图片');
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('comment image upload failed', error);
-      toast.error('图片上传失败，请稍后重试');
-    } finally {
-      event.target.value = '';
-    }
-  };
-
-  const handleSubmitComment = async () => {
-    if (!currentUser) {
-      toast.error('请先登录');
-      navigate('/login');
-      return;
-    }
-
-    if (!newComment.trim() && !commentImage) {
-      toast.error('请输入评论内容或上传图片');
-      return;
-    }
-
-    // 提问者和回答者（教师）可以评论
-    const canComment = currentUser.id === question.authorId || currentUser.role === 'teacher';
-    if (!canComment) {
-      toast.error('仅提问者和回答者可评论');
-      return;
-    }
-
-    if (USE_MOCK) {
-      const comment: Comment = {
-        id: `c${Date.now()}`,
-        questionId: question.id,
-        questionTitle: question.title,
-        content: newComment,
-        image: commentImage || undefined,
-        authorId: currentUser.id,
-        authorName: currentUser.name || currentUser.nickname || '',
-        authorAvatar: currentUser.avatar,
-        status: 'pending',
-        aiResult: '无违规',
-        createdAt: new Date().toISOString(),
-      };
-
-      setComments((prev) => [...prev, comment]);
-      setNewComment('');
-      setCommentImage(null);
-      toast.success('评论已提交，等待审核');
-      return;
-    }
-
-    try {
-      const created = await commentService.create(question.id, {
-        content: newComment.trim(),
-        image: commentImage || undefined,
-      });
-
-      // 处理 AI 审核结果
-      const aiAudit = (created as any)?.aiAudit;
-      if (aiAudit && !aiAudit.safe) {
-        toast.error(`评论被拒绝：${aiAudit.reason || '内容不符合规范'}`);
-        return;
-      }
-
-      if (created.status === 'approved') {
-        setComments((prev) => [created, ...prev]);
-      }
-
-      try {
-        await behaviorService.log('question_comment', {
-          questionId: question.id,
-          hasImage: !!commentImage,
-        });
-      } catch {
-        // 行为日志失败不影响主流程
-      }
-
-      setNewComment('');
-      setCommentImage(null);
-      toast.success(created.status === 'approved' ? '评论已发布' : '评论已提交，等待审核');
-    } catch {
-      toast.error('评论提交失败，请稍后重试');
-    }
-  };
-
-  const handlePlayAudio = () => {
-    if (!question.audioUrl || !questionAudioRef.current) return;
-
-    const el = questionAudioRef.current;
-    if (isPlayingAudio) {
-      el.pause();
-      setIsPlayingAudio(false);
-      toast.success('暂停播放');
-    } else {
-      el.play()
-        .then(() => {
-          setIsPlayingAudio(true);
-          toast.success('开始播放');
-        })
-        .catch(() => {
-          toast.error('无法播放音频，请稍后重试');
-        });
-    }
-  };
-
-  const handlePlayAnswerAudio = (answerId: string) => {
-    const currentAudio = answerAudioRefs.current[answerId];
-    if (!currentAudio) {
-      toast.error('音频加载中，请稍后重试');
-      return;
-    }
-
-    if (playingAnswerId === answerId) {
-      currentAudio.pause();
-      setPlayingAnswerId(null);
-      toast.success('暂停播放');
-      return;
-    }
-
-    if (playingAnswerId && answerAudioRefs.current[playingAnswerId]) {
-      answerAudioRefs.current[playingAnswerId]?.pause();
-    }
-
-    currentAudio
-      .play()
-      .then(() => {
-        setPlayingAnswerId(answerId);
-        toast.success('开始播放');
-      })
-      .catch(() => {
-        toast.error('无法播放音频，请稍后重试');
-      });
   };
 
   const formatDate = (dateStr: string) => {
@@ -578,18 +219,6 @@ export function QuestionDetailPage() {
   const canDelete = isTeacher || (isQuestionAuthor && !hasAnyAnswer);
   // 仅老师可以看到并使用“去回答”入口，防止前端 UI 与后端权限语义出现不一致
   const canAnswer = isTeacher;
-
-  const handleDelete = async () => {
-    if (!window.confirm('确定要删除这个问题吗？此操作无法撤销。')) return;
-
-    try {
-      await questionService.delete(question.id);
-      toast.success('删除成功');
-      navigate('/', { replace: true });
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '删除失败，请稍后重试');
-    }
-  };
 
   return (
     <motion.div

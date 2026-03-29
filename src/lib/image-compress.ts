@@ -1,5 +1,18 @@
 /**
- * 图片压缩工具：统一将图片压缩为 JPG 且控制在指定大小以内。
+ * [POS] src/lib/image-compress.ts
+ *   所属：lib 层 | 角色：纯工具 — 将图片压缩为 JPG 并控制体积
+ *   兄弟：utils.ts / share.ts
+ *
+ * [INPUT]
+ *   - 无外部依赖（仅浏览器原生 FileReader / Image / Canvas）
+ *
+ * [OUTPUT]
+ *   - CompressOptions  → 压缩参数接口
+ *   - compressImage    → 主压缩函数 (File) => Promise<File>
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/lib/CLAUDE.md 的文件清单
  *
  * 设计原则：
  * - 仅依赖浏览器原生能力（FileReader + Image + Canvas）；
@@ -27,16 +40,13 @@ const QUALITY_STEP = 0.05;
  * @post 返回的新 File 类型固定为 image/jpeg，体积尽量控制在 maxSizeKB 以内
  * @throws Error 当文件不是图片、浏览器不支持必要 API 或多次压缩仍无法满足大小限制时
  */
-export async function compressImage(
-  file: File,
-  options: CompressOptions = {}
-): Promise<File> {
+export async function compressImage(file: File, options: CompressOptions = {}): Promise<File> {
   const {
     maxWidth = DEFAULT_MAX_WIDTH,
     maxHeight = DEFAULT_MAX_HEIGHT,
     maxSizeKB = DEFAULT_MAX_SIZE_KB,
     initialQuality = DEFAULT_INITIAL_QUALITY,
-    minQuality = DEFAULT_MIN_QUALITY
+    minQuality = DEFAULT_MIN_QUALITY,
   } = options;
 
   if (!file.type.startsWith('image/')) {
@@ -51,12 +61,7 @@ export async function compressImage(
   }
 
   const image = await loadImage(file);
-  const { width, height } = calculateTargetSize(
-    image.width,
-    image.height,
-    maxWidth,
-    maxHeight
-  );
+  const { width, height } = calculateTargetSize(image.width, image.height, maxWidth, maxHeight);
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -117,8 +122,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () =>
-      reject(new Error('图片读取失败，请检查文件是否损坏'));
+    reader.onerror = () => reject(new Error('图片读取失败，请检查文件是否损坏'));
     reader.readAsDataURL(file);
   });
 }
@@ -128,7 +132,7 @@ function calculateTargetSize(
   width: number,
   height: number,
   maxWidth: number,
-  maxHeight: number
+  maxHeight: number,
 ): { width: number; height: number } {
   const widthRatio = maxWidth / width;
   const heightRatio = maxHeight / height;
@@ -136,15 +140,12 @@ function calculateTargetSize(
 
   return {
     width: Math.round(width * ratio),
-    height: Math.round(height * ratio)
+    height: Math.round(height * ratio),
   };
 }
 
 // 将 Canvas 转为 JPEG Blob
-function canvasToJpegBlob(
-  canvas: HTMLCanvasElement,
-  quality: number
-): Promise<Blob | null> {
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
   return new Promise((resolve) => {
     if (canvas.toBlob) {
       canvas.toBlob(
@@ -152,7 +153,7 @@ function canvasToJpegBlob(
           resolve(blob);
         },
         'image/jpeg',
-        quality
+        quality,
       );
       return;
     }
@@ -183,4 +184,3 @@ function normalizeToJpegName(name: string): string {
   }
   return `${name.slice(0, index)}.jpg`;
 }
-

@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/app.ts
+ *   所属：后端入口层 | 角色：Express 应用工厂，注册所有中间件和路由
+ *   兄弟：server.ts
+ *
+ * [INPUT]
+ *   - express / cors / helmet / path → 框架与安全中间件
+ *   - ./middlewares/*               → logger, error 中间件
+ *   - ./routes/*                    → 所有业务路由
+ *
+ * [OUTPUT]
+ *   - createApp()（工厂函数，返回 Express 实例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/CLAUDE.md 的文件清单
+ */
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

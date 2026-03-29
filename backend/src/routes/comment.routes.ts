@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/routes/comment.routes.ts
+ *   所属：路由层 | 角色：评论路由（发布、删除、查询评论）
+ *
+ * [INPUT]
+ *   - express                           → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware     → authMiddleware / AuthenticatedRequest
+ *   - ../middlewares/membership.middleware → requireActiveMembership
+ *   - ../services/comment.service       → commentService
+ *
+ * [OUTPUT]
+ *   - commentRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {
@@ -6,8 +23,6 @@ import {
 } from '../middlewares/auth.middleware';
 import { requireActiveMembership } from '../middlewares/membership.middleware';
 import { commentService } from '../services/comment.service';
-import { prisma } from '../config/database';
-import { AppError } from '../errors/AppError';
 
 export const commentRouter = Router();
 
@@ -24,39 +39,12 @@ commentRouter.post(
         image?: string;
       };
 
-      const question = await prisma.question.findUnique({
-        where: { id: questionId }
-      });
-
-      if (!question) {
-        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
-      }
-
       const role = req.user!.role;
-
-      if (role === 'parent') {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '家长账号无评论权限',
-          undefined,
-          3003
-        );
-      }
-
-      if (role === 'student' && question.authorId !== req.user!.id) {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '学生只能评论自己的问题',
-          undefined,
-          3003
-        );
-      }
 
       const created = await commentService.create({
         questionId,
         authorId: req.user!.id,
+        authorRole: role,
         content,
         image
       });

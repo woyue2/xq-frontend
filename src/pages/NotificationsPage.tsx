@@ -1,18 +1,35 @@
+/**
+ * [POS] src/pages/NotificationsPage.tsx
+ *   所属：pages 层 | 角色：通知列表页，路由 `/notifications`，已登录可见
+ *   兄弟：所有其他 pages
+ *
+ * [INPUT]
+ *   - react              → useEffect / useState
+ *   - lucide-react       → Bell / CheckCircle / AlertCircle / ChevronRight
+ *   - react-router-dom   → useNavigate
+ *
+ * [OUTPUT]
+ *   - NotificationsPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useEffect, useState } from 'react';
-import { Bell, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificationService } from '@/services/api';
 import type { Notification } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
+import { ROUTES } from '@/config/app-constants';
 
 const formatDate = (iso: string) => {
   const date = new Date(iso);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
+    date.getDate(),
   ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
-    date.getMinutes()
+    date.getMinutes(),
   ).padStart(2, '0')}`;
 };
 
@@ -26,11 +43,14 @@ export function NotificationsPage() {
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const { notifications, unreadCount: unread, total } =
-        await notificationService.getNotifications({
-          page: 1,
-          limit: 20
-        });
+      const {
+        notifications,
+        unreadCount: unread,
+        total,
+      } = await notificationService.getNotifications({
+        page: 1,
+        limit: 20,
+      });
       setItems(notifications);
       setUnreadCount(unread);
     } catch {
@@ -44,7 +64,7 @@ export function NotificationsPage() {
   useEffect(() => {
     if (!user) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
     }
   }, [user, navigate]);
 
@@ -70,9 +90,7 @@ export function NotificationsPage() {
     if (!n.isRead) {
       try {
         await notificationService.markAsRead([n.id]);
-        setItems((prev) =>
-          prev.map((it) => (it.id === n.id ? { ...it, isRead: true } : it))
-        );
+        setItems((prev) => prev.map((it) => (it.id === n.id ? { ...it, isRead: true } : it)));
         setUnreadCount((prev) => Math.max(0, prev - 1));
       } catch {
         // 失败由拦截器提示，这里不打断导航
@@ -82,9 +100,9 @@ export function NotificationsPage() {
     if (n.targetType === 'question' && n.targetId) {
       const answerId = parseAnswerIdFromContent(n);
       if (answerId) {
-        navigate(`/question/${n.targetId}?answerId=${encodeURIComponent(answerId)}`);
+        navigate(ROUTES.questionWithAnswer(n.targetId, answerId));
       } else {
-        navigate(`/question/${n.targetId}`);
+        navigate(ROUTES.question(n.targetId));
       }
     }
   };
@@ -111,9 +129,7 @@ export function NotificationsPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-800">通知中心</h1>
-            <p className="text-xs text-gray-400">
-              未读通知：{unreadCount} 条
-            </p>
+            <p className="text-xs text-gray-400">未读通知：{unreadCount} 条</p>
           </div>
         </div>
         {unreadCount > 0 && (
@@ -165,18 +181,12 @@ export function NotificationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className="text-sm font-medium text-gray-800 truncate">
-                      {n.title}
-                    </p>
+                    <p className="text-sm font-medium text-gray-800 truncate">{n.title}</p>
                     <span className="text-[10px] text-gray-400 whitespace-nowrap">
                       {formatDate(n.createdAt)}
                     </span>
                   </div>
-                  {n.content && (
-                    <p className="text-xs text-gray-500 line-clamp-2">
-                      {n.content}
-                    </p>
-                  )}
+                  {n.content && <p className="text-xs text-gray-500 line-clamp-2">{n.content}</p>}
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300" />
               </button>

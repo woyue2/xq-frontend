@@ -1,8 +1,25 @@
+/**
+ * [POS] backend/src/routes/behavior.routes.ts
+ *   所属：路由层 | 角色：行为日志路由（记录学生答题/浏览行为）
+ *
+ * [INPUT]
+ *   - express                         → Router / Request / Response / NextFunction
+ *   - ../services/behavior-log.service → behaviorLogService
+ *   - ../errors/AppError              → AppError
+ *   - ../utils/jwt                    → verifyToken / AccessTokenPayload
+ *
+ * [OUTPUT]
+ *   - behaviorRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { behaviorLogService } from '../services/behavior-log.service';
 import { AppError } from '../errors/AppError';
-import { verifyToken } from '../utils/jwt';
+import { verifyToken, type AccessTokenPayload } from '../utils/jwt';
 
 // 简单的内存级防刷：按 (userId/IP + type) 在短时间内限流
 type RateLimitKey = string;
@@ -62,7 +79,7 @@ behaviorRouter.post(
 
       if (token) {
         try {
-          const payload: any = verifyToken(token);
+          const payload = verifyToken(token) as AccessTokenPayload;
           if (payload?.sub) {
             userId = String(payload.sub);
           }

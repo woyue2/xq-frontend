@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/services/comment.service.ts
+ *   所属：服务层 | 角色：评论业务逻辑（发布、删除、查询，含 AI 审核触发）
+ *
+ * [INPUT]
+ *   - ../config/database    → prisma
+ *   - ../errors/AppError    → AppError
+ *   - ./ai-audit.service    → aiAuditService
+ *   - ./notification.service → notificationService
+ *
+ * [OUTPUT]
+ *   - commentService（CommentService 单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 import { aiAuditService } from './ai-audit.service';
@@ -7,10 +24,11 @@ export class CommentService {
   async create(params: {
     questionId: string;
     authorId: string;
+    authorRole: string;
     content?: string;
     image?: string;
   }) {
-    const { questionId, authorId, content, image } = params;
+    const { questionId, authorId, authorRole, content, image } = params;
 
     const hasText = !!content && content.trim().length > 0;
     const hasImage = !!image;
@@ -21,6 +39,10 @@ export class CommentService {
         'EMPTY_CONTENT',
         '评论内容不能为空'
       );
+    }
+
+    if (authorRole === 'parent') {
+      throw new AppError(403, 'PERMISSION_DENIED', '家长账号无评论权限', undefined, 3003);
     }
 
     // 先检查问题与作者是否存在，语义与 AnswerService 保持一致，
@@ -36,6 +58,10 @@ export class CommentService {
     // 边界保护：禁止在未审核通过的问题下发表评论
     if (question.status !== 'approved') {
       throw new AppError(403, 'COMMENT_DENIED', '无法在未审核通过的问题下发表评论');
+    }
+
+    if (authorRole === 'student' && question.authorId !== authorId) {
+      throw new AppError(403, 'PERMISSION_DENIED', '学生只能评论自己的问题', undefined, 3003);
     }
 
     const author = await prisma.user.findUnique({

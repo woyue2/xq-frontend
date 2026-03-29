@@ -1,12 +1,45 @@
-import { ArrowLeft, Heart, Star, MessageSquare, Edit3, ChevronRight, LogOut, ShieldCheck, Camera, Check, Users, Pencil, Loader2, Baby, Phone, Plus, KeyRound } from 'lucide-react';
+/**
+ * [POS] src/pages/ProfilePage.tsx
+ *   所属：pages 层 | 角色：个人主页（资料编辑/头像/昵称/登出），路由 `/profile`，已登录可见
+ *   兄弟：LoginPage.tsx
+ *
+ * [INPUT]
+ *   - lucide-react       → ArrowLeft / Heart / Star 等图标
+ *   - react-router-dom   → useNavigate
+ *   - sonner             → toast（解绑提示）
+ *   - @/components/ui/*  → Avatar / Badge / Label 等
+ *   - @/config/ui-config → UI_CONFIG（角色颜色）
+ *   - @/hooks/useProfile → useProfile（全量 state + handlers）
+ *
+ * [OUTPUT]
+ *   - ProfilePage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
+import {
+  ArrowLeft,
+  Heart,
+  Star,
+  MessageSquare,
+  Edit3,
+  ChevronRight,
+  LogOut,
+  ShieldCheck,
+  Camera,
+  Check,
+  Users,
+  Pencil,
+  Loader2,
+  Baby,
+  Phone,
+  Plus,
+  KeyRound,
+} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,24 +50,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { UI_CONFIG } from '@/config/ui-config';
-import { aiTextConfig } from '@/config/ai-text';
-import { parentService } from '@/services/parentService';
-import { authService, userService, questionService } from '@/services/api';
-import type { ChildInfo } from '@/types/parent';
 import { Label } from '@/components/ui/label';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { UI_CONFIG } from '@/config/ui-config';
+import { useProfile } from '@/hooks/useProfile';
+import { ROUTES } from '@/config/app-constants';
 
 const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -53,122 +77,44 @@ const PREDEFINED_AVATARS = [
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { user: currentUser, logout, updateUser } = useAuthStore();
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
-  const [showNicknameDialog, setShowNicknameDialog] = useState(false);
-  const [newNickname, setNewNickname] = useState('');
-  const [isSubmittingNickname, setIsSubmittingNickname] = useState(false);
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
-
-  // 家长绑定相关状态
-  const [children, setChildren] = useState<ChildInfo[]>([]);
-  const [showBindDialog, setShowBindDialog] = useState(false);
-  const [bindName, setBindName] = useState('');
-  const [bindPhone, setBindPhone] = useState('');
-  const [bindCode, setBindCode] = useState('');
-  const [bindSchool, setBindSchool] = useState('');
-  const [bindCountdown, setBindCountdown] = useState(0);
-
-  // 加载绑定孩子列表
-  useEffect(() => {
-    if (currentUser?.role === 'parent') {
-      loadChildren();
-    }
-  }, [currentUser]);
-
-  const loadChildren = async () => {
-    try {
-      const res = await parentService.getChildren();
-      if (res.data.code === 200) {
-        setChildren(res.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load children', error);
-    }
-  };
-
-  const handleGetBindCode = () => {
-    if (!bindPhone || bindPhone.length !== 11) {
-      toast.error('请输入正确的手机号');
-      return;
-    }
-    setBindCountdown(60);
-    const timer = setInterval(() => {
-      setBindCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    parentService.sendBindSms(bindPhone);
-    toast.success('验证码已发送');
-  };
-
-  const handleBindChild = async () => {
-    if (!bindName || !bindPhone || !bindCode) {
-      toast.error('请填写完整信息');
-      return;
-    }
-    try {
-      await parentService.bindChild({
-        childName: bindName,
-        phone: bindPhone,
-        code: bindCode,
-        school: bindSchool
-      });
-      toast.success('绑定成功');
-      setShowBindDialog(false);
-      setBindName('');
-      setBindPhone('');
-      setBindCode('');
-      setBindSchool('');
-      loadChildren();
-    } catch (error) {
-      // Error handled by interceptor usually
-    }
-  };
-
-  const handleUpdateNickname = async () => {
-    if (!newNickname.trim()) {
-      toast.error('请输入昵称');
-      return;
-    }
-
-    // 简单的前端校验
-    if (newNickname.length < 2) {
-      toast.error(aiTextConfig.auditMessages.nicknameTooShort);
-      return;
-    }
-
-    setIsSubmittingNickname(true);
-    try {
-      // 调用后端 API 更新（含 AI 审核）
-      const updatedUser = await userService.updateProfile({ nickname: newNickname });
-
-      // 更新本地状态
-      updateUser(updatedUser);
-      toast.success(aiTextConfig.auditMessages.nicknameUpdated);
-      setShowNicknameDialog(false);
-      setNewNickname('');
-    } catch (error: any) {
-      // 错误由拦截器统一处理，但对于业务错误（如审核失败）可以在此额外提示
-      console.error('Update nickname failed', error);
-    } finally {
-      setIsSubmittingNickname(false);
-    }
-  };
-
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!currentUser) {
-      navigate('/login');
-    }
-  }, [currentUser, navigate]);
+  const {
+    currentUser,
+    showLogoutDialog,
+    setShowLogoutDialog,
+    showAvatarDialog,
+    setShowAvatarDialog,
+    showNicknameDialog,
+    setShowNicknameDialog,
+    showPasswordDialog,
+    setShowPasswordDialog,
+    showBindDialog,
+    setShowBindDialog,
+    newNickname,
+    setNewNickname,
+    isSubmittingNickname,
+    newPassword,
+    setNewPassword,
+    isSubmittingPassword,
+    isUploadingAvatar,
+    children,
+    bindName,
+    setBindName,
+    bindPhone,
+    setBindPhone,
+    bindCode,
+    setBindCode,
+    bindSchool,
+    setBindSchool,
+    bindCountdown,
+    handleGetBindCode,
+    handleBindChild,
+    handleUpdateNickname,
+    handleUpdateAvatar,
+    handleFileUpload,
+    handleUpdatePassword,
+    handleSwitchAccount,
+    handleLogout,
+  } = useProfile();
 
   if (!currentUser) {
     return null;
@@ -185,135 +131,55 @@ export function ProfilePage() {
 
   const roleBadge = getRoleBadge(currentUser.role);
 
-  const handleSwitchAccount = () => {
-    toast.success('切换账号');
-    logout();
-    navigate('/login');
-  };
-
-  const handleLogout = () => {
-    logout();
-    toast.success('已退出登录');
-    navigate('/login');
-  };
-
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-
-  const handleUpdateAvatar = async (url: string) => {
-    setIsUploadingAvatar(true);
-    try {
-      // 调用后端更新（含 AI 审核）
-      const updatedUser = await userService.updateProfile({ avatar: url });
-      updateUser(updatedUser);
-      toast.success('头像已更新');
-      setShowAvatarDialog(false);
-    } catch (err) {
-      console.error('Update avatar failed', err);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // 校验图片大小 (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('图片大小不能超过 2MB');
-      return;
-    }
-
-    setIsUploadingAvatar(true);
-    try {
-      toast.loading('正在上传...', { id: 'upload-avatar' });
-      // 1. 上传图片到 OSS/本地
-      const { imageUrl } = await questionService.uploadImage(file, {
-        purpose: 'avatar',
-        senderName: currentUser?.nickname
-      });
-
-      // 2. 更新用户头像（触发后端 AI 审核）
-      await handleUpdateAvatar(imageUrl);
-
-      toast.dismiss('upload-avatar');
-    } catch (err) {
-      toast.dismiss('upload-avatar');
-      // 错误由拦截器处理
-    } finally {
-      setIsUploadingAvatar(false);
-      // 清空 input 防止重复选择同一文件不触发 onChange
-      e.target.value = '';
-    }
-  };
-
-  const handleUpdatePassword = async () => {
-    if (!newPassword || newPassword.length < 8) {
-      toast.error('密码至少需 8 位');
-      return;
-    }
-    try {
-      setIsSubmittingPassword(true);
-      await authService.setPassword(newPassword);
-      toast.success('密码已更新');
-      setShowPasswordDialog(false);
-      setNewPassword('');
-    } catch {
-      // 具体错误由拦截器处理
-    } finally {
-      setIsSubmittingPassword(false);
-    }
-  };
-
   const menuItems = [
     {
       icon: ShieldCheck,
       label: '审核管理',
       color: 'text-teal-600',
       visible: currentUser.role === 'teacher',
-      onClick: () => navigate('/audit'),
+      onClick: () => navigate(ROUTES.audit),
     },
     {
       icon: Users,
       label: '用户白名单',
       color: 'text-cyan-600',
       visible: currentUser.role === 'teacher',
-      onClick: () => navigate('/admin'),
+      onClick: () => navigate(ROUTES.admin),
     },
     {
       icon: Phone,
       label: '系统配置中心',
       color: 'text-purple-500',
       visible: currentUser.role === 'teacher',
-      onClick: () => navigate('/test'),
+      onClick: () => navigate('/test') /* dev only */,
     },
     {
       icon: Heart,
       label: '我的点赞',
       color: 'text-red-500',
       visible: true,
-      onClick: () => navigate('/my-likes'),
+      onClick: () => navigate(ROUTES.myLikes),
     },
     {
       icon: Star,
       label: '我的收藏',
       color: 'text-yellow-500',
       visible: true,
-      onClick: () => navigate('/my-favorites'),
+      onClick: () => navigate(ROUTES.myFavorites),
     },
     {
       icon: MessageSquare,
       label: '我的提问',
       color: 'text-blue-500',
       visible: currentUser.role === 'student' || currentUser.role === 'teacher',
-      onClick: () => navigate('/my-questions'),
+      onClick: () => navigate(ROUTES.myQuestions),
     },
     {
       icon: Edit3,
       label: '我的回答',
       color: 'text-green-500',
       visible: currentUser.role === 'teacher',
-      onClick: () => navigate('/my-answers'),
+      onClick: () => navigate(ROUTES.myAnswers),
     },
   ];
 
@@ -334,7 +200,10 @@ export function ProfilePage() {
         {/* 个人信息区域 */}
         <div className="bg-white p-8 relative overflow-hidden mb-4 rounded-3xl shadow-sm">
           <div className="relative flex flex-col items-center gap-4">
-            <div className="relative group cursor-pointer" onClick={() => setShowAvatarDialog(true)}>
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => setShowAvatarDialog(true)}
+            >
               <Avatar className="w-24 h-24 border-4 border-[#F5EBE0] shadow-md transition-transform active:scale-95">
                 <AvatarImage src={currentUser?.avatar} />
                 <AvatarFallback className="text-2xl bg-[#D6CCC2]">
@@ -359,16 +228,18 @@ export function ProfilePage() {
                 </h2>
                 <Pencil className="w-4 h-4 text-gray-400 group-hover:text-morandi-5 transition-colors" />
               </div>
-              
+
               {/* 手机号显示 */}
               {currentUser?.phone && (
                 <p className="text-sm text-gray-500 mt-2">
                   {currentUser.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
                 </p>
               )}
-              
+
               {roleBadge && (
-                <Badge className={`${roleBadge.className} text-white border-0 px-4 py-1 rounded-full mt-2`}>
+                <Badge
+                  className={`${roleBadge.className} text-white border-0 px-4 py-1 rounded-full mt-2`}
+                >
                   {roleBadge.label}
                 </Badge>
               )}
@@ -388,7 +259,12 @@ export function ProfilePage() {
                   </div>
                   <span className="font-medium text-gray-700">我的孩子</span>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setShowBindDialog(true)} className="h-8 rounded-full">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowBindDialog(true)}
+                  className="h-8 rounded-full"
+                >
                   <Plus className="w-4 h-4 mr-1" />
                   添加
                 </Button>
@@ -401,7 +277,10 @@ export function ProfilePage() {
                   </div>
                 ) : (
                   children.map((child) => (
-                    <div key={child.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
+                    <div
+                      key={child.id}
+                      className="flex items-center justify-between bg-gray-50 p-3 rounded-xl"
+                    >
                       <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10 border border-white shadow-sm">
                           <AvatarImage src={child.avatar} />
@@ -420,7 +299,7 @@ export function ProfilePage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => navigate(`/parent/questions/${child.id}`)}
+                          onClick={() => navigate(ROUTES.parentChild(child.id))}
                         >
                           查看提问
                         </Button>
@@ -450,7 +329,9 @@ export function ProfilePage() {
                   data-testid={`menu-item-${item.label.replace(/\s/g, '-')}`}
                   className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-b-0 active:scale-[0.98]"
                 >
-                  <div className={`p-2 rounded-2xl bg-opacity-10 ${item.color.replace('text', 'bg')}`}>
+                  <div
+                    className={`p-2 rounded-2xl bg-opacity-10 ${item.color.replace('text', 'bg')}`}
+                  >
                     <item.icon className={`w-5 h-5 ${item.color}`} />
                   </div>
                   <span className="flex-1 text-left font-medium text-gray-700">{item.label}</span>
@@ -554,8 +435,9 @@ export function ProfilePage() {
                   key={idx}
                   onClick={() => handleUpdateAvatar(url)}
                   disabled={isUploadingAvatar}
-                  className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${currentUser?.avatar === url ? 'border-morandi-5' : 'border-transparent'
-                    } ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all active:scale-90 ${
+                    currentUser?.avatar === url ? 'border-morandi-5' : 'border-transparent'
+                  } ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <img src={url} alt={`avatar-${idx}`} className="w-full h-full object-cover" />
                   {currentUser?.avatar === url && (
@@ -578,8 +460,9 @@ export function ProfilePage() {
               />
               <Label
                 htmlFor="avatar-upload-input"
-                className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-morandi-5 hover:text-morandi-5 cursor-pointer transition-colors ${isUploadingAvatar ? 'opacity-50 pointer-events-none' : ''
-                  }`}
+                className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-morandi-5 hover:text-morandi-5 cursor-pointer transition-colors ${
+                  isUploadingAvatar ? 'opacity-50 pointer-events-none' : ''
+                }`}
               >
                 {isUploadingAvatar ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -598,16 +481,11 @@ export function ProfilePage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>是否确认退出？</AlertDialogTitle>
-            <AlertDialogDescription>
-              退出后需要重新登录才能使用
-            </AlertDialogDescription>
+            <AlertDialogDescription>退出后需要重新登录才能使用</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <AlertDialogAction onClick={handleLogout} className="bg-red-500 hover:bg-red-600">
               确认退出
             </AlertDialogAction>
           </AlertDialogFooter>

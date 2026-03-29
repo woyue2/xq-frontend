@@ -1,3 +1,18 @@
+/**
+ * [POS] backend/src/services/interaction.service.ts
+ *   所属：服务层 | 角色：互动业务逻辑（点赞、收藏题目/回答）
+ *
+ * [INPUT]
+ *   - ../config/database → prisma
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - interactionService（InteractionService 单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 

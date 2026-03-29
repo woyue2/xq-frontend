@@ -1,3 +1,19 @@
+/**
+ * [POS] backend/src/services/answer.service.ts
+ *   所属：服务层 | 角色：回答业务逻辑（发布、查询、AI 审核触发）
+ *
+ * [INPUT]
+ *   - ../config/database    → prisma
+ *   - ../errors/AppError    → AppError
+ *   - ./ai-audit.service    → aiAuditService
+ *
+ * [OUTPUT]
+ *   - answerService（AnswerService 单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 import { aiAuditService } from './ai-audit.service';
@@ -6,12 +22,13 @@ export class AnswerService {
   async create(params: {
     questionId: string;
     authorId: string;
+    authorRole: string;
     content?: string;
     images?: string[];
     audioUrl?: string;
     audioUrls?: string[];
   }) {
-    const { questionId, authorId, content, images, audioUrl, audioUrls } = params;
+    const { questionId, authorId, authorRole, content, images, audioUrl, audioUrls } = params;
 
     const question = await prisma.question.findUnique({
       where: { id: questionId }
@@ -24,6 +41,14 @@ export class AnswerService {
     // 边界保护：禁止在未审核通过的问题下发表回答
     if (question.status !== 'approved') {
       throw new AppError(403, 'ANSWER_DENIED', '无法在未审核通过的问题下发表回答');
+    }
+
+    // 权限校验：学生只能回答教师提出的问题
+    if (authorRole !== 'teacher') {
+      const questionAuthor = await prisma.user.findUnique({ where: { id: question.authorId } });
+      if (questionAuthor?.role !== 'teacher') {
+        throw new AppError(403, 'PERMISSION_DENIED', '学生只能回答教师提出的问题', undefined, 3002);
+      }
     }
 
     const hasText = !!content && content.trim().length > 0;
@@ -256,6 +281,49 @@ export class AnswerService {
         };
       }),
       total: answers.length
+    };
+  }
+
+  async listByAuthor(params: { authorId: string; page: number; pageSize: number }) {
+    const { authorId, page, pageSize } = params;
+    const skip = (page - 1) * pageSize;
+
+    const [answers, total] = await Promise.all([
+      prisma.answer.findMany({
+        where: { authorId, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      prisma.answer.count({ where: { authorId, deletedAt: null } })
+    ]);
+
+    const questionIds = Array.from(
+      new Set(answers.map((a) => a.questionId).filter(Boolean))
+    ) as string[];
+
+    const questions = questionIds.length > 0
+      ? await prisma.question.findMany({
+          where: { id: { in: questionIds } },
+          select: { id: true, title: true }
+        })
+      : [];
+
+    const titleMap = new Map(questions.map((q) => [q.id, q.title ?? '']));
+
+    return {
+      items: answers.map((a) => ({
+        id: a.id,
+        questionId: a.questionId,
+        questionTitle: titleMap.get(a.questionId) ?? '',
+        content: a.content,
+        likes: a.likes,
+        status: a.status,
+        createdAt: a.createdAt
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / pageSize)
     };
   }
 

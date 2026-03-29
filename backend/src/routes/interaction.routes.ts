@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/routes/interaction.routes.ts
+ *   所属：路由层 | 角色：互动路由（点赞、收藏题目/答案）
+ *
+ * [INPUT]
+ *   - express                        → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware  → authMiddleware / AuthenticatedRequest
+ *   - ../services/interaction.service → interactionService
+ *   - ../errors/AppError             → AppError
+ *
+ * [OUTPUT]
+ *   - interactionRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {

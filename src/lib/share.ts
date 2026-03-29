@@ -1,3 +1,18 @@
+/**
+ * [POS] src/lib/share.ts
+ *   所属：lib 层 | 角色：分享 URL 构建 + 剪贴板写入工具函数
+ *   兄弟：utils.ts / mock-env.ts
+ *
+ * [INPUT]
+ *   （无外部依赖）
+ *
+ * [OUTPUT]
+ *   - getShareBaseUrl / buildQuestionShareUrl / copyToClipboardSafe
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/lib/CLAUDE.md 的文件清单
+ */
 export const getShareBaseUrl = (): string | null => {
   try {
     // 1) 优先使用系统配置中心写入的覆盖值（本地存储）

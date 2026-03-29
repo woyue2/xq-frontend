@@ -15,6 +15,8 @@
 | `useAdminWhitelist.ts` | 管理员白名单全量 state + API 逻辑 |
 | `useQuestionDetail.ts` | 问题详情、答案、评论、点赞、音频播放逻辑 |
 | `useAdminDimension.ts` | 题目维度（method）配置 state + CRUD handler |
+| `useLogin.ts` | 登录/注册页全量 state、倒计时、表单验证、提交逻辑 |
+| `useProfile.ts` | 个人主页 state、头像/昵称/密码更新、家长绑定逻辑 |
 
 ## 质量红线
 

@@ -1,11 +1,20 @@
+/**
+ * [POS] backend/src/routes/admin-audit.routes.ts
+ *   所属：路由层 | 角色：管理员审核路由（审核题目、评论，查看待审列表）
+ *
+ * [INPUT]
+ *   - express                        → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware  → authMiddleware / requireTeacher / AuthenticatedRequest / createRequireTeacher
+ *   - ../services/audit.service      → auditService
+ *
+ * [OUTPUT]
+ *   - adminAuditRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router, type Response, type NextFunction } from 'express';
-import {
-  authMiddleware,
-  type AuthenticatedRequest,
-  requireTeacher,
-  createRequireTeacher
-} from '../middlewares/auth.middleware';
-import { auditService } from '../services/audit.service';
 import { AppError } from '../errors/AppError';
 
 export const adminAuditRouter = Router();

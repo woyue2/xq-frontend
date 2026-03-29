@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/routes/parent.routes.ts
+ *   所属：路由层 | 角色：家长端路由（绑定子账号、查看孩子学习数据）
+ *
+ * [INPUT]
+ *   - express                        → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware  → authMiddleware / AuthenticatedRequest
+ *   - ../services/parent.service     → parentService
+ *   - ../errors/AppError             → AppError
+ *
+ * [OUTPUT]
+ *   - parentRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {

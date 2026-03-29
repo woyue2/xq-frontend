@@ -1,3 +1,20 @@
+/**
+ * [POS] src/pages/TestApiPage.tsx
+ *   所属：pages 层 | 角色：API 手动测试页，路由 `/test`，开发调试专用
+ *   兄弟：DiagnosticPage.tsx
+ *
+ * [INPUT]
+ *   - react              → useEffect / useState / ChangeEvent
+ *   - react-router-dom   → useNavigate
+ *   - @/services/api     → api
+ *
+ * [OUTPUT]
+ *   - TestApiPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
@@ -11,6 +28,7 @@ import { compressImage } from '@/lib/image-compress';
 import { getShareBaseUrl } from '@/lib/share';
 import { USE_MOCK, applyMockModeOverride } from '@/lib/mock-env';
 import { Switch } from '@/components/ui/switch';
+import { ROUTES } from '@/config/app-constants';
 
 type SignatureResponse = {
   code: number;
@@ -41,12 +59,12 @@ export function TestApiPage() {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
     if (user.role !== 'teacher') {
       toast.error('只有老师可以访问测试页面');
-      navigate('/');
+      navigate(ROUTES.home);
     }
 
     // 初始化分享域名（优先本地覆盖值，其次环境变量/当前 origin）
@@ -73,7 +91,7 @@ export function TestApiPage() {
     setError(null);
     try {
       const res = await api.get<SignatureResponse>('/upload/signature', {
-        params: { type: 'image' }
+        params: { type: 'image' },
       });
 
       if (res.data.code !== 200) {
@@ -157,9 +175,7 @@ export function TestApiPage() {
       const formData = new FormData();
       formData.append('file', uploadFile, uploadFile.name || 'image.jpg');
 
-      const authHeader = token.toLowerCase().startsWith('bearer ')
-        ? token
-        : `Bearer ${token}`;
+      const authHeader = token.toLowerCase().startsWith('bearer ') ? token : `Bearer ${token}`;
 
       appendLog(`请求地址: ${url}`);
       appendLog(`Authorization: ${authHeader}`);
@@ -167,9 +183,9 @@ export function TestApiPage() {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: authHeader
+          Authorization: authHeader,
         },
-        body: formData
+        body: formData,
       });
 
       appendLog(`HTTP 状态码: ${res.status}`);
@@ -286,7 +302,8 @@ export function TestApiPage() {
                   </Button>
                 </div>
                 <p className="text-[11px] text-gray-400">
-                  为空时自动使用环境变量 <code className="mx-1">VITE_SHARE_BASE_URL</code> 或当前页面域名。
+                  为空时自动使用环境变量 <code className="mx-1">VITE_SHARE_BASE_URL</code>{' '}
+                  或当前页面域名。
                 </p>
               </div>
             </div>
@@ -329,11 +346,7 @@ export function TestApiPage() {
               />
             </div>
 
-            {error && (
-              <p className="text-xs text-red-500">
-                错误：{error}
-              </p>
-            )}
+            {error && <p className="text-xs text-red-500">错误：{error}</p>}
 
             <div className="space-y-2 pt-2">
               <Label htmlFor="file">选择要上传的图片（本地直传图床，仅测试）</Label>
@@ -371,20 +384,14 @@ export function TestApiPage() {
               >
                 {uploading ? '上传中...' : '本地上传测试'}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/create')}
-              >
+              <Button type="button" variant="ghost" size="sm" onClick={() => navigate(ROUTES.create)}>
                 返回提问页
               </Button>
             </div>
 
             <p className="text-xs text-gray-400 pt-2">
               提示：如果 Base URL 或 token 与图床服务提供的配置不一致，请检查后端
-              <code className="mx-1">OSS_UPLOAD_BASE_URL</code>
-              和
+              <code className="mx-1">OSS_UPLOAD_BASE_URL</code>和
               <code className="mx-1">OSS_UPLOAD_TOKEN</code>
               环境变量。
             </p>

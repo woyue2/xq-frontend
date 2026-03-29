@@ -1,3 +1,18 @@
+/**
+ * [POS] backend/src/services/question-dimension.service.ts
+ *   所属：服务层 | 角色：题目维度业务逻辑（维度/选项的增删改查）
+ *
+ * [INPUT]
+ *   - ../config/database → prisma
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - questionDimensionService（QuestionDimensionService 单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 

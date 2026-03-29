@@ -11,7 +11,10 @@
 | 文件 | 职责 |
 |---|---|
 | `ui-config.ts` | UI 颜色、难度标签、学科颜色等 |
-| `routes.ts`（若有） | 路由路径常量 |
+| `ai-text.ts` | AI 文案配置（首页标语、轮播文案等） |
+| `app-constants.ts` | 应用级常量（难度标签、学科映射等） |
+| `feature-flags.ts` | 功能开关配置（控制新功能灰度发布） |
+| `taxonomy.ts` | 话题/学科分类配置（TopicConfig 等） |
 
 ## 质量红线
 

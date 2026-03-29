@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/routes/notification.routes.ts
+ *   所属：路由层 | 角色：通知路由（获取未读数、列表、标记已读）
+ *
+ * [INPUT]
+ *   - express                          → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware    → authMiddleware / AuthenticatedRequest
+ *   - ../services/notification.service → notificationService
+ *   - ../errors/AppError               → AppError
+ *
+ * [OUTPUT]
+ *   - notificationRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router, type Response, type NextFunction } from 'express';
 import {
   authMiddleware,

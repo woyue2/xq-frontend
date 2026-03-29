@@ -1,4 +1,17 @@
 // 自定义业务错误类型，便于统一错误处理
+/**
+ * [POS] backend/src/errors/AppError.ts
+ *   所属：错误处理层 | 角色：统一业务异常类，携带 HTTP 状态码
+ *
+ * [INPUT]
+ *   - 无外部依赖
+ *
+ * [OUTPUT]
+ *   - AppError（class，extends Error）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ */
 export class AppError extends Error {
   status: number;
   code: string;

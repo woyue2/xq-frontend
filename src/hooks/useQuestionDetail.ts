@@ -41,6 +41,7 @@ import { USE_MOCK } from '@/lib/mock-env';
 // [FIX] 顶层 import 保留供 USE_MOCK 分支使用；生产构建 Vite tree-shake 会消除未实际调用的路径
 import { userLikes, userFavorites } from '@/lib/mock-data';
 import type { Comment, Answer } from '@/types';
+import { ROUTES } from '@/config/app-constants';
 
 // ─── 类型标准化工具（内部）───────────────────────────────────────────────────
 function normalizeQuestion(raw: any) {
@@ -179,7 +180,7 @@ export function useQuestionDetail(questionId: string) {
   const handleLike = async () => {
     if (!currentUser) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
     if (!question) return;
@@ -204,7 +205,7 @@ export function useQuestionDetail(questionId: string) {
   const handleFavorite = async () => {
     if (!currentUser) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
     if (!question) return;
@@ -306,7 +307,7 @@ export function useQuestionDetail(questionId: string) {
   const handleSubmitComment = async () => {
     if (!currentUser) {
       toast.error('请先登录');
-      navigate('/login');
+      navigate(ROUTES.login);
       return;
     }
     if (!question) return;
@@ -372,7 +373,7 @@ export function useQuestionDetail(questionId: string) {
     try {
       await questionService.delete(question.id);
       toast.success('删除成功');
-      navigate('/', { replace: true });
+      navigate(ROUTES.home, { replace: true });
     } catch (error: any) {
       toast.error(error.response?.data?.message || '删除失败，请稍后重试');
     }

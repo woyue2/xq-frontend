@@ -1,10 +1,28 @@
+/**
+ * [POS] backend/src/routes/profile.routes.ts
+ *   所属：路由层 | 角色：用户主页信息路由（我的回答列表）
+ *   兄弟：user-me.routes.ts
+ *
+ * [INPUT]
+ *   - express                          → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware    → authMiddleware / AuthenticatedRequest
+ *   - ../services/answer.service       → answerService
+ *   - ../errors/AppError               → AppError
+ *
+ * [OUTPUT]
+ *   - profileRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {
   authMiddleware,
   type AuthenticatedRequest
 } from '../middlewares/auth.middleware';
-import { prisma } from '../config/database';
+import { answerService } from '../services/answer.service';
 import { AppError } from '../errors/AppError';
 
 export const profileRouter = Router();
@@ -23,75 +41,19 @@ profileRouter.get(
       const { page, pageSize } = req.query as any;
       const rawPage = Number(page ?? 1);
       const rawSize = Number(pageSize ?? 20);
+      const currentPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+      const size = Number.isFinite(rawSize) && rawSize > 0 && rawSize <= 100 ? rawSize : 20;
 
-      const currentPage =
-        Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-      const size =
-        Number.isFinite(rawSize) && rawSize > 0 && rawSize <= 100
-          ? rawSize
-          : 20;
-
-      const [answers, total] = await Promise.all([
-        prisma.answer.findMany({
-          where: {
-            authorId: req.user.id,
-            deletedAt: null
-          },
-          orderBy: {
-            createdAt: 'desc'
-          },
-          skip: (currentPage - 1) * size,
-          take: size
-        }),
-        prisma.answer.count({
-          where: {
-            authorId: req.user.id,
-            deletedAt: null
-          }
-        })
-      ]);
-
-      // 手动查询问题标题，避免在缺少 Prisma 关系定义时直接使用 include 导致类型错误
-      const questionIds = Array.from(
-        new Set(answers.map((a) => a.questionId).filter(Boolean))
-      ) as string[];
-
-      const questions =
-        questionIds.length > 0
-          ? await prisma.question.findMany({
-              where: {
-                id: {
-                  in: questionIds
-                }
-              },
-              select: {
-                id: true,
-                title: true
-              }
-            })
-          : [];
-
-      const questionTitleMap = new Map(
-        questions.map((q) => [q.id, q.title ?? ''])
-      );
+      const result = await answerService.listByAuthor({
+        authorId: req.user.id,
+        page: currentPage,
+        pageSize: size
+      });
 
       return res.json({
         code: 200,
         message: 'success',
-        data: {
-          items: answers.map((a) => ({
-            id: a.id,
-            questionId: a.questionId,
-            questionTitle: questionTitleMap.get(a.questionId) ?? '',
-            content: a.content,
-            likes: a.likes,
-            status: a.status,
-            createdAt: a.createdAt
-          })),
-          total,
-          page: currentPage,
-          totalPages: Math.ceil(total / size)
-        },
+        data: result,
         timestamp: Date.now()
       });
     } catch (err) {

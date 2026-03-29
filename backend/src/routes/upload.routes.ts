@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/routes/upload.routes.ts
+ *   所属：路由层 | 角色：上传路由（获取 OSS 预签名上传凭证）
+ *
+ * [INPUT]
+ *   - express                        → Router / Response / NextFunction
+ *   - ../middlewares/auth.middleware  → authMiddleware / AuthenticatedRequest
+ *   - ../errors/AppError             → AppError
+ *   - ../config/env                  → env
+ *
+ * [OUTPUT]
+ *   - uploadRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {

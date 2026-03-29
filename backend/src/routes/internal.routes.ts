@@ -1,9 +1,27 @@
+/**
+ * [POS] backend/src/routes/internal.routes.ts
+ *   所属：路由层 | 角色：内部服务路由（AI 回调、测试令牌，不对外暴露）
+ *
+ * [INPUT]
+ *   - express                                  → Router / Request / Response / NextFunction
+ *   - ../services/audit-callback.service       → auditCallbackService
+ *   - ../services/test-token.service           → testTokenService
+ *   - ../errors/AppError                       → AppError
+ *   - ../config/env                            → env
+ *
+ * [OUTPUT]
+ *   - internalRouter（Express Router）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/routes/CLAUDE.md 的文件清单
+ */
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
 import { env } from '../config/env';
-import { signAccessToken } from '../utils/jwt';
+import { auditCallbackService } from '../services/audit-callback.service';
+import { testTokenService } from '../services/test-token.service';
 
 export const internalRouter = Router();
 
@@ -32,11 +50,7 @@ internalRouter.post(
           .filter(ip => ip.length > 0);
 
         if (!allowedIps.includes(clientIp) && !allowedIps.includes('*')) {
-          throw new AppError(
-            403,
-            'IP_NOT_ALLOWED',
-            '请求来源 IP 不在白名单中'
-          );
+          throw new AppError(403, 'IP_NOT_ALLOWED', '请求来源 IP 不在白名单中');
         }
       }
 
@@ -45,11 +59,7 @@ internalRouter.post(
       const received = (req.headers['x-internal-token'] as string | undefined) ?? '';
 
       if (!expectedToken || received !== expectedToken) {
-        throw new AppError(
-          403,
-          'INTERNAL_ACCESS_DENIED',
-          '未通过内部验证，禁止访问回调接口'
-        );
+        throw new AppError(403, 'INTERNAL_ACCESS_DENIED', '未通过内部验证，禁止访问回调接口');
       }
 
       type AiResultPayload = {
@@ -70,103 +80,22 @@ internalRouter.post(
         typeof result !== 'object' ||
         Array.isArray(result)
       ) {
-        throw new AppError(
-          400,
-          'VALIDATION_ERROR',
-          '参数验证失败'
-        );
+        throw new AppError(400, 'VALIDATION_ERROR', '参数验证失败');
       }
 
       let aiResult: string;
       try {
         aiResult = JSON.stringify(result);
       } catch {
-        throw new AppError(
-          400,
-          'INVALID_RESULT_PAYLOAD',
-          'AI 回调结果字段不可序列化'
-        );
+        throw new AppError(400, 'INVALID_RESULT_PAYLOAD', 'AI 回调结果字段不可序列化');
       }
 
-      const safe = result.safe === true;
-
-      let updated: any = null;
-
-      if (targetType === 'question') {
-        // 获取作者角色，判断逻辑：仅当作者是老师且 AI 判定安全时，才设为 approved
-        const question = await prisma.question.findUnique({
-          where: { id: targetId },
-          select: { authorId: true }
-        });
-
-        if (!question) throw new AppError(404, 'CONTENT_NOT_FOUND', '问题不存在');
-
-        const author = await prisma.user.findUnique({
-          where: { id: question.authorId },
-          select: { role: true }
-        });
-
-        // 核心逻辑修复：如果 safe 且作者是 teacher，则 approved；
-        // 如果 safe 但作者是 student/parent，则保持 pending (除非人工干预，回调不应自动通过学生内容)
-        // 注意：此处回调逻辑应保证：违规必 rejected；合规则根据角色决定是 approved 还是继续 pending。
-        let nextStatus = 'rejected';
-        if (safe) {
-          nextStatus = (author?.role === 'teacher') ? 'approved' : 'pending';
-        }
-
-        updated = await prisma.question.update({
-          where: { id: targetId },
-          data: {
-            aiResult,
-            status: nextStatus as any,
-            score: typeof result.score === 'number' ? result.score : undefined
-          },
-          select: { id: true, status: true, aiResult: true }
-        });
-      } else if (targetType === 'answer') {
-        // 处理回答（通常只有老师能回答，但逻辑应一致）
-        const nextStatus = safe ? 'approved' : 'rejected';
-        updated = await prisma.answer.update({
-          where: { id: targetId },
-          data: { aiResult, status: nextStatus as any },
-          select: { id: true, status: true, aiResult: true }
-        });
-      } else if (targetType === 'comment') {
-        // 处理评论：目前评论默认为人工审核流，AI 判定安全后仍应由老师审核？ 
-        // 参照 Question 逻辑，设为 pending 如果是学生。
-        const comment = await prisma.comment.findUnique({
-          where: { id: targetId },
-          select: { authorId: true }
-        });
-        if (!comment) throw new AppError(404, 'CONTENT_NOT_FOUND', '评论不存在');
-
-        const author = await prisma.user.findUnique({
-          where: { id: comment.authorId },
-          select: { role: true }
-        });
-
-        const nextStatus = (safe && author?.role === 'teacher') ? 'approved' : (safe ? 'pending' : 'rejected');
-
-        updated = await prisma.comment.update({
-          where: { id: targetId },
-          data: { aiResult, status: nextStatus as any },
-          select: { id: true, status: true, aiResult: true }
-        });
-      } else {
-        throw new AppError(
-          400,
-          'INVALID_CONTENT_TYPE',
-          '不支持的审核内容类型'
-        );
-      }
-
-      if (!updated) {
-        throw new AppError(
-          404,
-          'CONTENT_NOT_FOUND',
-          '内容不存在'
-        );
-      }
+      const updated = await auditCallbackService.applyResult({
+        targetType,
+        targetId,
+        result,
+        aiResult
+      });
 
       return res.json({
         code: 200,
@@ -200,73 +129,14 @@ internalRouter.post(
         throw new AppError(404, 'NOT_FOUND', '接口不存在');
       }
 
-      const { role: rawRole, phone: rawPhone } = req.body as {
-        role?: string;
-        phone?: string;
-      };
+      const { role, phone } = req.body as { role?: string; phone?: string };
 
-      const role =
-        rawRole === 'teacher' || rawRole === 'parent' || rawRole === 'student'
-          ? rawRole
-          : 'student';
-
-      const defaultPhones: Record<string, string> = {
-        student: '13900000001',
-        parent: '13900000002',
-        teacher: '13900000003'
-      };
-
-      const phoneSource = rawPhone ?? defaultPhones[role] ?? defaultPhones.student;
-      const normalizedPhone = phoneSource.replace(/\D/g, '');
-
-      if (!/^\d{11}$/.test(normalizedPhone)) {
-        throw new AppError(
-          400,
-          'INVALID_PHONE_FORMAT',
-          '手机号格式错误',
-          undefined,
-          1001
-        );
-      }
-
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-      const user = await prisma.user.upsert({
-        where: { phone: normalizedPhone },
-        update: {
-          role,
-          expiresAt,
-          isActive: true,
-          isBanned: false
-        },
-        create: {
-          phone: normalizedPhone,
-          nickname: `Playwright_${role}`,
-          role,
-          grade: '初一',
-          age: 15,
-          school: '测试学校',
-          expiresAt,
-          isActive: true,
-          isBanned: false
-        }
-      });
-
-      const token = signAccessToken({ sub: user.id, role: user.role });
+      const data = await testTokenService.generate({ role, phone });
 
       return res.json({
         code: 200,
         message: 'success',
-        data: {
-          token,
-          user: {
-            id: user.id,
-            phone: user.phone,
-            nickname: user.nickname,
-            role: user.role,
-            expiresAt: user.expiresAt
-          }
-        },
+        data,
         timestamp: Date.now()
       });
     } catch (err) {

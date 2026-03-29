@@ -1,3 +1,19 @@
+/**
+ * [POS] backend/src/middlewares/logger.middleware.ts
+ *   所属：中间件层 | 角色：基于 pino-http 的结构化请求日志，注入 req.id
+ *
+ * [INPUT]
+ *   - pino-http → pinoHttp
+ *   - pino      → pino
+ *   - crypto    → randomUUID
+ *
+ * [OUTPUT]
+ *   - loggerMiddleware（pino-http 中间件实例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/middlewares/CLAUDE.md 的文件清单
+ */
 import pinoHttp, { type Options as PinoHttpOptions, type HttpLogger } from 'pino-http';
 import pino from 'pino';
 import { randomUUID } from 'crypto';

@@ -1,3 +1,16 @@
+/**
+ * [POS] backend/src/config/ai-audit.ts
+ *   所属：配置层 | 角色：AI 审核服务配置（模型、endpoint、超时等参数）
+ *
+ * [INPUT]
+ *   - ./env → env
+ *
+ * [OUTPUT]
+ *   - aiAuditConfig（AI 审核配置对象）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ */
 import { env } from './env';
 
 /**

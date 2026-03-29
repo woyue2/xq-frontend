@@ -1,3 +1,21 @@
+/**
+ * [POS] src/components/QuestionFilter.tsx
+ *   所属：components 层 | 角色：问题列表筛选器（学科/话题/状态等）
+ *   兄弟：QuestionCard.tsx / QuestionList.tsx
+ *
+ * [INPUT]
+ *   - lucide-react        → Filter
+ *   - @/lib/utils         → cn
+ *   - @/config/taxonomy   → TAXONOMY / SUBJECT_OPTIONS
+ *
+ * [OUTPUT]
+ *   - QuestionFilter（筛选器组件）
+ *   - QuestionFilterProps（interface）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/components/CLAUDE.md 的文件清单
+ */
 import { Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
@@ -13,19 +31,22 @@ export function QuestionFilter({
   selectedSubject,
   setSelectedSubject,
   selectedTopic,
-  setSelectedTopic
+  setSelectedTopic,
 }: QuestionFilterProps) {
   return (
     <div className="sticky top-[3.5rem] z-40 bg-gray-50/95 backdrop-blur py-2 -mx-4 px-4 space-y-2 transition-all">
       {/* Subject Filter (Capsules) */}
       <div className="flex overflow-x-auto gap-2 scrollbar-hide pb-1">
         <button
-          onClick={() => { setSelectedSubject(''); setSelectedTopic(''); }}
+          onClick={() => {
+            setSelectedSubject('');
+            setSelectedTopic('');
+          }}
           className={cn(
-            "px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border",
+            'px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border',
             !selectedSubject
-              ? "bg-gray-800 text-white border-gray-800 shadow-md"
-              : "bg-white text-gray-600 border-gray-200"
+              ? 'bg-gray-800 text-white border-gray-800 shadow-md'
+              : 'bg-white text-gray-600 border-gray-200',
           )}
         >
           全部
@@ -33,12 +54,15 @@ export function QuestionFilter({
         {SUBJECT_OPTIONS.map((sub) => (
           <button
             key={sub.value}
-            onClick={() => { setSelectedSubject(sub.value); setSelectedTopic(''); }}
+            onClick={() => {
+              setSelectedSubject(sub.value);
+              setSelectedTopic('');
+            }}
             className={cn(
-              "px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border",
+              'px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border',
               selectedSubject === sub.value
-                ? "bg-morandi-5 text-white border-morandi-5 shadow-md transform scale-105"
-                : "bg-white text-gray-600 border-gray-200 hover:border-morandi-2"
+                ? 'bg-morandi-5 text-white border-morandi-5 shadow-md transform scale-105'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-morandi-2',
             )}
           >
             {sub.label}
@@ -58,10 +82,10 @@ export function QuestionFilter({
               key={topic}
               onClick={() => setSelectedTopic(selectedTopic === topic ? '' : topic)}
               className={cn(
-                "px-3 py-1 rounded-md text-[10px] whitespace-nowrap transition-colors",
+                'px-3 py-1 rounded-md text-[10px] whitespace-nowrap transition-colors',
                 selectedTopic === topic
-                  ? "bg-morandi-3 text-morandi-5 font-bold"
-                  : "bg-white text-gray-500 hover:bg-gray-100"
+                  ? 'bg-morandi-3 text-morandi-5 font-bold'
+                  : 'bg-white text-gray-500 hover:bg-gray-100',
               )}
             >
               {topic}

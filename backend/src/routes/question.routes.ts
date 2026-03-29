@@ -4,7 +4,7 @@
  *
  * [INPUT]
  *   - express                              → Router / Response / NextFunction
- *   - ../middlewares/auth.middleware        → authMiddleware / AuthenticatedRequest
+ *   - ../middlewares/auth.middleware        → authMiddleware / optionalAuthMiddleware / AuthenticatedRequest
  *   - ../middlewares/membership.middleware  → requireActiveMembership
  *   - ../services/question.service         → questionService
  *   - ../services/answer.service           → answerService

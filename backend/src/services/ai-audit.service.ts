@@ -1,8 +1,17 @@
 /**
- * AI 内容审核服务
- * 
- * 用于审核问题/回答/评论内容，检测违规内容并提供问题质量建议
- * 支持文本审核和图片审核
+ * [POS] backend/src/services/ai-audit.service.ts
+ *   所属：服务层 | 角色：AI 内容审核服务（文本 + 图片，供 question/answer/comment 使用）
+ *
+ * [INPUT]
+ *   - ../config/env      → env
+ *   - ../errors/AppError → AppError
+ *
+ * [OUTPUT]
+ *   - aiAuditService（单例）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
  */
 
 import { env } from '../config/env';
