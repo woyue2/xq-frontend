@@ -6,6 +6,22 @@
 
 # 2026-03-30
 
+## 变动  生产环境部署 Bug 修复：登录页无限刷新 + 内存泄漏
+### 原因  拦截器 401 循环触发与 Zustand 状态同步竞态导致生产环境无法登录。
+### 影响
+- `http.ts`：401 拦截器增加路径校验，排除登录页以防止重载循环。
+- `AuthLayout.tsx`：重写守卫逻辑，增加 `isHydrated` 等待及已登录自动跳转。
+- `LoginPage.tsx`：修复 `setInterval` 未清理导致的内存泄漏；修复 `handleGetChildCode` 异步静默失败。
+
+## 变动  新增游客只读模式（Optional Auth）
+### 原因  支持未登录用户浏览题目，降低准入门槛并引导注册。
+### 影响
+- 后端：新增 `optionalAuthMiddleware`，`GET /questions` 路由切换为可选鉴权模式。
+- 前端：
+  - `HomePage.tsx` / `MainLayout.tsx`：增加交互拦截，点击点赞/收藏/通知时提示「请先登录」。
+  - `App.tsx`：开放首页 `/` 路由权限。
+  - GEB 文档：同步更新全量 L2/L3 契约描述。
+
 ## 变动  GEB 合规审查：P0 修复 + P1 service 拆分 + CLAUDE.md 分形文档
 ### 原因  项目进入成熟阶段，需建立 GEB 分形架构合规基线，消除代码坏味道。
 ### 影响
