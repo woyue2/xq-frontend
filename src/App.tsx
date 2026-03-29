@@ -1,3 +1,21 @@
+/**
+ * [POS] src/App.tsx
+ *   所属：入口层 | 角色：路由根组件，定义全局路由树 + Provider 组合
+ *   兄弟：main.tsx
+ *
+ * [INPUT]
+ *   - react-router-dom       → BrowserRouter / Routes / Route / Navigate
+ *   - @tanstack/react-query  → QueryClient / QueryClientProvider
+ *   - @/layouts/*            → MainLayout / AuthLayout
+ *   - @/pages/*              → 所有页面组件
+ *
+ * [OUTPUT]
+ *   - App（路由根组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/CLAUDE.md
+ */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from '@/layouts/MainLayout';
@@ -22,7 +40,7 @@ import { ParentQuestionPage } from '@/pages/ParentQuestionPage';
 import { StudentHistoryPage } from '@/pages/StudentHistoryPage';
 import { TestApiPage } from '@/pages/TestApiPage';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from '@/components/ui/sonner';
 
 // Initialize QueryClient
 const queryClient = new QueryClient({
@@ -36,7 +54,13 @@ const queryClient = new QueryClient({
 
 export function App() {
   return (
-    <ErrorBoundary fallback={<div className="flex items-center justify-center min-h-screen text-red-500">应用加载失败，请刷新页面</div>}>
+    <ErrorBoundary
+      fallback={
+        <div className="flex items-center justify-center min-h-screen text-red-500">
+          应用加载失败，请刷新页面
+        </div>
+      }
+    >
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
@@ -46,6 +70,7 @@ export function App() {
             </Route>
 
             {/* Protected Routes (Main Layout) */}
+            {/* [IMPL] 原因：/ 首页允许游客访问（optionalAuth），其余路由仍在 MainLayout 守卫下 */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/create" element={<CreateQuestionPage />} />
@@ -69,12 +94,7 @@ export function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
-          <Toaster
-            position="bottom-center"
-            richColors
-            duration={2000}
-            offset={56}
-          />
+          <Toaster position="bottom-center" richColors duration={2000} offset={56} />
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>

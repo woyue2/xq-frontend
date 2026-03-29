@@ -11,7 +11,6 @@
  *   - ../services/comment.service          → commentService
  *   - ../services/interaction.service      → interactionService
  *   - ../errors/AppError                   → AppError
- *   - ../config/database                   → prisma（⚠ TODO: 迁移到 service 层）
  *
  * [OUTPUT]
  *   - questionRouter（Express Router）
@@ -24,6 +23,7 @@ import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import {
   authMiddleware,
+  optionalAuthMiddleware,
   type AuthenticatedRequest
 } from '../middlewares/auth.middleware';
 import { requireActiveMembership } from '../middlewares/membership.middleware';
@@ -32,7 +32,6 @@ import { AppError } from '../errors/AppError';
 import { answerService } from '../services/answer.service';
 import { commentService } from '../services/comment.service';
 import { interactionService } from '../services/interaction.service';
-import { prisma } from '../config/database';
 
 export const questionRouter = Router();
 
@@ -88,10 +87,10 @@ questionRouter.post(
   }
 );
 
-// 查询问题列表
+// 查询问题列表 — [IMPL] 原因：改为可选鉴权，游客可浏览已审核题目
 questionRouter.get(
   '/',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { page, pageSize, subject, status, isGoodQuestion, tags, authorId, search } =
@@ -108,38 +107,14 @@ questionRouter.get(
             : undefined,
         tags: typeof tags === 'string' ? (tags as string).split(',') : undefined,
         authorId: typeof authorId === 'string' ? authorId : undefined,
-        search: typeof search === 'string' ? search : undefined
+        search: typeof search === 'string' ? search : undefined,
+        userId: req.user?.id
       });
-
-      // 补充当前登录用户的理解状态（仅针对题目作者本人，有记录才返回）
-      let listWithUnderstanding = result.list;
-      if (req.user && result.list.length > 0) {
-        const questionIds = result.list.map((q: any) => q.id);
-
-        const understandingList = await prisma.questionUnderstanding.findMany({
-          where: {
-            questionId: { in: questionIds },
-            userId: req.user.id
-          }
-        });
-
-        const understandingMap = new Map(
-          understandingList.map((u) => [u.questionId, u.status])
-        );
-
-        listWithUnderstanding = result.list.map((q: any) => ({
-          ...q,
-          understandingStatus: understandingMap.get(q.id) ?? null
-        }));
-      }
 
       return res.json({
         code: 200,
         message: 'success',
-        data: {
-          ...result,
-          list: listWithUnderstanding
-        },
+        data: result,
         timestamp: Date.now()
       });
     } catch (err) {
@@ -204,39 +179,10 @@ questionRouter.post(
         image?: string;
       };
 
-      const question = await prisma.question.findUnique({
-        where: { id: questionId }
-      });
-
-      if (!question) {
-        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
-      }
-
-      const role = req.user!.role;
-
-      if (role === 'parent') {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '家长账号无评论权限',
-          undefined,
-          3003
-        );
-      }
-
-      if (role === 'student' && question.authorId !== req.user!.id) {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '学生只能评论自己的问题',
-          undefined,
-          3003
-        );
-      }
-
       const created = await commentService.create({
         questionId,
         authorId: req.user!.id,
+        authorRole: req.user!.role,
         content,
         image
       });
@@ -318,89 +264,10 @@ questionRouter.post(
         );
       }
 
-      const question = await prisma.question.findUnique({
-        where: { id: questionId }
-      });
-
-      if (!question) {
-        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
-      }
-
-      // 仅允许提问的学生本人标记理解状态
-      if (question.authorId !== req.user!.id) {
-        throw new AppError(
-          403,
-          'PERMISSION_DENIED',
-          '只有提问的学生可以标记是否弄懂'
-        );
-      }
-
-      const userId = req.user!.id;
-
-      const result = await prisma.$transaction(async (tx) => {
-        const existing = await tx.questionUnderstanding.findUnique({
-          where: {
-            questionId_userId: {
-              questionId,
-              userId
-            }
-          }
-        });
-
-        let understoodDelta = 0;
-        let notUnderstoodDelta = 0;
-
-        if (!existing) {
-          await tx.questionUnderstanding.create({
-            data: {
-              questionId,
-              userId,
-              status
-            }
-          });
-
-          if (status === 'understood') {
-            understoodDelta += 1;
-          } else {
-            notUnderstoodDelta += 1;
-          }
-        } else if (existing.status !== status) {
-          await tx.questionUnderstanding.update({
-            where: { id: existing.id },
-            data: { status }
-          });
-
-          if (existing.status === 'understood') {
-            understoodDelta -= 1;
-          } else if (existing.status === 'not_understood') {
-            notUnderstoodDelta -= 1;
-          }
-
-          if (status === 'understood') {
-            understoodDelta += 1;
-          } else if (status === 'not_understood') {
-            notUnderstoodDelta += 1;
-          }
-        }
-
-        const updatedQuestion = await tx.question.update({
-          where: { id: questionId },
-          data: {
-            understoodCount: {
-              increment: understoodDelta
-            },
-            notUnderstoodCount: {
-              increment: notUnderstoodDelta
-            }
-          }
-        });
-
-        return {
-          questionId,
-          status,
-          understoodCount: updatedQuestion.understoodCount,
-          notUnderstoodCount: updatedQuestion.notUnderstoodCount
-        };
+      const result = await questionService.setUnderstanding({
+        questionId,
+        userId: req.user!.id,
+        status
       });
 
       return res.json({
@@ -424,35 +291,6 @@ questionRouter.post(
     try {
       const { questionId } = req.params;
 
-      const question = await prisma.question.findUnique({
-        where: { id: questionId }
-      });
-
-      if (!question) {
-        throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
-      }
-
-      // 权限检查
-      // 1. 如果是教师，允许回答所有问题
-      // 2. 如果是学生，只允许回答“教师发布的”问题
-      const isTeacher = req.user!.role === 'teacher';
-
-      if (!isTeacher) {
-        // 查询题目作者
-        const author = await prisma.user.findUnique({ where: { id: question.authorId } });
-        const isTeacherQuestion = author?.role === 'teacher';
-
-        if (!isTeacherQuestion) {
-          throw new AppError(
-            403,
-            'PERMISSION_DENIED',
-            '学生只能回答教师提出的问题',
-            undefined,
-            3002
-          );
-        }
-      }
-
       const { content, images, audioUrl, audioUrls } = req.body as {
         content?: string;
         images?: string[];
@@ -463,6 +301,7 @@ questionRouter.post(
       const created = await answerService.create({
         questionId,
         authorId: req.user!.id,
+        authorRole: req.user!.role,
         content,
         images,
         audioUrl,
@@ -526,56 +365,10 @@ questionRouter.get(
         role: req.user!.role
       });
 
-      // 计算当前用户对该问题的点赞 / 收藏状态
-      let isLiked = false;
-      let isFavorited = false;
-      let understandingStatus: string | null = null;
-
-      if (req.user) {
-        const [like, favorite, understanding] = await Promise.all([
-          prisma.like.findUnique({
-            where: {
-              userId_targetType_targetId: {
-                userId: req.user.id,
-                targetType: 'question',
-                targetId: id
-              }
-            }
-          }),
-          prisma.favorite.findUnique({
-            where: {
-              userId_questionId: {
-                userId: req.user.id,
-                questionId: id
-              }
-            }
-          }),
-          prisma.questionUnderstanding.findUnique({
-            where: {
-              questionId_userId: {
-                questionId: id,
-                userId: req.user.id
-              }
-            }
-          })
-        ]);
-
-        isLiked = !!like;
-        isFavorited = !!favorite;
-        understandingStatus = understanding?.status ?? null;
-      }
-
       return res.json({
         code: 200,
         message: 'success',
-        data: {
-          ...data,
-          isLiked,
-          isFavorited,
-          understandingStatus,
-          understoodCount: (data as any).understoodCount ?? undefined,
-          notUnderstoodCount: (data as any).notUnderstoodCount ?? undefined
-        },
+        data,
         timestamp: Date.now()
       });
     } catch (err) {

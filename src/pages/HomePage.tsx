@@ -1,3 +1,20 @@
+/**
+ * [POS] src/pages/HomePage.tsx
+ *   所属：pages 层 | 角色：首页（问题列表 + 筛选 + 发布入口），路由 `/`
+ *   兄弟：所有其他 pages
+ *
+ * [INPUT]
+ *   - react                  → useState / useRef / useCallback
+ *   - react-router-dom       → useSearchParams / useNavigate
+ *   - sonner                 → toast
+ *
+ * [OUTPUT]
+ *   - HomePage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -20,16 +37,10 @@ export function HomePage() {
   const [selectedTopic, setSelectedTopic] = useState<string>('');
 
   // Data Fetching
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading
-  } = useQuestions({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useQuestions({
     subject: selectedSubject,
     topic: selectedTopic,
-    search: searchKeyword
+    search: searchKeyword,
   });
 
   // Local Interaction States (Optimistic UI handled locally for demo)
@@ -42,6 +53,11 @@ export function HomePage() {
 
   const handleLike = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    // [IMPL] 原因：游客点击互动按钮时提示登录，而非静默操作
+    if (!user) {
+      toast.error('请先登录后再点赞');
+      return;
+    }
     const newLikes = new Set(likedQuestions);
     if (newLikes.has(questionId)) {
       newLikes.delete(questionId);
@@ -55,6 +71,11 @@ export function HomePage() {
 
   const handleFavorite = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    // [IMPL] 原因：游客点击互动按钮时提示登录
+    if (!user) {
+      toast.error('请先登录后再收藏');
+      return;
+    }
     const newFavorites = new Set(favoritedQuestions);
     if (newFavorites.has(questionId)) {
       newFavorites.delete(questionId);
@@ -72,30 +93,27 @@ export function HomePage() {
       toast.error(TOAST_MESSAGES.onlyTeacherCanPin);
       return;
     }
-    
+
     // Note: Backend integration required
     // See FRONTEND-CODING_STANDARDS.md Section 3.3 for PWA/Optimistic update protocol
     // Currently implementing optimistic UI update only.
     // In production, this should make a POST request to /api/questions/:id/pin
-    
+
     const isPinned = pinnedStates[question.id] ?? question.isPinned;
-    
+
     if (isPinned) {
       toast.success(TOAST_MESSAGES.unpinned);
     } else {
       toast.success(TOAST_MESSAGES.pinned);
     }
-    
-    setPinnedStates(prev => ({
+
+    setPinnedStates((prev) => ({
       ...prev,
-      [question.id]: !isPinned
+      [question.id]: !isPinned,
     }));
   };
 
-  const handleToggleUnderstanding = async (
-    question: Question,
-    e: React.MouseEvent
-  ) => {
+  const handleToggleUnderstanding = async (question: Question, e: React.MouseEvent) => {
     e.stopPropagation();
 
     // 仅提问学生本人可以标记理解状态
@@ -103,8 +121,7 @@ export function HomePage() {
       return;
     }
 
-    const current =
-      understandingStates[question.id] ?? question.understandingStatus ?? null;
+    const current = understandingStates[question.id] ?? question.understandingStatus ?? null;
     const next: 'understood' | 'not_understood' =
       current === 'understood' ? 'not_understood' : 'understood';
 
@@ -112,7 +129,7 @@ export function HomePage() {
       await questionService.setUnderstandingStatus(question.id, next);
       setUnderstandingStates((prev) => ({
         ...prev,
-        [question.id]: next
+        [question.id]: next,
       }));
     } catch {
       toast.error('更新理解状态失败，请稍后重试');
@@ -120,7 +137,7 @@ export function HomePage() {
   };
 
   // Flatten pages
-  const allQuestions = data?.pages.flatMap(p => p.items) || [];
+  const allQuestions = data?.pages.flatMap((p) => p.items) || [];
 
   const handleAuthorClick = (question: Question, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -131,7 +148,7 @@ export function HomePage() {
     }
 
     if (user.role === 'teacher') {
-      navigate(`/student/${question.authorId}/questions`);
+      navigate(ROUTES.studentHistory(question.authorId));
       return;
     }
 
@@ -140,7 +157,7 @@ export function HomePage() {
       toast.error('请在“孩子提问列表”页查看孩子的历史提问');
     }
   };
-  
+
   return (
     <div className="flex flex-col gap-4 pb-4">
       {/* 1. Taxonomy Filters */}

@@ -8,7 +8,8 @@
  *   - ../errors/AppError → AppError
  *
  * [OUTPUT]
- *   - authMiddleware（JWT 验证中间件）
+ *   - authMiddleware（JWT 验证中间件，无 token → 401）
+ *   - optionalAuthMiddleware（可选鉴权，无 token 或无效 token → 游客 next()）
  *   - requireTeacher / createRequireTeacher（角色 guard）
  *   - AuthenticatedRequest（扩展 Request 类型）
  *
@@ -59,6 +60,38 @@ export const authMiddleware = (
     }
     return next(new AppError(401, 'UNAUTHORIZED', '认证失败'));
   }
+};
+
+// [IMPL] 原因：支持游客访问公开接口（如题目列表），有 token 则注入用户，无 token 则视为游客继续
+export const optionalAuthMiddleware = (
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization ?? '';
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : '';
+
+  // 无 token → 游客模式，直接 next()
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const payload: any = verifyToken(token);
+    if (payload.sub && payload.role) {
+      req.user = {
+        id: String(payload.sub),
+        role: String(payload.role)
+      };
+    }
+  } catch {
+    // token 无效或过期 → 同样视为游客，不报错
+    // [IMPL] 原因：游客携带了损坏/过期的 token 时，降级为游客而非报 401
+  }
+
+  return next();
 };
 
 export const createRequireTeacher =
