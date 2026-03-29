@@ -1,3 +1,26 @@
+/**
+ * [POS] src/pages/LoginPage.tsx
+ *   所属：pages 层 | 角色：登录/注册页，路由 `/login`，公开访问
+ *   兄弟：所有其他 pages
+ *
+ * [INPUT]
+ *   - react                    → useState
+ *   - react-router-dom          → useNavigate
+ *   - @/components/ui/*         → Button / Input / Select / Label 等
+ *   - @/lib/mock-data           → validInviteCodes（USE_MOCK 分支邀请码校验）
+ *   - @/lib/mock-env            → USE_MOCK
+ *   - @/services/api            → authService
+ *   - @/services/parentService  → parentService
+ *   - @/stores/useAuthStore     → useAuthStore
+ *   - @/types                   → UserRole
+ *
+ * [OUTPUT]
+ *   - LoginPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +35,7 @@ import {
 import { toast } from 'sonner';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { validInviteCodes } from '@/lib/mock-data';
+import { USE_MOCK } from '@/lib/mock-env';
 import type { UserRole } from '@/types';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -50,7 +74,8 @@ export function LoginPage() {
   const [childCountdown, setChildCountdown] = useState(0);
 
   // 判断是否为学生邀请码
-  const isStudentInvite = !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
+  const isStudentInvite =
+    !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
   // 判断是否为家长邀请码
   const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
   // 判断是否为老师邀请码
@@ -76,7 +101,7 @@ export function LoginPage() {
     try {
       await authService.sendCode({
         phone,
-        type: isLogin ? 'login' : 'register'
+        type: isLogin ? 'login' : 'register',
       });
       toast.success('验证码已发送');
     } catch {
@@ -139,7 +164,8 @@ export function LoginPage() {
       return;
     }
 
-    if (!isLogin && !validInviteCodes.includes(inviteCode)) {
+    // [FIX] 邀请码前端校验仅在 mock 模式生效；生产环境由后端校验
+    if (!isLogin && USE_MOCK && !validInviteCodes.includes(inviteCode)) {
       toast.error('邀请码无效');
       return;
     }
@@ -192,7 +218,7 @@ export function LoginPage() {
         if (loginMode === 'password') {
           const response = await authService.passwordLogin({
             phone,
-            password
+            password,
           });
           const { token, user } = response.data.data;
           login(user, token);
@@ -203,7 +229,7 @@ export function LoginPage() {
 
         const response = await authService.login({
           phone,
-          code
+          code,
         });
         const { token, user } = response.data.data;
         login(user, token);
@@ -213,8 +239,11 @@ export function LoginPage() {
       }
 
       // 注册走后端 /auth/register
-      const desiredRole: UserRole =
-        isStudentInvite ? 'student' : isParentInvite ? 'parent' : 'teacher';
+      const desiredRole: UserRole = isStudentInvite
+        ? 'student'
+        : isParentInvite
+          ? 'parent'
+          : 'teacher';
 
       const registerResult = await authService.register({
         phone,
@@ -225,7 +254,7 @@ export function LoginPage() {
         grade: isStudentInvite ? grade : undefined,
         age: isStudentInvite ? parseInt(age, 10) : undefined,
         school: isStudentInvite ? school : undefined,
-        role: desiredRole
+        role: desiredRole,
       });
 
       // authService.register 已经返回 LoginResponse
@@ -238,7 +267,7 @@ export function LoginPage() {
             childName,
             phone: childPhone,
             code: childCode,
-            school: childSchool
+            school: childSchool,
           });
           toast.success('自动绑定孩子成功');
         } catch (error) {
@@ -256,9 +285,7 @@ export function LoginPage() {
 
   const basePhoneValid = phone.length === 11;
   const loginValid =
-    isLogin &&
-    ((loginMode === 'code' && !!code) ||
-      (loginMode === 'password' && !!password));
+    isLogin && ((loginMode === 'code' && !!code) || (loginMode === 'password' && !!password));
   const registerValid =
     !isLogin &&
     !!inviteCode &&
@@ -271,9 +298,7 @@ export function LoginPage() {
     <div className="flex flex-col min-h-screen">
       {/* 顶部标题栏 */}
       <div className="bg-white shadow-sm py-4">
-        <h1 className="text-center text-xl">
-          {isLogin ? '账号登录' : '账号注册'}
-        </h1>
+        <h1 className="text-center text-xl">{isLogin ? '账号登录' : '账号注册'}</h1>
       </div>
 
       {/* 中间内容区 */}
@@ -436,9 +461,7 @@ export function LoginPage() {
                   setAge('');
                 }}
               />
-              <p className="text-xs text-gray-500">
-                需输入有效邀请码方可注册
-              </p>
+              <p className="text-xs text-gray-500">需输入有效邀请码方可注册</p>
               <p className="text-xs text-gray-500">
                 提示：学生邀请码 STUDENT2024 | 老师邀请码 TEACHER2024 | 家长邀请码 PARENT2024
               </p>
@@ -492,7 +515,7 @@ export function LoginPage() {
           {isParentInvite && (
             <div className="space-y-4 border-t pt-4 mt-2">
               <p className="text-sm font-medium text-gray-700">绑定孩子信息</p>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="childName">孩子姓名 *</Label>
                 <Input
@@ -595,9 +618,7 @@ export function LoginPage() {
             >
               忘记密码？
             </button>
-            <p className="text-xs text-gray-400">
-              登录即表示同意《用户协议》和《隐私政策》
-            </p>
+            <p className="text-xs text-gray-400">登录即表示同意《用户协议》和《隐私政策》</p>
           </div>
         </div>
       </div>

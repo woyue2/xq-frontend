@@ -1,3 +1,18 @@
+/**
+ * [POS] src/lib/mock-env.ts
+ *   所属：lib 层 | 角色：USE_MOCK 环境标志（控制是否启用本地 Mock 数据）
+ *   兄弟：mock-data.ts / utils.ts
+ *
+ * [INPUT]
+ *   （无外部依赖）
+ *
+ * [OUTPUT]
+ *   - USE_MOCK（boolean 常量）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/lib/CLAUDE.md 的文件清单
+ */
 const readMockOverride = (): boolean | null => {
   if (typeof window === 'undefined') return null;
   try {
@@ -42,6 +57,6 @@ export const applyMockModeOverride = (value: boolean | null) => {
 if (import.meta.env.PROD && USE_MOCK) {
   // eslint-disable-next-line no-console
   console.warn(
-    '[MockMode] Mock mode is enabled in production build (VITE_USE_MOCK or override). All API requests may be mocked and will not hit the real backend.'
+    '[MockMode] Mock mode is enabled in production build (VITE_USE_MOCK or override). All API requests may be mocked and will not hit the real backend.',
   );
 }

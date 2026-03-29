@@ -1,9 +1,29 @@
+/**
+ * [POS] src/pages/AdminManagementPage.tsx
+ *   所属：pages 层 | 角色：管理后台（白名单/课时/维度管理），路由 `/admin`，教师可见
+ *   兄弟：AuditPage.tsx / StatusListPage.tsx
+ *
+ * [INPUT]
+ *   - react                         → useState / useEffect
+ *   - react-router-dom              → useNavigate
+ *   - @/services/api                → adminService
+ *   - @/stores/*                    → useAuthStore
+ *   - @/hooks/useAdminWhitelist     → WhitelistUserItem / needsExpiryForRole 等
+ *   - @/hooks/useAdminDimension     → useAdminDimension（维度管理 state + handler）
+ *
+ * [OUTPUT]
+ *   - AdminManagementPage（页面组件）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, 
-  Plus, 
-  Trash2, 
+import {
+  ChevronLeft,
+  Plus,
+  Trash2,
   Search,
   UserPlus,
   Shield,
@@ -13,7 +33,7 @@ import {
   Clock,
   Calendar,
   Minus,
-  Edit
+  Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +45,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -48,48 +68,10 @@ import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 import { adminService } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
-import type {
-  QuestionDimensionDto,
-  QuestionDimensionOptionDto,
-  WhitelistUser as WhitelistUserApi,
-  AddWhitelistPayload
-} from '@/types/api';
-
-interface WhitelistUserItem {
-  id: string;
-  // 已注册用户在 user 表中的 ID（如有）
-  userId?: string;
-  phone: string;
-  name: string;
-  role: UserRole;
-  isRegistered: boolean;
-  createdAt: string;
-  registeredAt?: string;
-  expiresAt?: string; // 课时过期时间（学生和家长共享）
-}
-
-const EXPIRING_SOON_DAYS = 30;
-
-const needsExpiryForRole = (role: UserRole) =>
-  role === 'student' || role === 'parent';
-
-const isExpiredDate = (expiresAt?: string) => {
-  if (!expiresAt) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const date = new Date(expiresAt);
-  return date < today;
-};
-
-const isExpiringSoonDate = (expiresAt?: string) => {
-  if (!expiresAt) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const date = new Date(expiresAt);
-  const diffMs = date.getTime() - today.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  return diffDays >= 0 && diffDays <= EXPIRING_SOON_DAYS;
-};
+import type { WhitelistUser as WhitelistUserApi, AddWhitelistPayload } from '@/types/api';
+import type { WhitelistUserItem } from '@/hooks/useAdminWhitelist';
+import { needsExpiryForRole, isExpiredDate, isExpiringSoonDate } from '@/hooks/useAdminWhitelist';
+import { useAdminDimension } from '@/hooks/useAdminDimension';
 
 export function AdminManagementPage() {
   const navigate = useNavigate();
@@ -107,7 +89,7 @@ export function AdminManagementPage() {
             isRegistered: true,
             createdAt: '2024-01-15 10:00:00',
             registeredAt: '2024-01-15 10:30:00',
-            expiresAt: '2026-06-30'
+            expiresAt: '2026-06-30',
           },
           {
             id: '2',
@@ -116,7 +98,7 @@ export function AdminManagementPage() {
             role: 'teacher',
             isRegistered: true,
             createdAt: '2024-01-16 09:00:00',
-            registeredAt: '2024-01-16 09:15:00'
+            registeredAt: '2024-01-16 09:15:00',
           },
           {
             id: '3',
@@ -125,7 +107,7 @@ export function AdminManagementPage() {
             role: 'student',
             isRegistered: false,
             createdAt: '2024-01-20 14:00:00',
-            expiresAt: '2026-03-31'
+            expiresAt: '2026-03-31',
           },
           {
             id: '4',
@@ -134,8 +116,8 @@ export function AdminManagementPage() {
             role: 'parent',
             isRegistered: false,
             createdAt: '2024-01-21 11:00:00',
-            expiresAt: '2026-03-31'
-          }
+            expiresAt: '2026-03-31',
+          },
         ]
       : [];
 
@@ -145,13 +127,13 @@ export function AdminManagementPage() {
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterExpiry, setFilterExpiry] = useState<'all' | 'expiring' | 'expired'>('all');
-  
+
   // 添加用户对话框
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('student');
-  
+
   // 删除确认对话框
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WhitelistUserItem | null>(null);
@@ -164,13 +146,24 @@ export function AdminManagementPage() {
 
   // 二次确认对话框
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingExpiry, setPendingExpiry] = useState<{ user: WhitelistUserItem; date: string } | null>(null);
+  const [pendingExpiry, setPendingExpiry] = useState<{
+    user: WhitelistUserItem;
+    date: string;
+  } | null>(null);
 
-  // 解题方法/办法维度配置
-  const [methodDimension, setMethodDimension] = useState<QuestionDimensionDto | null>(null);
-  const [methodOptions, setMethodOptions] = useState<QuestionDimensionOptionDto[]>([]);
-  const [loadingMethodDim, setLoadingMethodDim] = useState(false);
-  const [savingMethodMeta, setSavingMethodMeta] = useState(false);
+  // [IMPL] 维度管理 state + handler 已下沉到 useAdminDimension
+  const {
+    methodDimension,
+    setMethodDimension,
+    methodOptions,
+    setMethodOptions,
+    loadingMethodDim,
+    savingMethodMeta,
+    loadMethodDimension,
+    handleSaveMethodMeta,
+    handleUpdateMethodOption,
+    handleAddMethodOption,
+  } = useAdminDimension();
 
   const [loadingWhitelist, setLoadingWhitelist] = useState(false);
 
@@ -202,7 +195,7 @@ export function AdminManagementPage() {
         setLoadingWhitelist(true);
         const res = await adminService.getWhitelist({
           page: 1,
-          limit: 50
+          limit: 50,
         });
 
         if (cancelled || !res || !Array.isArray(res.items)) return;
@@ -218,8 +211,8 @@ export function AdminManagementPage() {
             isRegistered: u.isRegistered,
             createdAt: u.createdAt,
             registeredAt: u.registeredAt,
-            expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined
-          })
+            expiresAt: u.validUntil ? u.validUntil.slice(0, 10) : undefined,
+          }),
         );
 
         setWhitelist(items);
@@ -242,10 +235,11 @@ export function AdminManagementPage() {
   }, [user]);
 
   // 过滤逻辑
-  const filteredList = whitelist.filter(user => {
+  const filteredList = whitelist.filter((user) => {
     const matchSearch = user.phone.includes(searchTerm) || user.name.includes(searchTerm);
     const matchRole = filterRole === 'all' || user.role === filterRole;
-    const matchStatus = filterStatus === 'all' || 
+    const matchStatus =
+      filterStatus === 'all' ||
       (filterStatus === 'registered' && user.isRegistered) ||
       (filterStatus === 'pending' && !user.isRegistered);
 
@@ -254,11 +248,7 @@ export function AdminManagementPage() {
     const expiringSoon = needsExpiry && isExpiringSoonDate(user.expiresAt) && !expired;
 
     const matchExpiry =
-      filterExpiry === 'all'
-        ? true
-        : filterExpiry === 'expiring'
-        ? expiringSoon
-        : expired;
+      filterExpiry === 'all' ? true : filterExpiry === 'expiring' ? expiringSoon : expired;
 
     const includeByExpiry = needsExpiry ? matchExpiry : filterExpiry === 'all';
 
@@ -300,7 +290,7 @@ export function AdminManagementPage() {
     }
 
     // 检查是否已存在（前端快速拦截，后端仍会做最终校验）
-    if (whitelist.some(u => u.phone === newPhone)) {
+    if (whitelist.some((u) => u.phone === newPhone)) {
       toast.error('该手机号已在白名单中');
       return;
     }
@@ -309,7 +299,7 @@ export function AdminManagementPage() {
       const payload: AddWhitelistPayload = {
         phone: newPhone,
         name: newName,
-        role: newRole as 'student' | 'teacher' | 'parent'
+        role: newRole as 'student' | 'teacher' | 'parent',
       };
 
       // 学生和家长默认设置 3 个月有效期
@@ -329,9 +319,7 @@ export function AdminManagementPage() {
         isRegistered: created.isRegistered,
         createdAt: created.createdAt,
         registeredAt: created.registeredAt,
-        expiresAt: created.validUntil
-          ? created.validUntil.slice(0, 10)
-          : undefined
+        expiresAt: created.validUntil ? created.validUntil.slice(0, 10) : undefined,
       };
 
       setWhitelist([mapped, ...whitelist]);
@@ -356,7 +344,7 @@ export function AdminManagementPage() {
     if (deleteTarget) {
       try {
         await adminService.removeFromWhitelist(deleteTarget.id);
-        setWhitelist(whitelist.filter(u => u.id !== deleteTarget.id));
+        setWhitelist(whitelist.filter((u) => u.id !== deleteTarget.id));
         toast.success('已从白名单移除');
       } catch {
         // 错误提示由拦截器处理
@@ -393,7 +381,7 @@ export function AdminManagementPage() {
       try {
         const updated = await adminService.updateValidity(
           pendingExpiry.user.id,
-          new Date(pendingExpiry.date).toISOString()
+          new Date(pendingExpiry.date).toISOString(),
         );
 
         setWhitelist(
@@ -403,10 +391,10 @@ export function AdminManagementPage() {
                   ...u,
                   expiresAt: updated.validUntil
                     ? updated.validUntil.slice(0, 10)
-                    : pendingExpiry.date
+                    : pendingExpiry.date,
                 }
-              : u
-          )
+              : u,
+          ),
         );
         toast.success('课时有效期已更新');
       } catch {
@@ -421,11 +409,11 @@ export function AdminManagementPage() {
 
   const stats = {
     total: whitelist.length,
-    registered: whitelist.filter(u => u.isRegistered).length,
-    pending: whitelist.filter(u => !u.isRegistered).length,
-    students: whitelist.filter(u => u.role === 'student').length,
-    teachers: whitelist.filter(u => u.role === 'teacher').length,
-    parents: whitelist.filter(u => u.role === 'parent').length,
+    registered: whitelist.filter((u) => u.isRegistered).length,
+    pending: whitelist.filter((u) => !u.isRegistered).length,
+    students: whitelist.filter((u) => u.role === 'student').length,
+    teachers: whitelist.filter((u) => u.role === 'teacher').length,
+    parents: whitelist.filter((u) => u.role === 'parent').length,
   };
 
   const expiryStats = {
@@ -433,88 +421,10 @@ export function AdminManagementPage() {
       (u) =>
         needsExpiryForRole(u.role) &&
         isExpiringSoonDate(u.expiresAt) &&
-        !isExpiredDate(u.expiresAt)
+        !isExpiredDate(u.expiresAt),
     ).length,
-    expired: whitelist.filter(
-      (u) => needsExpiryForRole(u.role) && isExpiredDate(u.expiresAt)
-    ).length,
-  };
-
-  const loadMethodDimension = async () => {
-    try {
-      setLoadingMethodDim(true);
-      const dims = await adminService.getQuestionDimensions();
-      const methodDim = dims.find((d) => d.key === 'method') ?? null;
-      setMethodDimension(methodDim);
-      setMethodOptions(
-        (methodDim?.options ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      );
-    } catch {
-      toast.error('加载题目维度配置失败，请稍后重试');
-      setMethodDimension(null);
-      setMethodOptions([]);
-    } finally {
-      setLoadingMethodDim(false);
-    }
-  };
-
-  const handleSaveMethodMeta = async () => {
-    if (!methodDimension) return;
-    try {
-      setSavingMethodMeta(true);
-      const updated = await adminService.updateQuestionDimension(methodDimension.key, {
-        name: methodDimension.name,
-        enabled: methodDimension.enabled
-      });
-      setMethodDimension(updated);
-      toast.success('解题方法维度配置已保存');
-    } catch {
-      toast.error('保存解题方法维度配置失败');
-    } finally {
-      setSavingMethodMeta(false);
-    }
-  };
-
-  const handleUpdateMethodOption = async (option: QuestionDimensionOptionDto) => {
-    if (!methodDimension) return;
-    try {
-      await adminService.updateQuestionDimensionOption(methodDimension.key, option.id, {
-        label: option.label,
-        order: option.order,
-        enabled: option.enabled
-      });
-      toast.success('选项已更新');
-    } catch {
-      toast.error('更新选项失败');
-    }
-  };
-
-  const handleAddMethodOption = async () => {
-    if (!methodDimension) return;
-    const value = window.prompt('请输入新选项的内部值（例如：代入法）');
-    if (!value) return;
-    const label = window.prompt('请输入显示文案', value);
-    if (!label) return;
-    try {
-      const maxOrder =
-        methodOptions.length > 0
-          ? Math.max(...methodOptions.map((o) => o.order ?? 0))
-          : 0;
-      const created = await adminService.createQuestionDimensionOption(methodDimension.key, {
-        value,
-        label,
-        order: maxOrder + 10,
-        enabled: true
-      });
-      setMethodOptions(
-        [...methodOptions, created].sort(
-          (a, b) => (a.order ?? 0) - (b.order ?? 0)
-        )
-      );
-      toast.success('已新增选项');
-    } catch {
-      toast.error('新增选项失败');
-    }
+    expired: whitelist.filter((u) => needsExpiryForRole(u.role) && isExpiredDate(u.expiresAt))
+      .length,
   };
 
   return (
@@ -536,11 +446,7 @@ export function AdminManagementPage() {
             <p className="text-[9px] text-[#D5BDAF] font-bold leading-none">好好学习，天天向上</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/diagnostic')}
-            >
+            <Button variant="outline" size="sm" onClick={() => navigate('/diagnostic')}>
               系统诊断
             </Button>
             <Button
@@ -659,13 +565,12 @@ export function AdminManagementPage() {
               <p className="text-gray-400">暂无符合条件的用户</p>
             </div>
           ) : (
-            filteredList.map(user => {
+            filteredList.map((user) => {
               const roleBadge = getRoleBadge(user.role);
               const expired = isExpired(user.expiresAt);
               const needsExpiry = user.role === 'student' || user.role === 'parent';
-              
-              const canViewHistory =
-                user.role === 'student' && user.isRegistered && user.userId;
+
+              const canViewHistory = user.role === 'student' && user.isRegistered && user.userId;
 
               return (
                 <div
@@ -678,23 +583,17 @@ export function AdminManagementPage() {
                         {canViewHistory ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              navigate(`/student/${user.userId}/questions`)
-                            }
+                            onClick={() => navigate(`/student/${user.userId}/questions`)}
                             className="flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 transition-colors"
                             data-testid="whitelist-student-history"
                           >
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-50 text-xs text-blue-600">
                               {user.name?.[0] ?? '学'}
                             </span>
-                            <span className="truncate max-w-[120px]">
-                              {user.name}
-                            </span>
+                            <span className="truncate max-w-[120px]">{user.name}</span>
                           </button>
                         ) : (
-                          <span className="font-bold text-gray-800">
-                            {user.name}
-                          </span>
+                          <span className="font-bold text-gray-800">{user.name}</span>
                         )}
                         <Badge className={`${roleBadge.className} border-none text-xs`}>
                           {roleBadge.label}
@@ -717,16 +616,14 @@ export function AdminManagementPage() {
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center gap-1 text-sm text-gray-500 mb-1">
                         <Phone className="w-3.5 h-3.5" />
                         <span>{user.phone}</span>
                       </div>
 
-                      <div className="text-xs text-gray-400">
-                        添加时间：{user.createdAt}
-                      </div>
-                      
+                      <div className="text-xs text-gray-400">添加时间：{user.createdAt}</div>
+
                       {user.isRegistered && user.registeredAt && (
                         <div className="text-xs text-green-600 mt-0.5">
                           注册时间：{user.registeredAt}
@@ -734,7 +631,9 @@ export function AdminManagementPage() {
                       )}
 
                       {needsExpiry && user.expiresAt && (
-                        <div className={`text-xs mt-1 flex items-center gap-1 ${expired ? 'text-red-600' : 'text-blue-600'}`}>
+                        <div
+                          className={`text-xs mt-1 flex items-center gap-1 ${expired ? 'text-red-600' : 'text-blue-600'}`}
+                        >
                           <Calendar className="w-3 h-3" />
                           课时有效期至：{user.expiresAt} {expired && '(已过期，权限降级为只读)'}
                         </div>
@@ -771,9 +670,7 @@ export function AdminManagementPage() {
         <div className="bg-white rounded-2xl shadow-sm p-4 mt-2">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-base font-bold text-gray-800">
-                题目维度配置（解题方法/办法）
-              </h2>
+              <h2 className="text-base font-bold text-gray-800">题目维度配置（解题方法/办法）</h2>
               <p className="text-xs text-gray-500 mt-1">
                 控制“创建问题”页面中解题方法下拉的名称、启用状态和选项集合。
               </p>
@@ -808,7 +705,7 @@ export function AdminManagementPage() {
                     onChange={(e) =>
                       setMethodDimension({
                         ...methodDimension,
-                        name: e.target.value
+                        name: e.target.value,
                       })
                     }
                     className="w-40 h-9"
@@ -824,7 +721,7 @@ export function AdminManagementPage() {
                       onClick={() =>
                         setMethodDimension({
                           ...methodDimension,
-                          enabled: true
+                          enabled: true,
                         })
                       }
                     >
@@ -837,7 +734,7 @@ export function AdminManagementPage() {
                       onClick={() =>
                         setMethodDimension({
                           ...methodDimension,
-                          enabled: false
+                          enabled: false,
                         })
                       }
                     >
@@ -862,14 +759,10 @@ export function AdminManagementPage() {
                   <span className="text-sm font-semibold text-gray-700">
                     选项列表（含“暂不确定”/unknown）
                   </span>
-                  <span className="text-xs text-gray-400">
-                    建议保留 unknown 作为兜底选项
-                  </span>
+                  <span className="text-xs text-gray-400">建议保留 unknown 作为兜底选项</span>
                 </div>
                 {methodOptions.length === 0 ? (
-                  <p className="text-xs text-gray-500">
-                    暂无选项，请点击“新增选项”添加。
-                  </p>
+                  <p className="text-xs text-gray-500">暂无选项，请点击“新增选项”添加。</p>
                 ) : (
                   <div className="space-y-2">
                     {methodOptions.map((opt) => {
@@ -886,10 +779,8 @@ export function AdminManagementPage() {
                               onChange={(e) =>
                                 setMethodOptions((prev) =>
                                   prev.map((o) =>
-                                    o.id === opt.id
-                                      ? { ...o, label: e.target.value }
-                                      : o
-                                  )
+                                    o.id === opt.id ? { ...o, label: e.target.value } : o,
+                                  ),
                                 )
                               }
                               className="w-40 h-9"
@@ -900,9 +791,7 @@ export function AdminManagementPage() {
                             <div className="text-xs px-2 py-1 rounded bg-white border border-gray-200">
                               {opt.value}
                               {isUnknown && (
-                                <span className="ml-1 text-[10px] text-gray-400">
-                                  （暂不确定）
-                                </span>
+                                <span className="ml-1 text-[10px] text-gray-400">（暂不确定）</span>
                               )}
                             </div>
                           </div>
@@ -914,11 +803,7 @@ export function AdminManagementPage() {
                               onChange={(e) => {
                                 const next = Number(e.target.value) || 0;
                                 setMethodOptions((prev) =>
-                                  prev.map((o) =>
-                                    o.id === opt.id
-                                      ? { ...o, order: next }
-                                      : o
-                                  )
+                                  prev.map((o) => (o.id === opt.id ? { ...o, order: next } : o)),
                                 );
                               }}
                               className="w-20 h-9"
@@ -931,10 +816,8 @@ export function AdminManagementPage() {
                               onClick={() =>
                                 setMethodOptions((prev) =>
                                   prev.map((o) =>
-                                    o.id === opt.id
-                                      ? { ...o, enabled: !o.enabled }
-                                      : o
-                                  )
+                                    o.id === opt.id ? { ...o, enabled: !o.enabled } : o,
+                                  ),
                                 )
                               }
                               className={`px-3 py-1 rounded-full text-xs border transition ${
@@ -975,9 +858,7 @@ export function AdminManagementPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>添加用户到白名单</DialogTitle>
-            <DialogDescription>
-              只有在白名单中的手机号才能注册使用本系统
-            </DialogDescription>
+            <DialogDescription>只有在白名单中的手机号才能注册使用本系统</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -1013,23 +894,15 @@ export function AdminManagementPage() {
                 </SelectContent>
               </Select>
               {(newRole === 'student' || newRole === 'parent') && (
-                <p className="text-xs text-gray-500">
-                  默认课时有效期：3个月
-                </p>
+                <p className="text-xs text-gray-500">默认课时有效期：3个月</p>
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setAddDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
               取消
             </Button>
-            <Button
-              onClick={handleAddUser}
-              className="bg-[#D5BDAF] hover:bg-[#B59D8F]"
-            >
+            <Button onClick={handleAddUser} className="bg-[#D5BDAF] hover:bg-[#B59D8F]">
               添加
             </Button>
           </DialogFooter>
@@ -1049,7 +922,7 @@ export function AdminManagementPage() {
             <div className="space-y-2">
               <Label>有效期至</Label>
               <div className="relative">
-                <Input 
+                <Input
                   type="date"
                   value={customExpiryDate}
                   onChange={(e) => setCustomExpiryDate(e.target.value)}
@@ -1095,9 +968,7 @@ export function AdminManagementPage() {
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-500 text-center">
-                可使用按钮调整月数（1-12个月）
-              </p>
+              <p className="text-xs text-gray-500 text-center">可使用按钮调整月数（1-12个月）</p>
             </div>
 
             <div className="space-y-2">
@@ -1108,16 +979,10 @@ export function AdminManagementPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setExpiryDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setExpiryDialogOpen(false)}>
               取消
             </Button>
-            <Button
-              onClick={handleExpirySubmit}
-              className="bg-[#D5BDAF] hover:bg-[#B59D8F]"
-            >
+            <Button onClick={handleExpirySubmit} className="bg-[#D5BDAF] hover:bg-[#B59D8F]">
               下一步
             </Button>
           </DialogFooter>
@@ -1132,8 +997,12 @@ export function AdminManagementPage() {
             <AlertDialogDescription>
               {pendingExpiry && (
                 <div className="space-y-2 mt-2">
-                  <div>用户：<strong>{pendingExpiry.user.name}</strong> ({pendingExpiry.user.phone})</div>
-                  <div>角色：<strong>{getRoleBadge(pendingExpiry.user.role).label}</strong></div>
+                  <div>
+                    用户：<strong>{pendingExpiry.user.name}</strong> ({pendingExpiry.user.phone})
+                  </div>
+                  <div>
+                    角色：<strong>{getRoleBadge(pendingExpiry.user.role).label}</strong>
+                  </div>
                   <div>原有效期：{pendingExpiry.user.expiresAt || '未设置'}</div>
                   <div className="text-blue-600 font-bold">新有效期：{pendingExpiry.date}</div>
                   <div className="text-red-600 text-sm mt-3">
@@ -1144,10 +1013,12 @@ export function AdminManagementPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setConfirmDialogOpen(false);
-              setPendingExpiry(null);
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setConfirmDialogOpen(false);
+                setPendingExpiry(null);
+              }}
+            >
               取消
             </AlertDialogCancel>
             <AlertDialogAction
@@ -1168,21 +1039,17 @@ export function AdminManagementPage() {
             <AlertDialogDescription>
               {deleteTarget && (
                 <>
-                  将移除用户 <strong>{deleteTarget.name}</strong> ({deleteTarget.phone}) 
-                  {deleteTarget.isRegistered ? 
-                    '，该用户已注册，移除后将无法登录系统。' : 
-                    '，移除后该手机号将无法注册。'
-                  }
+                  将移除用户 <strong>{deleteTarget.name}</strong> ({deleteTarget.phone})
+                  {deleteTarget.isRegistered
+                    ? '，该用户已注册，移除后将无法登录系统。'
+                    : '，移除后该手机号将无法注册。'}
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
               确认移除
             </AlertDialogAction>
           </AlertDialogFooter>

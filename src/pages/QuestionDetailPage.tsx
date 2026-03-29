@@ -1,5 +1,42 @@
+/**
+ * [POS] src/pages/QuestionDetailPage.tsx
+ *   所属：pages 层 | 角色：问题详情页（评论/点赞/收藏/音频播放），路由 `/question/:id`
+ *   兄弟：AnswerQuestionPage.tsx / CreateQuestionPage.tsx
+ *
+ * [INPUT]
+ *   - react                  → useState / useEffect / useRef
+ *   - react-router-dom       → useParams / useNavigate / useLocation / useSearchParams
+ *   - @/services/api         → interactionService / behaviorService / questionService 等
+ *   - @/hooks/useQuestions   → useQuestions（列表缓存读取）
+ *   - @/lib/mock-data        → userLikes / userFavorites（USE_MOCK 分支初始值）
+ *   - @/lib/mock-env         → USE_MOCK
+ *
+ * [OUTPUT]
+ *   - QuestionDetailPage（页面组件）
+ *
+ * [TODO] useQuestionDetail.ts 存在与本页面平行的完整实现，尚未被消费。
+ *        待专项 PR：将页面 state/handler 迁移至 hook，页面只保留 JSX。
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. src/pages/CLAUDE.md 的文件清单
+ */
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Share2, Heart, Star, MessageCircle, Send, Play, Pause, Volume2, Camera, X, MessageSquare, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Share2,
+  Heart,
+  Star,
+  MessageCircle,
+  Send,
+  Play,
+  Pause,
+  Volume2,
+  Camera,
+  X,
+  MessageSquare,
+  Trash2,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,7 +52,13 @@ import { ImageCarousel } from '@/components/ui/image-carousel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UI_CONFIG } from '@/config/ui-config';
 import { Pin } from 'lucide-react';
-import { interactionService, behaviorService, questionService, answerService, commentService } from '@/services/api';
+import {
+  interactionService,
+  behaviorService,
+  questionService,
+  answerService,
+  commentService,
+} from '@/services/api';
 import { USE_MOCK } from '@/lib/mock-env';
 import { useQuestions } from '@/hooks/useQuestions';
 import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
@@ -49,8 +92,8 @@ const normalizeQuestion = (raw: any) => {
       views:
         raw.stats && typeof raw.stats.views === 'number'
           ? raw.stats.views
-          : raw.views ?? undefined
-    }
+          : (raw.views ?? undefined),
+    },
   };
 };
 
@@ -137,8 +180,9 @@ export function QuestionDetailPage() {
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentImage, setCommentImage] = useState<string | null>(null);
-  const [liked, setLiked] = useState(userLikes.has(safeQuestionId));
-  const [favorited, setFavorited] = useState(userFavorites.has(safeQuestionId));
+  // [FIX] USE_MOCK 为编译时常量，生产构建（VITE_USE_MOCK=false）Vite 会消除此分支
+  const [liked, setLiked] = useState(USE_MOCK ? userLikes.has(safeQuestionId) : false);
+  const [favorited, setFavorited] = useState(USE_MOCK ? userFavorites.has(safeQuestionId) : false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [playingAnswerId, setPlayingAnswerId] = useState<string | null>(null);
@@ -224,14 +268,9 @@ export function QuestionDetailPage() {
         </div>
 
         <div className="min-h-screen bg-[#EDEDE9] flex items-center justify-center flex-col gap-4">
-          <p className="text-gray-500">
-            {isLoadingDetail ? '问题加载中...' : '问题不存在'}
-          </p>
+          <p className="text-gray-500">{isLoadingDetail ? '问题加载中...' : '问题不存在'}</p>
           {!isLoadingDetail && (
-            <button
-              onClick={() => navigate('/')}
-              className="text-blue-500 underline"
-            >
+            <button onClick={() => navigate('/')} className="text-blue-500 underline">
               返回首页
             </button>
           )}
@@ -265,12 +304,12 @@ export function QuestionDetailPage() {
       await interactionService.like({
         targetType: 'question',
         targetId: question.id,
-        action: nextLiked ? 'like' : 'unlike'
+        action: nextLiked ? 'like' : 'unlike',
       });
 
       await behaviorService.log('question_like', {
         questionId: question.id,
-        action: nextLiked ? 'like' : 'unlike'
+        action: nextLiked ? 'like' : 'unlike',
       });
 
       toast.success(nextLiked ? '点赞成功' : '已取消点赞');
@@ -293,12 +332,12 @@ export function QuestionDetailPage() {
     try {
       await interactionService.favorite({
         questionId: question.id,
-        action: nextFavorited ? 'favorite' : 'unfavorite'
+        action: nextFavorited ? 'favorite' : 'unfavorite',
       });
 
       await behaviorService.log('question_favorite', {
         questionId: question.id,
-        action: nextFavorited ? 'favorite' : 'unfavorite'
+        action: nextFavorited ? 'favorite' : 'unfavorite',
       });
 
       toast.success(nextFavorited ? '收藏成功' : '已取消收藏');
@@ -351,9 +390,7 @@ export function QuestionDetailPage() {
   const handleAddImage = () => {
     // 在单元测试环境或纯前端 Mock 场景下，直接模拟添加一张图片，保证预览与测试稳定
     const isTestEnv =
-      typeof import.meta !== 'undefined' &&
-      import.meta.env &&
-      import.meta.env.MODE === 'test';
+      typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'test';
 
     if (isTestEnv) {
       const mockPreview =
@@ -378,7 +415,7 @@ export function QuestionDetailPage() {
       const { imageUrl } = await questionService.uploadImage(file, {
         purpose: '评论',
         senderName: currentUser?.nickname ?? currentUser?.name ?? '用户A',
-        receiverName: question?.authorName ?? '用户B'
+        receiverName: question?.authorName ?? '用户B',
       });
       setCommentImage(imageUrl);
       toast.success('已添加图片');
@@ -435,7 +472,7 @@ export function QuestionDetailPage() {
     try {
       const created = await commentService.create(question.id, {
         content: newComment.trim(),
-        image: commentImage || undefined
+        image: commentImage || undefined,
       });
 
       // 处理 AI 审核结果
@@ -452,7 +489,7 @@ export function QuestionDetailPage() {
       try {
         await behaviorService.log('question_comment', {
           questionId: question.id,
-          hasImage: !!commentImage
+          hasImage: !!commentImage,
         });
       } catch {
         // 行为日志失败不影响主流程
@@ -460,11 +497,7 @@ export function QuestionDetailPage() {
 
       setNewComment('');
       setCommentImage(null);
-      toast.success(
-        created.status === 'approved'
-          ? '评论已发布'
-          : '评论已提交，等待审核'
-      );
+      toast.success(created.status === 'approved' ? '评论已发布' : '评论已提交，等待审核');
     } catch {
       toast.error('评论提交失败，请稍后重试');
     }
@@ -479,8 +512,7 @@ export function QuestionDetailPage() {
       setIsPlayingAudio(false);
       toast.success('暂停播放');
     } else {
-      el
-        .play()
+      el.play()
         .then(() => {
           setIsPlayingAudio(true);
           toast.success('开始播放');
@@ -543,10 +575,7 @@ export function QuestionDetailPage() {
   const isQuestionAuthor = currentUser?.id === question.authorId;
   const isTeacher = currentUser?.role === 'teacher';
   const hasAnyAnswer = (question.stats.answers ?? 0) > 0;
-  const canDelete =
-    isTeacher ||
-    (isQuestionAuthor &&
-      !hasAnyAnswer);
+  const canDelete = isTeacher || (isQuestionAuthor && !hasAnyAnswer);
   // 仅老师可以看到并使用“去回答”入口，防止前端 UI 与后端权限语义出现不一致
   const canAnswer = isTeacher;
 
@@ -561,8 +590,6 @@ export function QuestionDetailPage() {
       toast.error(error.response?.data?.message || '删除失败，请稍后重试');
     }
   };
-
-
 
   return (
     <motion.div
@@ -599,9 +626,7 @@ export function QuestionDetailPage() {
         <div className="bg-white rounded-3xl shadow-sm p-4 space-y-4">
           {/* 标签行 */}
           <div className="flex flex-wrap items-center gap-2">
-            {question.isGoodQuestion && (
-              <GoodQuestionBadge />
-            )}
+            {question.isGoodQuestion && <GoodQuestionBadge />}
             {question.tags?.map((tag, index) => (
               <Badge
                 key={index}
@@ -611,9 +636,7 @@ export function QuestionDetailPage() {
               </Badge>
             ))}
             {difficultyConfig && (
-              <Badge
-                className={`${difficultyConfig.className} border-none`}
-              >
+              <Badge className={`${difficultyConfig.className} border-none`}>
                 {difficultyConfig.label}
               </Badge>
             )}
@@ -630,14 +653,17 @@ export function QuestionDetailPage() {
               className="flex items-center gap-2 hover:text-gray-600"
             >
               <Avatar className="w-6 h-6">
-                <AvatarImage src={question.authorAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`} />
+                <AvatarImage
+                  src={
+                    question.authorAvatar ||
+                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`
+                  }
+                />
                 <AvatarFallback className="text-[10px] bg-gray-100">
                   {question.authorName[0]}
                 </AvatarFallback>
               </Avatar>
-              <span className="font-medium text-gray-600">
-                {question.authorName}
-              </span>
+              <span className="font-medium text-gray-600">{question.authorName}</span>
             </button>
             <span>•</span>
             <span>{formatDate(question.createdAt)}</span>
@@ -684,7 +710,10 @@ export function QuestionDetailPage() {
                     </div>
                     {/* Speed Pop-up Trigger */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(true); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSpeedMenu(true);
+                      }}
                       className="flex items-center gap-1 px-3 py-1.5 bg-white/60 hover:bg-white text-morandi-5 rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
                       data-testid="audio-speed-trigger"
                     >
@@ -698,11 +727,7 @@ export function QuestionDetailPage() {
                   </div>
                 </div>
                 <span className="text-xs font-bold text-morandi-5">00:45</span>
-                <audio
-                  ref={questionAudioRef}
-                  src={question.audioUrl}
-                  className="hidden"
-                />
+                <audio ref={questionAudioRef} src={question.audioUrl} className="hidden" />
               </div>
             </div>
           )}
@@ -720,18 +745,24 @@ export function QuestionDetailPage() {
               <button
                 data-testid="like-btn"
                 onClick={handleLike}
-                className={cn("flex items-center gap-1 transition-colors", liked ? "text-pink-500" : "text-gray-400")}
+                className={cn(
+                  'flex items-center gap-1 transition-colors',
+                  liked ? 'text-pink-500' : 'text-gray-400',
+                )}
               >
-                <Heart className={cn("w-6 h-6", liked && "fill-current")} />
+                <Heart className={cn('w-6 h-6', liked && 'fill-current')} />
                 <span className="text-xs">{question.stats.likes + (liked ? 1 : 0)}</span>
               </button>
 
               <button
                 data-testid="favorite-btn"
                 onClick={handleFavorite}
-                className={cn("flex items-center gap-1 transition-colors", favorited ? "text-amber-400" : "text-gray-400")}
+                className={cn(
+                  'flex items-center gap-1 transition-colors',
+                  favorited ? 'text-amber-400' : 'text-gray-400',
+                )}
               >
-                <Star className={cn("w-6 h-6", favorited && "fill-current")} />
+                <Star className={cn('w-6 h-6', favorited && 'fill-current')} />
                 <span className="text-xs">{question.stats.favorites + (favorited ? 1 : 0)}</span>
               </button>
 
@@ -769,122 +800,140 @@ export function QuestionDetailPage() {
           <div className="bg-white rounded-3xl shadow-sm p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-md font-bold text-gray-800">全部回答</h3>
-              <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-100">{answers.length}个回答</Badge>
+              <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-100">
+                {answers.length}个回答
+              </Badge>
             </div>
 
             <div className="space-y-6">
-              {answers.filter(a => a.status === 'approved').map((answer) => (
-                <div
-                  key={answer.id}
-                  ref={(el) => {
-                    if (el) {
-                      answerCardRefs.current[answer.id] = el;
-                    }
-                  }}
-                  data-answer-id={answer.id}
-                  className={cn(
-                    'space-y-3 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0 transition-colors',
-                    highlightAnswerId === answer.id
-                      ? 'bg-amber-50 border-amber-200'
-                      : ''
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-8 h-8 border border-gray-100">
-                      <AvatarImage src={answer.authorAvatar} />
-                      <AvatarFallback className="bg-gray-50 text-xs">{answer.authorName[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-700">{answer.authorName}</span>
-                        <span className="text-[10px] text-gray-300">{formatDate(answer.createdAt)}</span>
+              {answers
+                .filter((a) => a.status === 'approved')
+                .map((answer) => (
+                  <div
+                    key={answer.id}
+                    ref={(el) => {
+                      if (el) {
+                        answerCardRefs.current[answer.id] = el;
+                      }
+                    }}
+                    data-answer-id={answer.id}
+                    className={cn(
+                      'space-y-3 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0 transition-colors',
+                      highlightAnswerId === answer.id ? 'bg-amber-50 border-amber-200' : '',
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-8 h-8 border border-gray-100">
+                        <AvatarImage src={answer.authorAvatar} />
+                        <AvatarFallback className="bg-gray-50 text-xs">
+                          {answer.authorName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-gray-700">
+                            {answer.authorName}
+                          </span>
+                          <span className="text-[10px] text-gray-300">
+                            {formatDate(answer.createdAt)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {answer.images && answer.images.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {answer.images.map((image: string, index: number) => (
-                        <div
-                          key={index}
-                          className="relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:scale-95 transition"
-                          onClick={() => setSelectedImage(image)}
-                        >
-                          <ImageWithFallback src={image} alt="answer img" className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {answer.audioUrl && (
-                    <div className="bg-morandi-1 bg-opacity-20 rounded-2xl p-3 border border-morandi-1 border-opacity-30">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handlePlayAnswerAudio(answer.id)}
-                          className="w-10 h-10 bg-morandi-1 text-gray-700 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition"
-                        >
-                          {playingAnswerId === answer.id ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 ml-0.5 fill-white" />}
-                        </button>
-                        <div className="flex-1 h-1 bg-white bg-opacity-50 rounded-full overflow-hidden">
-                          <div className={`h-full bg-[#A2D2FF] transition-all duration-300 ${playingAnswerId === answer.id ? 'w-1/2' : 'w-0'}`} />
-                        </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(true); }}
-                          className="px-2 py-0.5 bg-white/60 hover:bg-white text-[#1D4ED8] rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
-                          data-testid={`answer-speed-trigger-${answer.id}`}
-                        >
-                          {playbackRate}x
-                        </button>
-                        <span className="text-[10px] font-bold text-[#1D4ED8]">01:20</span>
-                        <audio
-                          ref={(el) => {
-                            if (el) {
-                              answerAudioRefs.current[answer.id] = el;
-                              el.onended = () => {
-                                setPlayingAnswerId((prev) => (prev === answer.id ? null : prev));
-                              };
-                            }
-                          }}
-                          src={answer.audioUrl}
-                          className="hidden"
-                          data-testid={`answer-audio-${answer.id}`}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {answer.audioUrls && answer.audioUrls.length > 1 && (
-                    <div className="mt-2 space-y-1">
-                      {answer.audioUrls.map((url, idx) => {
-                        if (idx === 0) return null;
-                        return (
-                          <div key={idx} className="flex items-center gap-2 text-[11px] text-gray-500">
-                            <span className="px-2 py-0.5 bg-gray-100 rounded-full">
-                              补充录音 {idx + 1}
-                            </span>
-                            <audio
-                              controls
-                              src={url}
-                              className="h-7 flex-1"
+                    {answer.images && answer.images.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {answer.images.map((image: string, index: number) => (
+                          <div
+                            key={index}
+                            className="relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:scale-95 transition"
+                            onClick={() => setSelectedImage(image)}
+                          >
+                            <ImageWithFallback
+                              src={image}
+                              alt="answer img"
+                              className="w-full h-full object-cover"
                             />
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
+                    )}
+
+                    {answer.audioUrl && (
+                      <div className="bg-morandi-1 bg-opacity-20 rounded-2xl p-3 border border-morandi-1 border-opacity-30">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handlePlayAnswerAudio(answer.id)}
+                            className="w-10 h-10 bg-morandi-1 text-gray-700 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition"
+                          >
+                            {playingAnswerId === answer.id ? (
+                              <Pause className="w-4 h-4 fill-white" />
+                            ) : (
+                              <Play className="w-4 h-4 ml-0.5 fill-white" />
+                            )}
+                          </button>
+                          <div className="flex-1 h-1 bg-white bg-opacity-50 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full bg-[#A2D2FF] transition-all duration-300 ${playingAnswerId === answer.id ? 'w-1/2' : 'w-0'}`}
+                            />
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowSpeedMenu(true);
+                            }}
+                            className="px-2 py-0.5 bg-white/60 hover:bg-white text-[#1D4ED8] rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
+                            data-testid={`answer-speed-trigger-${answer.id}`}
+                          >
+                            {playbackRate}x
+                          </button>
+                          <span className="text-[10px] font-bold text-[#1D4ED8]">01:20</span>
+                          <audio
+                            ref={(el) => {
+                              if (el) {
+                                answerAudioRefs.current[answer.id] = el;
+                                el.onended = () => {
+                                  setPlayingAnswerId((prev) => (prev === answer.id ? null : prev));
+                                };
+                              }
+                            }}
+                            src={answer.audioUrl}
+                            className="hidden"
+                            data-testid={`answer-audio-${answer.id}`}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {answer.audioUrls && answer.audioUrls.length > 1 && (
+                      <div className="mt-2 space-y-1">
+                        {answer.audioUrls.map((url, idx) => {
+                          if (idx === 0) return null;
+                          return (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 text-[11px] text-gray-500"
+                            >
+                              <span className="px-2 py-0.5 bg-gray-100 rounded-full">
+                                补充录音 {idx + 1}
+                              </span>
+                              <audio controls src={url} className="h-7 flex-1" />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="text-gray-700 text-sm leading-relaxed">{answer.content}</div>
+
+                    <div className="flex items-center gap-4 pt-1">
+                      <button className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold active:scale-75 transition">
+                        <Heart className="w-3.5 h-3.5" /> {answer.likes}
+                      </button>
+                      <button className="text-[10px] text-blue-400 font-bold">评论</button>
                     </div>
-                  )}
-
-                  <div className="text-gray-700 text-sm leading-relaxed">
-                    {answer.content}
                   </div>
-
-                  <div className="flex items-center gap-4 pt-1">
-                    <button className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold active:scale-75 transition">
-                      <Heart className="w-3.5 h-3.5" /> {answer.likes}
-                    </button>
-                    <button className="text-[10px] text-blue-400 font-bold">评论</button>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}
@@ -896,31 +945,47 @@ export function QuestionDetailPage() {
 
             {/* 评论列表 */}
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-              {comments.filter(c => c.status === 'approved').length === 0 ? (
+              {comments.filter((c) => c.status === 'approved').length === 0 ? (
                 <div className="text-center py-10">
                   <MessageCircle className="w-12 h-12 text-gray-100 mx-auto mb-2" />
                   <p className="text-xs text-gray-300">暂无评论，来聊聊吧</p>
                 </div>
               ) : (
                 comments
-                  .filter(c => c.status === 'approved')
+                  .filter((c) => c.status === 'approved')
                   .map((comment) => (
-                    <div key={comment.id} className="flex gap-3 p-3 bg-gray-50 bg-opacity-50 rounded-2xl border border-gray-100">
+                    <div
+                      key={comment.id}
+                      className="flex gap-3 p-3 bg-gray-50 bg-opacity-50 rounded-2xl border border-gray-100"
+                    >
                       <Avatar className="w-8 h-8 flex-shrink-0">
                         <AvatarImage src={comment.authorAvatar} />
-                        <AvatarFallback className="text-[10px]">{comment.authorName[0]}</AvatarFallback>
+                        <AvatarFallback className="text-[10px]">
+                          {comment.authorName[0]}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-gray-600">{comment.authorName}</span>
-                          <span className="text-[10px] text-gray-300">{formatDate(comment.createdAt)}</span>
+                          <span className="text-xs font-bold text-gray-600">
+                            {comment.authorName}
+                          </span>
+                          <span className="text-[10px] text-gray-300">
+                            {formatDate(comment.createdAt)}
+                          </span>
                         </div>
                         <p className="text-xs text-gray-700 leading-relaxed font-medium">
                           {comment.content}
                         </p>
                         {comment.image && (
-                          <div className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 mt-2 active:scale-95 transition cursor-pointer" onClick={() => setSelectedImage(comment.image!)}>
-                            <ImageWithFallback src={comment.image} alt="comment img" className="w-full h-full object-cover" />
+                          <div
+                            className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 mt-2 active:scale-95 transition cursor-pointer"
+                            onClick={() => setSelectedImage(comment.image!)}
+                          >
+                            <ImageWithFallback
+                              src={comment.image}
+                              alt="comment img"
+                              className="w-full h-full object-cover"
+                            />
                           </div>
                         )}
                       </div>
@@ -934,7 +999,11 @@ export function QuestionDetailPage() {
               <div className="space-y-2 pt-2 border-t border-gray-50">
                 {commentImage && (
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-morandi-5">
-                    <ImageWithFallback src={commentImage} alt="preview" className="w-full h-full object-cover" />
+                    <ImageWithFallback
+                      src={commentImage}
+                      alt="preview"
+                      className="w-full h-full object-cover"
+                    />
                     <button
                       onClick={() => setCommentImage(null)}
                       className="absolute top-0.5 right-0.5 bg-black bg-opacity-50 text-white rounded-full p-0.5 active:scale-75 transition"
@@ -997,10 +1066,10 @@ export function QuestionDetailPage() {
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
             />
             <motion.div
-              initial={{ y: "100%" }}
+              initial={{ y: '100%' }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 pb-10 z-[120] shadow-2xl"
             >
               <div className="w-12 h-1.5 bg-gray-100 rounded-full mx-auto mb-6" />
@@ -1009,12 +1078,16 @@ export function QuestionDetailPage() {
                 {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
                   <button
                     key={rate}
-                    onClick={() => { setPlaybackRate(rate); setShowSpeedMenu(false); toast.success(`倍速已切换为 ${rate}x`); }}
+                    onClick={() => {
+                      setPlaybackRate(rate);
+                      setShowSpeedMenu(false);
+                      toast.success(`倍速已切换为 ${rate}x`);
+                    }}
                     className={cn(
-                      "flex items-center justify-center h-14 rounded-2xl text-base font-bold transition-all",
+                      'flex items-center justify-center h-14 rounded-2xl text-base font-bold transition-all',
                       playbackRate === rate
-                        ? "bg-blue-600 text-white shadow-lg scale-[1.02]"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 active:scale-95"
+                        ? 'bg-blue-600 text-white shadow-lg scale-[1.02]'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 active:scale-95',
                     )}
                   >
                     {rate}x {rate === 1.0 && '(正常)'}

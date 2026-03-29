@@ -14,6 +14,7 @@
 | `useQuestions.ts` | 问题列表查询（wrap TanStack Query） |
 | `useAdminWhitelist.ts` | 管理员白名单全量 state + API 逻辑 |
 | `useQuestionDetail.ts` | 问题详情、答案、评论、点赞、音频播放逻辑 |
+| `useAdminDimension.ts` | 题目维度（method）配置 state + CRUD handler |
 
 ## 质量红线
 
