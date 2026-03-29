@@ -254,7 +254,10 @@ api.interceptors.response.use(
         switch (status) {
             case 401:
                 localStorage.removeItem('token');
-                window.location.href = '/login';
+                // 仅在不是 /login 页时才重定向，避免已在登录页时触发无限全页重载
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
                 break;
             case 403:
                 toast.error('无权限访问');
