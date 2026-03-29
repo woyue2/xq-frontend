@@ -21,7 +21,7 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,6 +42,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { parentService } from '@/services/parentService';
 import { authService } from '@/services/api';
+import { ROUTES } from '@/config/app-constants';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -73,6 +74,17 @@ export function LoginPage() {
   const [childSchool, setChildSchool] = useState('');
   const [childCountdown, setChildCountdown] = useState(0);
 
+  // 倒计时 timer refs — 用于组件卸载时清理，防止内存泄漏
+  const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const childTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current)      clearInterval(timerRef.current);
+      if (childTimerRef.current) clearInterval(childTimerRef.current);
+    };
+  }, []);
+
   // 判断是否为学生邀请码
   const isStudentInvite =
     !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
@@ -88,10 +100,12 @@ export function LoginPage() {
     }
 
     setCountdown(60);
-    const timer = setInterval(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          clearInterval(timerRef.current!);
+          timerRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -107,29 +121,38 @@ export function LoginPage() {
     } catch {
       // 统一错误已经在拦截器中处理，这里只停止倒计时
       setCountdown(0);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     }
   };
 
-  const handleGetChildCode = () => {
+  const handleGetChildCode = async () => {
     if (!childPhone || childPhone.length !== 11) {
       toast.error('请输入正确的孩子手机号');
       return;
     }
 
     setChildCountdown(60);
-    const timer = setInterval(() => {
+    if (childTimerRef.current) clearInterval(childTimerRef.current);
+    childTimerRef.current = setInterval(() => {
       setChildCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          clearInterval(childTimerRef.current!);
+          childTimerRef.current = null;
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    // 调用发送验证码接口
-    parentService.sendBindSms(childPhone);
-    toast.success('验证码已发送');
+    try {
+      await parentService.sendBindSms(childPhone);
+      toast.success('验证码已发送');
+    } catch {
+      // 发送失败，停止倒计时并提示用户
+      setChildCountdown(0);
+      if (childTimerRef.current) { clearInterval(childTimerRef.current); childTimerRef.current = null; }
+      toast.error('验证码发送失败，请稍后重试');
+    }
   };
 
   const handleSubmit = async () => {
@@ -223,7 +246,7 @@ export function LoginPage() {
           const { token, user } = response.data.data;
           login(user, token);
           toast.success('登录成功');
-          navigate('/');
+          navigate(ROUTES.home);
           return;
         }
 
@@ -234,7 +257,7 @@ export function LoginPage() {
         const { token, user } = response.data.data;
         login(user, token);
         toast.success('登录成功');
-        navigate('/');
+        navigate(ROUTES.home);
         return;
       }
 
@@ -277,7 +300,7 @@ export function LoginPage() {
       }
 
       toast.success('注册并登录成功');
-      navigate('/');
+      navigate(ROUTES.home);
     } catch {
       // 具体错误提示由 axios 拦截器处理，这里无需重复处理
     }
