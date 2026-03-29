@@ -192,7 +192,13 @@ export function MainLayout() {
     );
 }
 
-function NavItem({ icon: Icon, label, active, onClick, ...props }: any) {
+interface NavItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    icon: React.ElementType;
+    label: string;
+    active?: boolean;
+}
+
+function NavItem({ icon: Icon, label, active, onClick, ...props }: NavItemProps) {
     return (
         <button
             onClick={onClick}

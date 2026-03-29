@@ -54,14 +54,14 @@ export function QuestionCard({
     const baseLikes =
         typeof question.stats?.likes === 'number'
             ? question.stats.likes
-            : typeof (question as any).likeCount === 'number'
-                ? (question as any).likeCount
+            : typeof question.likeCount === 'number'
+                ? question.likeCount
                 : 0;
     const baseFavorites =
         typeof question.stats?.favorites === 'number'
             ? question.stats.favorites
-            : typeof (question as any).collectionCount === 'number'
-                ? (question as any).collectionCount
+            : typeof question.collectionCount === 'number'
+                ? question.collectionCount
                 : 0;
     const baseComments =
         typeof question.stats?.comments === 'number'
@@ -75,9 +75,12 @@ export function QuestionCard({
         const date = new Date(dateString);
         const now = new Date();
         const diff = now.getTime() - date.getTime();
-        if (diff < 60000) return '刚刚';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+        const MILLIS_PER_MINUTE = 60_000;
+        const MILLIS_PER_HOUR   = 3_600_000;
+        const MILLIS_PER_DAY    = 86_400_000;
+        if (diff < MILLIS_PER_MINUTE) return '刚刚';
+        if (diff < MILLIS_PER_HOUR)   return `${Math.floor(diff / MILLIS_PER_MINUTE)}分钟前`;
+        if (diff < MILLIS_PER_DAY)    return `${Math.floor(diff / MILLIS_PER_HOUR)}小时前`;
         return date.toLocaleDateString();
     };
 
