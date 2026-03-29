@@ -28,3 +28,19 @@
 - `middlewares/CLAUDE.md`：补充 `logger.middleware.ts` / `membership.middleware.ts` 两个缺失条目
 - `src/services/CLAUDE.md`：补充 `subjectConfig.service.ts` 条目
 - TODO 记录：`auth.service.ts`（1019行）待拆分、routes 层 prisma 直调待迁移、`FIXED_CODE` 硬编码安全风险
+
+## 变动  mock-data 顶层 import 隔离 + USE_MOCK 条件初始化
+### 原因
+生产构建时 userLikes/userFavorites mock 状态不应混入真实 liked/favorited 初始值；LoginPage 邀请码前端校验不应在生产环境拦截真实注册流程。
+### 影响
+- `useQuestionDetail.ts`：liked/favorited 初始值改为 `USE_MOCK ? mockSet.has(id) : false`
+- `QuestionDetailPage.tsx`：同上；L3 头部修正，删除未实际消费的 useQuestionDetail 依赖声明，加 [TODO] 标注待专项 PR
+- `LoginPage.tsx`：validInviteCodes 校验加 `USE_MOCK &&` 条件，生产由后端校验
+
+## 变动  提取 useAdminDimension hook
+### 原因
+AdminManagementPage 有 24 个 useState，维度管理 4 个 state + 4 个 handler 可独立为 hook，与 useAdminWhitelist 对称。
+### 影响
+- 新增 `src/hooks/useAdminDimension.ts`（115行，含完整 L3 契约）
+- `AdminManagementPage.tsx`：useState 从 24 降至 20，行数 1126→1059
+- `hooks/CLAUDE.md`：新增 useAdminDimension.ts 条目
