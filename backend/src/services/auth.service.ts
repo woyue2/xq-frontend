@@ -1,3 +1,20 @@
+/**
+ * [POS] backend/src/services/auth.service.ts
+ *   所属：服务层 | 角色：认证业务逻辑（注册、登录、刷新 token、登出）
+ *
+ * [INPUT]
+ *   - ../errors/AppError → AppError
+ *   - ../config/database → prisma
+ *   - ../utils/jwt       → signAccessToken / signRefreshToken / JwtPayloadBase / verifyToken
+ *   - ../config/env      → env（DEV_FIXED_CODE）
+ *
+ * [OUTPUT]
+ *   - AuthService（class）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. backend/src/services/CLAUDE.md 的文件清单
+ */
 import { AppError } from '../errors/AppError';
 import { prisma } from '../config/database';
 import {
@@ -8,6 +25,7 @@ import {
 } from '../utils/jwt';
 import bcrypt from 'bcryptjs';
 import { coreLogger } from '../middlewares/logger.middleware';
+import { env } from '../config/env';
 
 type SendCodeType = 'login' | 'register' | 'bind_child' | 'reset_password';
 
@@ -21,7 +39,7 @@ interface SendCodeResult {
 const lastSendMap = new Map<string, number>();
 const CODE_EXPIRE_SECONDS = 300;
 const SEND_COOLDOWN_SECONDS = 60;
-const FIXED_CODE = '123456'; // 方便联调与测试环境
+const FIXED_CODE = env.DEV_FIXED_CODE ?? ''; // 生产环境为空，开发环境通过 .env 配置
 
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();

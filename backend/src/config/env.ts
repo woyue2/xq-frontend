@@ -1,3 +1,17 @@
+/**
+ * [POS] backend/src/config/env.ts
+ *   所属：配置层 | 角色：环境变量校验与导出（zod），启动时 fail-fast
+ *
+ * [INPUT]
+ *   - dotenv  → 加载 .env 文件
+ *   - zod     → 环境变量 schema 校验
+ *
+ * [OUTPUT]
+ *   - env（校验后的环境变量对象）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ */
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -22,7 +36,15 @@ const envSchema = z.object({
   // 本地音频文件基础目录（可配置为 /data/audio 或相对路径，如 static/audio）
   AUDIO_BASE_DIR: z.string().default('static/audio'),
   OSS_UPLOAD_BASE_URL: z.string().url().optional(),
-  OSS_UPLOAD_TOKEN: z.string().optional()
+  OSS_UPLOAD_TOKEN: z.string().optional(),
+  // 开发/测试环境固定验证码（生产环境必须为空，CI 强制断言）
+  DEV_FIXED_CODE: z.string().optional().refine(
+    (val) => {
+      if (process.env.NODE_ENV === 'production' && val) return false;
+      return true;
+    },
+    { message: 'DEV_FIXED_CODE must not be set in production' }
+  )
 });
 
 export const env = envSchema.parse(process.env);
