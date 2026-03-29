@@ -1,7 +1,19 @@
 /**
- * interaction.service.ts — 点赞、收藏、行为埋点
+ * [POS] src/services/interaction.service.ts
+ *   所属：services 层 | 角色：用户互动 + 行为埋点
+ *   兄弟：http.ts（依赖）/ question.service.ts（同问题域）
  *
- * 职责：interactionService + behaviorService
+ * [INPUT]
+ *   - ./http       → api
+ *   - @/types/api  → ApiResponse / LikePayload / LikeResponse / FavoritePayload / FavoriteResponse
+ *
+ * [OUTPUT]
+ *   - interactionService → like / favorite
+ *   - behaviorService    → log / batchLog
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/services/CLAUDE.md 的文件清单
  */
 import { api } from './http';
 import type {

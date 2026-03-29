@@ -1,11 +1,25 @@
 /**
- * useAdminWhitelist.ts — 管理员白名单状态 & API 逻辑
+ * [POS] src/hooks/useAdminWhitelist.ts
+ *   所属：hooks 层 | 角色：管理员白名单全量 state + API 交互逻辑
+ *   兄弟：useQuestionDetail.ts（同 hooks 层）
  *
- * 从 AdminManagementPage 抽取，包含：
- *   - 白名单列表 state（含过滤器）
- *   - loadWhitelistFromApi
- *   - handleAddUser / handleDeleteUser / confirmDelete
- *   - handleManageExpiry / handleExpirySubmit / confirmExpiryChange
+ * [INPUT]
+ *   - react                  → useState / useEffect
+ *   - react-router-dom       → useNavigate
+ *   - sonner                 → toast
+ *   - @/services/api         → adminService
+ *   - @/stores/useAuthStore  → useAuthStore
+ *   - @/types                → UserRole
+ *   - @/types/api            → WhitelistUser / AddWhitelistPayload
+ *
+ * [OUTPUT]
+ *   - WhitelistUserItem（interface，re-export）
+ *   - needsExpiryForRole / isExpiredDate / isExpiringSoonDate（导出工具函数）
+ *   - useAdminWhitelist（hook）→ 白名单 state、过滤列表、统计、全部 dialog handler
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/hooks/CLAUDE.md 的文件清单
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

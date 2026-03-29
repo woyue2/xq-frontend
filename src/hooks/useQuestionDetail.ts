@@ -1,13 +1,26 @@
 /**
- * useQuestionDetail.ts — 问题详情页核心 state & 交互逻辑
+ * [POS] src/hooks/useQuestionDetail.ts
+ *   所属：hooks 层 | 角色：问题详情页全量交互 state + 业务逻辑
+ *   兄弟：useAdminWhitelist.ts（同 hooks 层）
  *
- * 从 QuestionDetailPage 抽取，包含：
- *   - 问题加载（questionService.getQuestionById）
- *   - 答案加载（answerService.listByQuestion）
- *   - 评论加载 + 提交（commentService）
- *   - 点赞 / 收藏（interactionService + behaviorService）
- *   - 评论图片上传（questionService.uploadImage）
- *   - 音频播放控制
+ * [INPUT]
+ *   - react                  → useState / useEffect / useRef
+ *   - react-router-dom       → useNavigate
+ *   - sonner                 → toast
+ *   - @/lib/mock-data        → userLikes / userFavorites
+ *   - @/services/api         → interactionService / behaviorService / questionService
+ *                              answerService / commentService
+ *   - @/stores/useAuthStore  → useAuthStore
+ *   - @/hooks/useQuestions   → useQuestions（列表缓存读取）
+ *   - @/lib/mock-env         → USE_MOCK
+ *   - @/types                → Comment / Answer
+ *
+ * [OUTPUT]
+ *   - useQuestionDetail(questionId: string) → 问题/答案/评论 state、点赞/收藏/音频/评论 handler
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/hooks/CLAUDE.md 的文件清单
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';

@@ -1,7 +1,21 @@
 /**
- * auth.service.ts — 认证 & 用户基础服务
+ * [POS] src/services/auth.service.ts
+ *   所属：services 层 | 角色：认证与用户基础操作
+ *   兄弟：http.ts（依赖 api 实例）
  *
- * 职责：登录、发验证码、注册、修改密码、更新用户信息
+ * [INPUT]
+ *   - ./http       → api
+ *   - @/types/api  → LoginPayload / LoginResponse / SendCodePayload / SendCodeResponse
+ *                    PasswordLoginPayload / RegisterPayload / UpdateProfilePayload
+ *   - @/types      → User
+ *
+ * [OUTPUT]
+ *   - authService  → sendCode / login / passwordLogin / register / setPassword
+ *   - userService  → updateProfile
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/services/CLAUDE.md 的文件清单
  */
 import { api } from './http';
 import type {

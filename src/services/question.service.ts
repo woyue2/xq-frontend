@@ -1,7 +1,22 @@
 /**
- * question.service.ts — 问题 CRUD + 图片/音频上传
+ * [POS] src/services/question.service.ts
+ *   所属：services 层 | 角色：问题域 CRUD + 媒体上传
+ *   兄弟：http.ts（依赖）/ admin.service.ts（审核端用答案/评论）
  *
- * 职责：questionService（含 uploadImage / uploadAudio）
+ * [INPUT]
+ *   - ./http              → api
+ *   - @/lib/image-compress → compressImage
+ *   - @/lib/mock-env      → USE_MOCK
+ *   - @/types/api         → ApiResponse / PaginatedResponse / CreateQuestionPayload / QuestionListParams
+ *   - @/types             → Question / SubjectType / DifficultyLevel / AuditStatus
+ *
+ * [OUTPUT]
+ *   - questionService  → getQuestions / getQuestionById / createQuestion
+ *                        setUnderstandingStatus / delete / uploadAudio / uploadImage
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/services/CLAUDE.md 的文件清单
  */
 import { api } from './http';
 import { compressImage } from '@/lib/image-compress';

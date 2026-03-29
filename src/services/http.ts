@@ -1,11 +1,21 @@
 /**
- * http.ts — Axios 实例 + 拦截器
+ * [POS] src/services/http.ts
+ *   所属：services 层 | 角色：HTTP 基础设施（axios 实例 + 拦截器中枢）
+ *   兄弟：所有 *.service.ts 均依赖本文件的 `api` 实例
  *
- * 职责：
- *   - 创建并导出公共 axios 实例 `api`
- *   - Token 注入（三层兜底：Zustand Store → localStorage.token → auth-storage）
- *   - Mock 拦截器（仅在 test 模式下启用）
- *   - 统一响应错误处理
+ * [INPUT]
+ *   - axios                  → axios.create
+ *   - sonner                 → toast（错误提示）
+ *   - @/lib/mock-data        → mockQuestions / mockUsers / mockChildren（Mock 拦截器专用）
+ *   - @/stores/useAuthStore  → useAuthStore.getState()（Token 注入）
+ *   - @/lib/mock-env         → USE_MOCK 标志
+ *
+ * [OUTPUT]
+ *   - api  → 公共 axios 实例（其他 service 文件唯一依赖入口）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/services/CLAUDE.md 的文件清单
  */
 import axios from 'axios';
 import { toast } from 'sonner';

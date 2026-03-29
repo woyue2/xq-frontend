@@ -1,7 +1,19 @@
 /**
- * notification.service.ts — 通知 & 应用配置
+ * [POS] src/services/notification.service.ts
+ *   所属：services 层 | 角色：消息通知 + 题目维度配置读取
+ *   兄弟：http.ts（依赖）/ admin.service.ts（维度写操作在此）
  *
- * 职责：notificationService + configService
+ * [INPUT]
+ *   - ./http       → api
+ *   - @/types/api  → ApiResponse / Notification / QuestionDimensionDto
+ *
+ * [OUTPUT]
+ *   - notificationService → getNotifications / markAsRead / getUnreadCount
+ *   - configService       → getQuestionDimensions（只读，写操作在 adminService）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/services/CLAUDE.md 的文件清单
  */
 import { api } from './http';
 import type {

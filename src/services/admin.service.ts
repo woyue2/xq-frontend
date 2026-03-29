@@ -1,13 +1,32 @@
 /**
- * admin.service.ts — 管理员 + 审核 + 答案 + 评论 + 个人中心 + 课时
+ * [POS] src/services/admin.service.ts
+ *   所属：services 层 | 角色：管理员 + 审核 + 答案 + 评论 + 个人中心 + 课时
+ *   兄弟：http.ts（依赖）/ notification.service.ts（维度读操作在此）
  *
- * 职责：
- *   adminService   — 白名单管理、题目维度管理
- *   auditService   — 待审内容查询 + 审核操作
- *   answerService  — 答案 CRUD
- *   commentService — 评论 CRUD
- *   profileService — 我的点赞/收藏/答题历史
- *   classHoursService — 课时批量操作
+ * [INPUT]
+ *   - ./http       → api
+ *   - @/types/api  → ApiResponse / PaginatedResponse / WhitelistUser / WhitelistParams
+ *                    AddWhitelistPayload / MyLikedQuestion / MyFavoritedQuestion / MyAnswerSummary
+ *                    QuestionDimensionDto / QuestionDimensionOptionDto / BatchUpdateClassHoursResponse
+ *                    PendingQuestion / PendingComment / AuditStatistics / ApproveQuestionResponse
+ *                    RejectQuestionResponse / ApproveCommentResponse / BanCommentResponse
+ *                    TogglePinQuestionResponse
+ *   - @/types      → Answer / Comment
+ *
+ * [OUTPUT]
+ *   - adminService       → getWhitelist / addToWhitelist / removeFromWhitelist / updateValidity
+ *                          getQuestionDimensions / updateQuestionDimension
+ *                          createQuestionDimensionOption / updateQuestionDimensionOption
+ *   - auditService       → getPendingQuestions / getPendingComments / approveQuestion
+ *                          rejectQuestion / approveComment / banComment / togglePinQuestion
+ *   - answerService      → create / listByQuestion
+ *   - commentService     → create / listByQuestion
+ *   - profileService     → getMyLikes / getMyFavorites / getMyAnswers
+ *   - classHoursService  → batchUpdate
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化）
+ *   2. src/services/CLAUDE.md 的文件清单
  */
 import { api } from './http';
 import type {
