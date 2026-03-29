@@ -10,7 +10,7 @@
 
 | 文件 | 职责 |
 |---|---|
-| `auth.middleware.ts` | JWT 验证 + 角色注入 |
+| `auth.middleware.ts` | JWT 验证 + 角色注入（支持 optionalAuth 可选鉴权） |
 | `error.middleware.ts` | 统一错误格式响应 |
 | `logger.middleware.ts` | 请求日志（pino-http）+ coreLogger 导出 |
 | `membership.middleware.ts` | 会员有效期校验中间件 |
