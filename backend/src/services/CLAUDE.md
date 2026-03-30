@@ -27,6 +27,7 @@
 | `parent.service.ts` | 家长端：孩子绑定、学习报告生成 |
 | `audit-callback.service.ts` | AI 审核回调写回（question/answer/comment 状态机） |
 | `test-token.service.ts` | 测试环境令牌生成（仅 Playwright / E2E，非生产） |
+| `subject.service.ts` | 科目/考点业务逻辑（增删改查） |
 
 ## 规则
 

@@ -27,6 +27,7 @@
 | `admin-class-hours.routes.ts` | 管理员：课时管理 |
 | `admin-question-dimensions.routes.ts` | 管理员：题目维度管理 |
 | `internal.routes.ts` | 内部接口（Playwright 测试用，非生产） |
+| `admin-subjects.routes.ts` | 管理员：科目/考点管理 |
 
 ## 规则
 
