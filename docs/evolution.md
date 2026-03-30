@@ -3,7 +3,17 @@
 > 最新记录在最前。
 
 ---
-# 2026-03-30
+# 2026-03-31
+
+## 变动  修复点击题目卡片崩溃 + 详情页 setPlayingAnswerId 未定义
+### 原因
+QuestionCard 和 HomePage 缺少 `ROUTES` import，运行时 `ROUTES` 为 `undefined`，点击卡片时 `ROUTES.question(id)` 抛 TypeError，React ErrorBoundary 捕获后全页面崩溃。同时 `useQuestionDetail` 未 return `setPlayingAnswerId`，详情页音频结束回调报引用错误。
+### 影响
+- `QuestionCard.tsx`：补 `ROUTES` import
+- `HomePage.tsx`：补 `ROUTES` import
+- `useQuestionDetail.ts`：return 块加 `setPlayingAnswerId`
+- `QuestionDetailPage.tsx`：解构加 `setPlayingAnswerId`
+- 后端 `GET /api/questions/:id` 已改为 `optionalAuthMiddleware`，重启后端生效
 
 ## 变动  mock-data 顶层 import 隔离 + USE_MOCK 条件初始化
 ### 原因
