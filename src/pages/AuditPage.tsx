@@ -16,7 +16,9 @@
  *   2. src/pages/CLAUDE.md 的文件清单
  */
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { ChevronLeft, Check, X, Star, AlertCircle, MessageSquare, ThumbsUp } from 'lucide-react';
+import { auditService } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +58,7 @@ export const AuditPage = () => {
     rejectReason,
     setRejectReason,
     scoreDialogOpen,
+    setScoreDialogOpen,
     currentScore,
     setCurrentScore,
     selectedImage,
@@ -67,228 +70,6 @@ export const AuditPage = () => {
     confirmScore,
     toggleGoodQuestion,
   } = useAudit();
-
-  // 基础权限校验：仅允许老师访问审核页面
-  useEffect(() => {
-    if (!user) {
-      toast.error('请先登录');
-      navigate(ROUTES.login);
-      return;
-    }
-
-    if (user.role !== 'teacher') {
-      toast.error('只有老师可以访问审核页面');
-      navigate(ROUTES.profile);
-    }
-  }, [user, navigate]);
-
-  useEffect(() => {
-    const isTestEnv =
-      typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'test';
-
-    const loadQuestions = async () => {
-      setLoadingQuestions(true);
-      try {
-        const res = await auditService.getPendingQuestions({ page: 1, pageSize: 20 });
-        const items = res.list.map(
-          (item) =>
-            ({
-              id: item.id,
-              title: item.title,
-              content: item.content,
-              authorId: item.authorId,
-              authorName: item.authorName,
-              createdAt: item.createdAt,
-              status: item.status as AuditStatus,
-              stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
-              subject: 'math',
-              difficulty: 'medium',
-              aiResult: item.aiResult ?? undefined,
-            }) as Question,
-        );
-        setQuestions(items);
-      } catch (error) {
-        if (isTestEnv) {
-          const demoQuestions: Question[] = [
-            {
-              id: 'audit-demo-q1',
-              title: '待审核示例问题',
-              content: '这是一个用于前端审核流程验证的示例问题内容。',
-              authorId: 'stu-demo-1',
-              authorName: '学生示例',
-              createdAt: new Date().toISOString(),
-              status: 'pending',
-              stats: { likes: 0, favorites: 0, comments: 0, answers: 0 },
-              subject: 'math',
-              difficulty: 'medium',
-            } as Question,
-          ];
-          setQuestions(demoQuestions);
-        } else {
-          // 静默失败，保留空态，由老师通过系统配置中心/日志排查
-          setQuestions([]);
-        }
-      } finally {
-        setLoadingQuestions(false);
-      }
-    };
-
-    const loadComments = async () => {
-      setLoadingComments(true);
-      try {
-        const res = await auditService.getPendingComments({ page: 1, pageSize: 20 });
-        const items = res.list.map(
-          (item) =>
-            ({
-              id: item.id,
-              questionId: item.questionId,
-              questionTitle: item.questionTitle,
-              content: item.content,
-              image: item.image,
-              authorId: item.authorId,
-              authorName: item.authorName,
-              status: item.status as AuditStatus,
-              aiResult: item.aiResult ?? undefined,
-              createdAt: item.createdAt,
-            }) as Comment,
-        );
-        setComments(items);
-      } catch {
-        setComments([]);
-      } finally {
-        setLoadingComments(false);
-      }
-    };
-
-    if (activeTab === 'questions') {
-      void loadQuestions();
-    } else {
-      void loadComments();
-    }
-  }, [activeTab]);
-
-  const filteredQuestions = questions.filter((q) => q.status === filter);
-  const filteredComments = comments.filter((c) => c.status === filter);
-
-  const pendingQuestionsCount = questions.filter((q) => q.status === 'pending').length;
-  const pendingCommentsCount = comments.filter((c) => c.status === 'pending').length;
-
-  const handleAudit = (
-    id: string,
-    type: 'question' | 'comment',
-    status: AuditStatus,
-    extraData?: any,
-  ) => {
-    if (type === 'question') {
-      setQuestions((prev) =>
-        prev.map((q) => {
-          if (q.id === id) {
-            return { ...q, status, ...extraData };
-          }
-          return q;
-        }),
-      );
-    } else {
-      setComments((prev) =>
-        prev.map((c) => {
-          if (c.id === id) {
-            return { ...c, status, ...extraData };
-          }
-          return c;
-        }),
-      );
-    }
-
-    const statusText =
-      status === 'approved'
-        ? aiTextConfig.auditMessages.statusApproved
-        : status === 'rejected'
-          ? aiTextConfig.auditMessages.statusRejected
-          : aiTextConfig.auditMessages.statusBanned;
-    toast.success(`${aiTextConfig.auditMessages.auditComplete}：${statusText}`);
-  };
-
-  const openRejectDialog = (id: string, type: 'question' | 'comment') => {
-    setCurrentAuditItem({ id, type });
-    setRejectReason('');
-    setRejectDialogOpen(true);
-  };
-
-  const confirmReject = () => {
-    if (!currentAuditItem) return;
-    if (!rejectReason.trim()) {
-      toast.error('请填写驳回/封禁原因');
-      return;
-    }
-
-    if (currentAuditItem.type === 'question') {
-      auditService
-        .rejectQuestion(currentAuditItem.id, rejectReason)
-        .then(() => {
-          handleAudit(currentAuditItem.id, 'question', 'rejected', { aiResult: rejectReason });
-          setRejectDialogOpen(false);
-        })
-        .catch(() => {
-          toast.error('驳回失败，请稍后重试');
-        });
-    } else {
-      auditService
-        .banComment(currentAuditItem.id, rejectReason)
-        .then(() => {
-          handleAudit(currentAuditItem.id, 'comment', 'banned', { aiResult: rejectReason });
-          setRejectDialogOpen(false);
-        })
-        .catch(() => {
-          toast.error('封禁失败，请稍后重试');
-        });
-    }
-  };
-
-  const openScoreDialog = (id: string) => {
-    setCurrentAuditItem({ id, type: 'question' });
-    const q = questions.find((item) => item.id === id);
-    setCurrentScore(q?.score || 0);
-    setScoreDialogOpen(true);
-  };
-
-  const confirmScore = () => {
-    if (!currentAuditItem) return;
-    auditService
-      .approveQuestion(currentAuditItem.id, { score: currentScore })
-      .then(() => {
-        setQuestions((prev) =>
-          prev.map((q) => {
-            if (q.id === currentAuditItem.id) {
-              return { ...q, score: currentScore, status: 'approved' as AuditStatus };
-            }
-            return q;
-          }),
-        );
-        setScoreDialogOpen(false);
-        toast.success('评分已更新');
-      })
-      .catch(() => {
-        toast.error('评分保存失败，请稍后重试');
-      });
-  };
-
-  const toggleGoodQuestion = (id: string, checked: boolean) => {
-    auditService
-      .approveQuestion(id, { isGoodQuestion: checked })
-      .then(() => {
-        setQuestions((prev) =>
-          prev.map((q) => {
-            if (q.id === id) {
-              return { ...q, isGoodQuestion: checked };
-            }
-            return q;
-          }),
-        );
-      })
-      .catch(() => {
-        toast.error('更新“好问题”状态失败，请稍后重试');
-      });
-  };
 
   return (
     <div className="flex flex-col h-screen bg-[#EDEDE9]" data-testid="audit-page">

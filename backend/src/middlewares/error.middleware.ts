@@ -15,6 +15,8 @@
  *   2. backend/src/middlewares/CLAUDE.md 的文件清单
  */
 import type { NextFunction, Request, Response } from 'express';
+import { ZodError } from 'zod';
+import { AppError } from '../errors/AppError';
 
 type RequestWithLog = Request & {
   // pino-http 注入的日志实例

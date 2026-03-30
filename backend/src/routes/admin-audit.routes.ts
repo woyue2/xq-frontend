@@ -16,6 +16,12 @@
  */
 import { Router, type Response, type NextFunction } from 'express';
 import { AppError } from '../errors/AppError';
+import {
+  authMiddleware,
+  createRequireTeacher,
+  type AuthenticatedRequest
+} from '../middlewares/auth.middleware';
+import { auditService } from '../services/audit.service';
 
 export const adminAuditRouter = Router();
 
