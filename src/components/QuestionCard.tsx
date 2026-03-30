@@ -7,7 +7,7 @@
  *   - react                          → React
  *   - react-router-dom               → useNavigate
  *   - lucide-react                   → Heart / Star / Pin / PinOff / MessageCircle / Share2
- *   - @/components/ui/*              → Badge / Avatar / AvatarFallback / GoodQuestionBadge
+ *   - @/components/ui/*              → Badge / Avatar / AvatarFallback / AvatarImage / GoodQuestionBadge
  *   - @/components/ui/swipeable-image-carousel → SwipeableImageCarousel
  *   - @/types                        → Question / DifficultyLevel
  *   - @/lib/utils                    → cn
@@ -25,7 +25,7 @@
 import React from 'react';
 import { Heart, Star, Pin, PinOff, MessageCircle, Share2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
 import { SwipeableImageCarousel } from '@/components/ui/swipeable-image-carousel';
 import { useNavigate } from 'react-router-dom';
@@ -200,6 +200,7 @@ export function QuestionCard({
             data-testid="question-author"
           >
             <Avatar className="w-4 h-4 border border-gray-100">
+              <AvatarImage src={question.authorAvatar} />
               <AvatarFallback className="text-[8px] bg-gray-50">
                 {question.authorName[0]}
               </AvatarFallback>
