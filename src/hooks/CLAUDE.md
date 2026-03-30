@@ -13,10 +13,11 @@
 | `useDebounce.ts` | 通用防抖 hook |
 | `useQuestions.ts` | 问题列表查询（wrap TanStack Query） |
 | `useAdminWhitelist.ts` | 管理员白名单全量 state + API 逻辑 |
-| `useQuestionDetail.ts` | 问题详情、答案、评论、点赞、音频播放逻辑 |
+| `useQuestionDetail.ts` | 问题详情、答案、评论、点赞、音频播放逻辑；支持 `onRequireLogin` 回调（游客互动引导） |
 | `useAdminDimension.ts` | 题目维度（method）配置 state + CRUD handler |
 | `useLogin.ts` | 登录/注册页全量 state、倒计时、表单验证、提交逻辑 |
 | `useProfile.ts` | 个人主页 state、头像/昵称/密码更新、家长绑定逻辑 |
+| `useAudit.ts` | 审核页全量 state + API 交互逻辑（问题/评论审核、打分、驳回） |
 
 ## 质量红线
 
