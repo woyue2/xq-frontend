@@ -5,6 +5,15 @@
 ---
 # 2026-03-31
 
+## 变动  新增科目/考点管理功能
+### 原因
+原有学科配置为前端硬编码（taxonomy.ts），无法动态增删科目和考点，管理员无法在后台维护。
+### 影响
+- 后端：新增 Subject/Topic Prisma 模型 + migration + subject.service + admin-subjects.routes
+- 后端：config.routes 对外暴露科目/考点列表，app.ts 注册新路由
+- 前端：useAdminSubject hook + AdminManagementPage 科目管理 UI + CreateQuestionPage 选科目
+- 前端：admin.service 补充科目/考点 API，types/api.ts 新增 SubjectAdminDto/TopicAdminDto
+
 ## 变动  AI 审核正式接入 + 老师评论补齐审核
 ### 原因
 `.env` 中 `AI_AUDIT_BASE_URL`/`AI_AUDIT_API_KEY` 填入后，Jest 测试环境因相对路径问题无法加载 `.env`，导致 AI 审核在测试中始终 disabled。同时发现老师发评论绕过了 AI 审核直接 approved，存在安全漏洞。
