@@ -72,22 +72,12 @@ export class CommentService {
       throw new AppError(404, 'USER_NOT_FOUND', '用户不存在');
     }
 
-    // AI 内容审核（仅对非老师用户）
-    let auditResult: { safe: boolean; reason?: string; category?: string; quality?: { clear: boolean; suggestion?: string } } = {
-      safe: true,
-      quality: { clear: true }
-    };
-    let initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+    // AI 内容审核（所有用户）
+    let initialStatus = 'pending';
     let aiResultText = '无违规';
 
-    if (author.role !== 'teacher' && hasText) {
+    if (hasText) {
       const result = await aiAuditService.auditContent(content!, 'comment');
-      auditResult = {
-        safe: result.safe,
-        reason: result.reason,
-        category: result.category,
-        quality: result.quality
-      };
 
       if (!result.safe) {
         initialStatus = 'rejected';
@@ -97,10 +87,13 @@ export class CommentService {
           category: result.category
         });
       } else {
-        // AI 审核通过，但仍需教师人工复核，故保持 pending
-        initialStatus = 'pending';
+        // AI 审核通过，老师评论直接放行，其他用户保持 pending 等人工复核
+        initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
         aiResultText = JSON.stringify({ safe: true });
       }
+    } else if (author.role === 'teacher') {
+      // 纯图片评论，老师直接放行
+      initialStatus = 'approved';
     }
 
     const [created] = await prisma.$transaction([
@@ -148,12 +141,7 @@ export class CommentService {
       authorAvatar: created.authorAvatar ?? undefined,
       status: created.status,
       aiResult: created.aiResult ?? undefined,
-      createdAt: created.createdAt,
-      // 返回审核结果供前端显示
-      aiAudit: {
-        safe: auditResult.safe,
-        reason: auditResult.reason
-      }
+      createdAt: created.createdAt
     };
   }
 
