@@ -98,12 +98,11 @@ export class CommentService {
               category: imgResult.category || 'image_violation'
             });
           } else {
-            initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+            initialStatus = 'pending';
             aiResultText = JSON.stringify({ safe: true });
           }
         } else {
-          // 老师评论直接放行，其他用户保持 pending 等人工复核
-          initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+          initialStatus = 'pending';
           aiResultText = JSON.stringify({ safe: true });
         }
       }
@@ -118,7 +117,7 @@ export class CommentService {
           category: imgResult.category || 'image_violation'
         });
       } else {
-        initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+        initialStatus = 'pending';
         aiResultText = JSON.stringify({ safe: true });
       }
     }

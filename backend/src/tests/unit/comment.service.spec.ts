@@ -151,7 +151,7 @@ describe('CommentService unit tests', () => {
         }
       });
 
-      // 使用教师身份，确保评论直接通过审核，便于验证计数与状态。
+      // 使用教师身份发评论，AI 审核通过后进入 pending 等人工复核。
       const teacherPhone = nextPhone();
       const teacher = await prisma.user.upsert({
         where: { phone: teacherPhone },
@@ -177,8 +177,8 @@ describe('CommentService unit tests', () => {
       expect(result.questionId).toBe(question.id);
       expect(result.content).toBe('这是评论内容');
       expect(result.image).toBe('https://cdn.example.com/comment.png');
-      // 教师评论应直接标记为 approved
-      expect(result.status).toBe('approved');
+      // 教师评论 AI 审核通过后进入 pending 等人工复核
+      expect(result.status).toBe('pending');
 
       const updatedQuestion = await prisma.question.findUnique({
         where: { id: question.id }
