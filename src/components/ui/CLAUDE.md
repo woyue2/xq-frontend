@@ -23,6 +23,7 @@ Radix UI 原语的 shadcn/ui 封装。**此目录绝大多数文件为自动生�
 |---|---|
 | `good-question-badge.tsx` | "精品题" 标识组件 |
 | `image-carousel.tsx` | 图片轮播（多图展示） |
+| `swipeable-image-carousel.tsx` | 可滑动图片轮播（支持触摸手势 + 左右翻页） |
 
 ## FORBIDDEN
 
