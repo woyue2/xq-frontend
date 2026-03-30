@@ -1,10 +1,11 @@
 /**
  * [POS] backend/src/routes/config.routes.ts
- *   所属：路由层 | 角色：前端配置路由（题目维度等公开配置查询）
+ *   所属：路由层 | 角色：前端配置路由（题目维度、科目/考点等公开配置查询）
  *
  * [INPUT]
  *   - express                                  → Router / Request / Response / NextFunction
  *   - ../services/question-dimension.service   → questionDimensionService
+ *   - ../services/subject.service              → subjectService
  *
  * [OUTPUT]
  *   - configRouter（Express Router）
@@ -16,6 +17,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { questionDimensionService } from '../services/question-dimension.service';
+import { subjectService } from '../services/subject.service';
 
 export const configRouter = Router();
 
@@ -40,6 +42,36 @@ configRouter.get(
               value: opt.value,
               label: opt.label,
               order: opt.order
+            }))
+          }))
+        },
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// 面向前端：获取启用的科目及考点配置
+configRouter.get(
+  '/subjects',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const subjects = await subjectService.getPublicSubjects();
+
+      return res.json({
+        code: 200,
+        message: 'success',
+        data: {
+          subjects: subjects.map((s) => ({
+            key: s.key,
+            name: s.name,
+            order: s.order,
+            topics: s.topics.map((t) => ({
+              value: t.value,
+              label: t.label,
+              order: t.order
             }))
           }))
         },

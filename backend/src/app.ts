@@ -25,6 +25,7 @@ import { authRouter } from './routes/auth.routes';
 import { adminWhitelistRouter } from './routes/admin-whitelist.routes';
 import { adminClassHoursRouter } from './routes/admin-class-hours.routes';
 import { adminQuestionDimensionRouter } from './routes/admin-question-dimensions.routes';
+import { adminSubjectsRouter } from './routes/admin-subjects.routes';
 import { questionRouter } from './routes/question.routes';
 import { commentRouter } from './routes/comment.routes';
 import { answerRouter } from './routes/answer.routes';
@@ -69,6 +70,7 @@ export const createApp = () => {
   app.use('/api/admin/whitelist', adminWhitelistRouter);
   app.use('/api/admin/class-hours', adminClassHoursRouter);
   app.use('/api/admin/question-dimensions', adminQuestionDimensionRouter);
+  app.use('/api/admin/subjects', adminSubjectsRouter);
   app.use('/api/admin/audit', adminAuditRouter);
   app.use('/api/questions', questionRouter);
   app.use('/api/comments', commentRouter);

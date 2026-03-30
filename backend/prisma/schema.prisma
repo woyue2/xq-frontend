@@ -282,6 +282,37 @@ model QuestionDimensionOption {
   @@index([value])
 }
 
+/// 科目表（学科，父节点）
+model Subject {
+  id          String   @id @default(cuid())
+  key         String   @unique   // e.g. \"subject_math\"
+  name        String             // e.g. \"数学\"
+  order       Int      @default(0)
+  enabled     Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topics      Topic[]
+}
+
+/// 考点表（科目子节点）
+model Topic {
+  id         String   @id @default(cuid())
+  subjectKey String
+  value      String             // e.g. \"math_quadratic_function\"
+  label      String             // e.g. \"二次函数\"
+  order      Int      @default(0)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  subject    Subject  @relation(fields: [subjectKey], references: [key], onDelete: Cascade)
+
+  @@index([subjectKey])
+  @@unique([subjectKey, value])
+}
+
 /// 家长-孩子绑定关系表
 model ParentChild {
   id        String   @id @default(cuid())
