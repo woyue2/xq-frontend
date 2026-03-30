@@ -87,13 +87,40 @@ export class CommentService {
           category: result.category
         });
       } else {
-        // AI 审核通过，老师评论直接放行，其他用户保持 pending 等人工复核
+        // 文字审核通过，若有图片继续审核图片
+        if (hasImage) {
+          const imgResult = await aiAuditService.auditImage(image!);
+          if (!imgResult.safe) {
+            initialStatus = 'rejected';
+            aiResultText = JSON.stringify({
+              safe: false,
+              reason: imgResult.reason,
+              category: imgResult.category || 'image_violation'
+            });
+          } else {
+            initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+            aiResultText = JSON.stringify({ safe: true });
+          }
+        } else {
+          // 老师评论直接放行，其他用户保持 pending 等人工复核
+          initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+          aiResultText = JSON.stringify({ safe: true });
+        }
+      }
+    } else if (hasImage) {
+      // 纯图片评论，审核图片
+      const imgResult = await aiAuditService.auditImage(image!);
+      if (!imgResult.safe) {
+        initialStatus = 'rejected';
+        aiResultText = JSON.stringify({
+          safe: false,
+          reason: imgResult.reason,
+          category: imgResult.category || 'image_violation'
+        });
+      } else {
         initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
         aiResultText = JSON.stringify({ safe: true });
       }
-    } else if (author.role === 'teacher') {
-      // 纯图片评论，老师直接放行
-      initialStatus = 'approved';
     }
 
     const [created] = await prisma.$transaction([
