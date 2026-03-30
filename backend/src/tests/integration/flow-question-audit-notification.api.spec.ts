@@ -30,6 +30,7 @@ describe('Flow: question → audit → notification', () => {
   beforeEach(async () => {
     await prisma.notification.deleteMany();
     await prisma.auditLog.deleteMany();
+    await prisma.parentChild.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.answer.deleteMany();
     await prisma.question.deleteMany();
