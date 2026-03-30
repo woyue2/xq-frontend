@@ -348,3 +348,23 @@ export interface SubjectDto {
   order: number;
   topics: TopicDto[];
 }
+
+// 管理端学科/考点 DTO
+export interface TopicAdminDto {
+  id: string;
+  subjectKey: string;
+  value: string;
+  label: string;
+  order: number;
+  enabled: boolean;
+}
+
+export interface SubjectAdminDto {
+  id: string;
+  key: string;
+  name: string;
+  order: number;
+  enabled: boolean;
+  description?: string;
+  topics: TopicAdminDto[];
+}

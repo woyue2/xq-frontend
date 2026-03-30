@@ -41,11 +41,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
-import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
+import { ROUTES } from '@/config/app-constants';
+import type { SubjectDto } from '@/types/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { isMemberActive } from '@/lib/permissions';
 import { useDebounce } from '@/hooks/useDebounce';
 import { questionService, configService } from '@/services/api';
+import { subjectConfigService } from '@/services/subjectConfig.service';
 import type { Question } from '@/types';
 import type { QuestionDimensionDto } from '@/types/api';
 import { ROUTES } from '@/config/app-constants';
@@ -73,7 +75,9 @@ export function CreateQuestionPage() {
   const [selectedMethod, setSelectedMethod] = useState<string>('');
 
   // Derived options based on subject
-  const currentSubjectConfig = selectedSubject ? TAXONOMY[selectedSubject] : null;
+  const [subjectList, setSubjectList] = useState<SubjectDto[]>([]);
+  const currentSubjectConfig =
+    subjectList.find((s) => s.key === `subject_${selectedSubject}`) ?? null;
 
   // 解题方法/办法维度配置（从后端动态获取，可关闭或改名）
   const [methodDimension, setMethodDimension] = useState<QuestionDimensionDto | null>(null);
@@ -133,6 +137,16 @@ export function CreateQuestionPage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // 科目/考点动态加载
+  useEffect(() => {
+    subjectConfigService
+      .getSubjects()
+      .then(setSubjectList)
+      .catch(() => {
+        // 静默失败：降级到空列表（subjectConfigService 内部已有 TAXONOMY 降级）
+      });
   }, []);
 
   const showMethodField = !!currentSubjectConfig;
@@ -303,22 +317,22 @@ export function CreateQuestionPage() {
             <Label className="text-base font-bold">
               选择科目 <span className="text-red-500">*</span>
             </Label>
-            <div className="flex gap-2">
-              {SUBJECT_OPTIONS.map((sub) => (
+            <div className="flex gap-2 flex-wrap">
+              {subjectList.map((sub) => (
                 <button
-                  key={sub.value}
+                  key={sub.key}
                   onClick={() => {
-                    setSelectedSubject(sub.value);
+                    setSelectedSubject(sub.key.replace('subject_', ''));
                     setSelectedTopic('');
                     setSelectedMethod('');
                   }}
                   className={`px-4 py-2 rounded-full border transition-all ${
-                    selectedSubject === sub.value
+                    selectedSubject === sub.key.replace('subject_', '')
                       ? 'bg-blue-500 text-white border-blue-500 shadow-md'
                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  {sub.label}
+                  {sub.name}
                 </button>
               ))}
             </div>
@@ -339,8 +353,8 @@ export function CreateQuestionPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {currentSubjectConfig.topics.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

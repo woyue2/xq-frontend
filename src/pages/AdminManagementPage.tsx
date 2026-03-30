@@ -63,6 +63,7 @@ import {
 import type { UserRole } from '@/types';
 import { useAdminWhitelist, isExpiredDate } from '@/hooks/useAdminWhitelist';
 import { useAdminDimension } from '@/hooks/useAdminDimension';
+import { useAdminSubject } from '@/hooks/useAdminSubject';
 import { ROUTES } from '@/config/app-constants';
 
 export function AdminManagementPage() {
@@ -127,6 +128,23 @@ export function AdminManagementPage() {
     handleUpdateMethodOption,
     handleAddMethodOption,
   } = useAdminDimension();
+
+  // [IMPL] 科目/考点管理 state + handler 已下沉到 useAdminSubject
+  const {
+    subjects,
+    selectedSubjectKey,
+    setSelectedSubjectKey,
+    selectedSubject,
+    topics,
+    loadingSubjects,
+    savingSubject,
+    loadSubjects,
+    handleSaveSubjectMeta,
+    setSelectedSubjectField,
+    handleUpdateTopic,
+    handleAddTopic,
+    setTopicField,
+  } = useAdminSubject();
 
   const getRoleBadge = (role: UserRole) => {
     const roleMap = {
@@ -563,7 +581,148 @@ export function AdminManagementPage() {
         </div>
       </div>
 
-      {/* 添加用户对话框 */}
+      {/* 科目 / 考点配置 */}
+      <div className="max-w-7xl mx-auto w-full px-4 pb-6">
+        <div className="bg-white rounded-2xl shadow-sm p-4 mt-2">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-800">科目 / 考点配置</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                管理「创建问题」页中的学科列表及各学科下的考点。
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={loadSubjects} disabled={loadingSubjects}>
+                {loadingSubjects ? '加载中...' : '刷新配置'}
+              </Button>
+            </div>
+          </div>
+
+          {subjects.length === 0 ? (
+            <div className="text-xs text-gray-500">暂无科目，请点击「刷新配置」加载。</div>
+          ) : (
+            <div className="space-y-4">
+              {/* 科目选择 */}
+              <div className="flex flex-wrap gap-2">
+                {subjects.map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setSelectedSubjectKey(s.key)}
+                    className={`px-3 py-1 rounded-full text-xs border transition ${
+                      selectedSubjectKey === s.key
+                        ? 'bg-[#D5BDAF] text-white border-[#D5BDAF]'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-[#D5BDAF]'
+                    }`}
+                  >
+                    {s.name}{!s.enabled && <span className="ml-1 text-[10px] text-red-400">（已禁用）</span>}
+                  </button>
+                ))}
+              </div>
+
+              {selectedSubject && (
+                <div className="border rounded-xl p-3 space-y-3">
+                  {/* 科目基础信息编辑 */}
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">科目名称</Label>
+                      <Input
+                        value={selectedSubject.name}
+                        onChange={(e) => setSelectedSubjectField('name', e.target.value)}
+                        className="w-32 h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">排序</Label>
+                      <Input
+                        type="number"
+                        value={selectedSubject.order}
+                        onChange={(e) => setSelectedSubjectField('order', Number(e.target.value) || 0)}
+                        className="w-20 h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">启用状态</Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant={selectedSubject.enabled ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedSubjectField('enabled', true)}
+                        >启用</Button>
+                        <Button
+                          type="button"
+                          variant={!selectedSubject.enabled ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedSubjectField('enabled', false)}
+                        >禁用</Button>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Button size="sm" onClick={handleSaveSubjectMeta} disabled={savingSubject}>
+                        {savingSubject ? '保存中...' : '保存科目信息'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 考点列表 */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-xs font-semibold">考点列表</Label>
+                      <Button variant="outline" size="sm" onClick={handleAddTopic}>新增考点</Button>
+                    </div>
+                    <div className="space-y-2">
+                      {topics.map((t) => (
+                        <div key={t.id} className="flex flex-wrap items-end gap-3 border rounded-lg p-2 bg-gray-50">
+                          <div className="space-y-1">
+                            <Label className="text-xs">名称</Label>
+                            <Input
+                              value={t.label}
+                              onChange={(e) => setTopicField(t.id, 'label', e.target.value)}
+                              className="w-36 h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">标识 (value)</Label>
+                            <Input
+                              value={t.value}
+                              onChange={(e) => setTopicField(t.id, 'value', e.target.value)}
+                              className="w-36 h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">排序</Label>
+                            <Input
+                              type="number"
+                              value={t.order}
+                              onChange={(e) => setTopicField(t.id, 'order', Number(e.target.value) || 0)}
+                              className="w-20 h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">启用</Label>
+                            <button
+                              type="button"
+                              onClick={() => setTopicField(t.id, 'enabled', !t.enabled)}
+                              className={`w-9 h-9 rounded-lg border text-xs font-bold transition ${
+                                t.enabled ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-400 border-gray-300'
+                              }`}
+                            >{t.enabled ? '开' : '关'}</button>
+                          </div>
+                          <div className="ml-auto">
+                            <Button size="sm" variant="outline" onClick={() => handleUpdateTopic(t)}>保存</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
