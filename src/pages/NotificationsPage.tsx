@@ -17,6 +17,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
 import { notificationService } from '@/services/api';
 import type { Notification } from '@/types/api';
 import { Button } from '@/components/ui/button';

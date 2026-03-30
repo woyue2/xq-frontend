@@ -378,6 +378,7 @@ export function useAdminWhitelist() {
     confirmDialogOpen,
     setConfirmDialogOpen,
     pendingExpiry,
+    setPendingExpiry,
     // actions
     handleAddUser,
     handleDeleteUser,
@@ -385,5 +386,6 @@ export function useAdminWhitelist() {
     handleManageExpiry,
     handleExpirySubmit,
     confirmExpiryChange,
+    calculateNewExpiry,
   };
 }

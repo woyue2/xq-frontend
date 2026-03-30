@@ -110,6 +110,8 @@ export function AdminManagementPage() {
     handleManageExpiry,
     handleExpirySubmit,
     confirmExpiryChange,
+    calculateNewExpiry,
+    setPendingExpiry,
   } = useAdminWhitelist();
 
   // [IMPL] 维度管理 state + handler 已下沉到 useAdminDimension
@@ -291,7 +293,7 @@ export function AdminManagementPage() {
                         {canViewHistory ? (
                           <button
                             type="button"
-                            onClick={() => navigate(ROUTES.studentHistory(user.userId))}
+                            onClick={() => navigate(ROUTES.studentHistory(user.userId!))}
                             className="flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 transition-colors"
                             data-testid="whitelist-student-history"
                           >

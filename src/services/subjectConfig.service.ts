@@ -18,6 +18,7 @@
 import { api } from './api';
 import type { SubjectDto, TopicDto } from '@/types/api';
 import type { SubjectConfig } from '@/config/taxonomy';
+import { TAXONOMY } from '@/config/taxonomy';
 
 /**
  * 科目配置服务
@@ -40,7 +41,7 @@ class SubjectConfigService {
     try {
       // 2. 请求后端
       const response = await api.get<{ subjects: SubjectDto[] }>('/config/subjects');
-      const subjects = response.data.data.subjects;
+      const subjects = (response.data as any).subjects as SubjectDto[];
 
       // 更新缓存
       this.cache = subjects;

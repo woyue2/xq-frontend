@@ -16,6 +16,7 @@
  *   2. src/pages/CLAUDE.md 的文件清单
  */
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuestions } from '@/hooks/useQuestions';
 import { GoodQuestionBadge } from '@/components/ui/good-question-badge';

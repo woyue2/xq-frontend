@@ -19,6 +19,7 @@
 import { api } from './api';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { Question } from '@/types';
+import type { BindChildPayload, ChildInfo } from '@/types/parent';
 
 export const parentService = {
   // 发送绑定验证码

@@ -84,6 +84,7 @@ export interface QuestionListParams {
   page?: number;
   pageSize?: number;
   subject?: string;
+  topic?: string;
   status?: string;
   isGoodQuestion?: boolean;
   tags?: string[];
@@ -104,7 +105,9 @@ export interface LikeResponse {
 }
 
 export interface FavoritePayload {
-  questionId: string;
+  questionId?: string;
+  targetType: 'question';
+  targetId: string;
   action: 'favorite' | 'unfavorite';
 }
 
@@ -330,4 +333,18 @@ export interface BanCommentResponse {
 export interface TogglePinQuestionResponse {
   id: string;
   isPinned: boolean;
+}
+
+// 学科配置 DTO
+export interface TopicDto {
+  value: string;
+  label: string;
+  order: number;
+}
+
+export interface SubjectDto {
+  key: string;
+  name: string;
+  order: number;
+  topics: TopicDto[];
 }
