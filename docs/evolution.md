@@ -5,6 +5,16 @@
 ---
 # 2026-03-31
 
+## 变动  AI 审核正式接入 + 老师评论补齐审核
+### 原因
+`.env` 中 `AI_AUDIT_BASE_URL`/`AI_AUDIT_API_KEY` 填入后，Jest 测试环境因相对路径问题无法加载 `.env`，导致 AI 审核在测试中始终 disabled。同时发现老师发评论绕过了 AI 审核直接 approved，存在安全漏洞。
+### 影响
+- `jest.config.cjs`：通过 `BACKEND_ENV_PATH` 指定绝对路径，测试环境正确加载 `.env`
+- `comment.service.ts`：老师评论也走 AI 审核，通过后才 approved，违规直接 rejected
+- `ai-callback.api.spec.ts`：注入固定测试 token 解决 403；`beforeEach` 加 `parentChild.deleteMany()`
+- `flow-question-audit-notification.api.spec.ts`：同步补 `parentChild.deleteMany()`
+- 测试文件批量补齐 `authorRole` 参数 + mock question `status: 'approved'`
+
 ## 变动  后端代理图片上传，去除前端直传图床
 ### 原因
 前端直传 imgurl.org 因字段名、认证方式、URL 路径不一致导致上传失败。改为后端代理转发，统一管控 token 和接口格式。
