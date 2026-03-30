@@ -107,6 +107,7 @@ export function QuestionDetailPage() {
     handleSubmitComment,
     handleDelete,
     setTargetAnswerId,
+    setPlayingAnswerId,
   } = useQuestionDetail(safeQuestionId, () => setShowLoginDialog(true));
 
   // 从路由参数/状态中读取目标 answerId，在 answers 加载后触发滚动
@@ -267,7 +268,7 @@ export function QuestionDetailPage() {
           {/* 标签行 */}
           <div className="flex flex-wrap items-center gap-2">
             {question.isGoodQuestion && <GoodQuestionBadge />}
-            {question.tags?.map((tag, index) => (
+            {question.tags?.map((tag: string, index: number) => (
               <Badge
                 key={index}
                 className="bg-morandi-1 text-gray-700 border-none hover:bg-morandi-2"
@@ -312,7 +313,7 @@ export function QuestionDetailPage() {
           {/* 图片展示 */}
           {question.images && question.images.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
-              {question.images.map((image, index) => (
+              {question.images.map((image: string, index: number) => (
                 <div
                   key={index}
                   className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity active:scale-[0.98]"

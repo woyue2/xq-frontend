@@ -7,6 +7,10 @@
  *   - react                  → useState / useRef / useCallback
  *   - react-router-dom       → useSearchParams / useNavigate
  *   - sonner                 → toast
+ *   - @/stores/useAuthStore  → useAuthStore
+ *   - @/hooks/useQuestions   → useQuestions
+ *   - @/services/api         → questionService
+ *   - @/config/app-constants → TOAST_MESSAGES / ROUTES
  *   - @/components/ui/alert-dialog → AlertDialog（游客登录引导）
  *
  * [OUTPUT]
@@ -22,7 +26,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
 import { questionService } from '@/services/api';
-import { TOAST_MESSAGES } from '@/config/app-constants';
+import { TOAST_MESSAGES, ROUTES } from '@/config/app-constants';
 import type { Question } from '@/types';
 import { QuestionList } from '@/components/QuestionList';
 import { QuestionFilter } from '@/components/QuestionFilter';

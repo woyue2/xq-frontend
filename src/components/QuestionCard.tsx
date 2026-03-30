@@ -5,10 +5,15 @@
  *
  * [INPUT]
  *   - react                          → React
+ *   - react-router-dom               → useNavigate
  *   - lucide-react                   → Heart / Star / Pin / PinOff / MessageCircle / Share2
  *   - @/components/ui/*              → Badge / Avatar / AvatarFallback / GoodQuestionBadge
- *   - @/types                        → Question / User
+ *   - @/components/ui/swipeable-image-carousel → SwipeableImageCarousel
+ *   - @/types                        → Question / DifficultyLevel
  *   - @/lib/utils                    → cn
+ *   - @/lib/share                    → buildQuestionShareUrl / copyToClipboardSafe
+ *   - @/config/app-constants         → DIFFICULTY_LABELS / ROUTES
+ *   - sonner                         → toast
  *
  * [OUTPUT]
  *   - QuestionCard（问题卡片组件）
@@ -26,7 +31,7 @@ import { SwipeableImageCarousel } from '@/components/ui/swipeable-image-carousel
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import type { Question, DifficultyLevel } from '@/types';
-import { DIFFICULTY_LABELS } from '@/config/app-constants';
+import { DIFFICULTY_LABELS, ROUTES } from '@/config/app-constants';
 import { toast } from 'sonner';
 import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
 

@@ -17,7 +17,7 @@
  *
  * [OUTPUT]
  *   - useQuestionDetail(questionId: string, onRequireLogin?: () => void)
- *     → 问题/答案/评论 state、点赞/收藏/音频/评论 handler
+ *     → 问题/答案/评论 state、点赞/收藏/音频/评论 handler、setPlayingAnswerId
  *
  * [TODO] QuestionDetailPage.tsx 目前未消费此 hook，自行实现了平行逻辑。
  *        待专项 PR：页面迁移至本 hook，删除页面内重复实现。
@@ -421,5 +421,6 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     handleSubmitComment,
     handleDelete,
     setTargetAnswerId,
+    setPlayingAnswerId,
   };
 }
