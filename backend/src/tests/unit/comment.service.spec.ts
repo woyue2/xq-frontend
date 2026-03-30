@@ -33,6 +33,7 @@ describe('CommentService unit tests', () => {
         commentService.create({
           questionId: 'non-exist-question',
           authorId: user.id,
+          authorRole: 'student',
           content: '评论内容'
         })
       ).rejects.toMatchObject<AppError>({
@@ -77,6 +78,7 @@ describe('CommentService unit tests', () => {
         commentService.create({
           questionId: question.id,
           authorId: user.id,
+          authorRole: 'student',
           content: '',
           image: undefined
         })
@@ -108,6 +110,7 @@ describe('CommentService unit tests', () => {
         commentService.create({
           questionId: question.id,
           authorId: 'non-exist-author',
+          authorRole: 'teacher',
           content: '评论内容'
         })
       ).rejects.toMatchObject<AppError>({
@@ -165,6 +168,7 @@ describe('CommentService unit tests', () => {
       const result = await commentService.create({
         questionId: question.id,
         authorId: teacher.id,
+        authorRole: 'teacher',
         content: '这是评论内容',
         image: 'https://cdn.example.com/comment.png'
       });

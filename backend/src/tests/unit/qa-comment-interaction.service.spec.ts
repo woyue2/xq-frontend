@@ -89,8 +89,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         title: '测试问题',
         content: '内容',
         tags: ['tag1'],
-        authorId: 'u1',
-        authorName: '学生A'
+        authorId: 'u1'
       });
 
       expect(result.id).toBe('q1');
@@ -119,6 +118,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         answerService.create({
           questionId: 'missing',
           authorId: 'u1',
+          authorRole: 'teacher',
           content: '回答'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
@@ -128,13 +128,15 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在回答内容为空时抛出 EMPTY_CONTENT', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       await expect(
         answerService.create({
           questionId: 'q1',
           authorId: 'u1',
+          authorRole: 'teacher',
           content: '   ',
           images: [],
           audioUrl: undefined
@@ -146,7 +148,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在作者不存在时抛出 USER_NOT_FOUND', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue(null)
@@ -156,6 +159,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         answerService.create({
           questionId: 'q1',
           authorId: 'u1',
+          authorRole: 'teacher',
           content: '回答'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
@@ -167,7 +171,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       const createdAt = new Date();
 
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue({
@@ -197,6 +202,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       const result = await answerService.create({
         questionId: 'q1',
         authorId: 'u1',
+        authorRole: 'teacher',
         content: '回答'
       });
 
@@ -214,6 +220,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         commentService.create({
           questionId: 'missing',
           authorId: 'u1',
+          authorRole: 'student',
           content: '评论'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
@@ -223,13 +230,15 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在文本与图片均为空时抛出 EMPTY_CONTENT', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       await expect(
         commentService.create({
           questionId: 'q1',
           authorId: 'u1',
+          authorRole: 'student',
           content: '   ',
           image: undefined
         })
@@ -240,7 +249,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在作者不存在时抛出 USER_NOT_FOUND', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue(null)
@@ -250,6 +260,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         commentService.create({
           questionId: 'q1',
           authorId: 'u1',
+          authorRole: 'teacher',
           content: '评论'
         })
       ).rejects.toMatchObject<Partial<AppError>>({
@@ -261,7 +272,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       const createdAt = new Date();
 
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
       prismaAny.user = {
         findUnique: jest.fn().mockResolvedValue({
@@ -290,6 +302,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       const result = await commentService.create({
         questionId: 'q1',
         authorId: 'u1',
+        authorRole: 'teacher',
         content: '评论'
       });
 
@@ -315,7 +328,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在第一次点赞时创建 like 并增加计数', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       const tx = {
@@ -327,6 +341,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         question: {
           update: jest.fn().mockResolvedValue({
             id: 'q1',
+        status: 'approved',
             likes: 1
           })
         }
@@ -348,7 +363,8 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
 
     it('应当在再次调用 toggleQuestionLike 时取消点赞并减少计数', async () => {
       (prismaAny.question.findUnique as jest.Mock).mockResolvedValue({
-        id: 'q1'
+        id: 'q1',
+        status: 'approved'
       });
 
       const tx = {
@@ -365,6 +381,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
         question: {
           update: jest.fn().mockResolvedValue({
             id: 'q1',
+        status: 'approved',
             likes: 0
           })
         }
@@ -400,6 +417,7 @@ describe('Question/Answer/Comment/Interaction Service - 单元测试', () => {
       (prismaAny.question.findMany as jest.Mock).mockResolvedValue([
         {
           id: 'q1',
+        status: 'approved',
           title: '测试问题',
           content: '内容',
           authorName: '学生A',

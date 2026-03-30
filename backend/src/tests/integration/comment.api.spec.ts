@@ -35,6 +35,8 @@ describe('Comment API', () => {
     await prisma.comment.deleteMany();
     await prisma.answer.deleteMany();
     await prisma.question.deleteMany();
+    await prisma.parentChild.deleteMany();
+    await prisma.user.deleteMany();
     await prisma.user.deleteMany();
 
     await prisma.user.createMany({
