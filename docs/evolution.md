@@ -5,6 +5,14 @@
 ---
 # 2026-03-31
 
+## 变动  后端代理图片上传，去除前端直传图床
+### 原因
+前端直传 imgurl.org 因字段名、认证方式、URL 路径不一致导致上传失败。改为后端代理转发，统一管控 token 和接口格式。
+### 影响
+- 新增 `POST /upload/image` 后端路由（multer memoryStorage + fetch 转发）
+- `question.service.ts` uploadImage 改为 POST /upload/image，删除死代码
+- `.env` OSS_UPLOAD_BASE_URL 修正为 `https://www.imgurl.org/api/v3/upload`
+
 ## 变动  修复点击题目卡片崩溃 + 详情页 setPlayingAnswerId 未定义
 ### 原因
 QuestionCard 和 HomePage 缺少 `ROUTES` import，运行时 `ROUTES` 为 `undefined`，点击卡片时 `ROUTES.question(id)` 抛 TypeError，React ErrorBoundary 捕获后全页面崩溃。同时 `useQuestionDetail` 未 return `setPlayingAnswerId`，详情页音频结束回调报引用错误。
