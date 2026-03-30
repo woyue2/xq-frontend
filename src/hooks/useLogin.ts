@@ -44,7 +44,7 @@ export function useLogin() {
   const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [loginMode, setLoginMode] = useState<'code' | 'password'>('code');
+  const [loginMode, setLoginMode] = useState<'code' | 'password'>('password'); // [DISABLED] 验证码登录暂时隐藏，默认密码登录
 
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -59,12 +59,12 @@ export function useLogin() {
   const [childSchool, setChildSchool] = useState('');
   const [childCountdown, setChildCountdown] = useState(0);
 
-  const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const childTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {
-      if (timerRef.current)      clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       if (childTimerRef.current) clearInterval(childTimerRef.current);
     };
   }, []);
@@ -72,7 +72,7 @@ export function useLogin() {
   // ─── 派生值 ────────────────────────────────────────────────────────────────
   const isStudentInvite =
     !isLogin && (inviteCode === 'STUDENT2024' || inviteCode === 'ZHISHIXINGQIU2024');
-  const isParentInvite  = !isLogin && inviteCode === 'PARENT2024';
+  const isParentInvite = !isLogin && inviteCode === 'PARENT2024';
   const isTeacherInvite = !isLogin && inviteCode === 'TEACHER2024';
 
   const basePhoneValid = phone.length === 11;
@@ -81,7 +81,6 @@ export function useLogin() {
   const registerValid =
     !isLogin &&
     !!inviteCode &&
-    !!code &&
     password.length >= 8 &&
     (!isStudentInvite || (grade && age && school));
   const canSubmit = basePhoneValid && (loginValid || registerValid);
@@ -114,7 +113,10 @@ export function useLogin() {
       toast.success('验证码已发送');
     } catch {
       setCountdown(0);
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
   };
 
@@ -142,7 +144,10 @@ export function useLogin() {
       toast.success('验证码已发送');
     } catch {
       setChildCountdown(0);
-      if (childTimerRef.current) { clearInterval(childTimerRef.current); childTimerRef.current = null; }
+      if (childTimerRef.current) {
+        clearInterval(childTimerRef.current);
+        childTimerRef.current = null;
+      }
       toast.error('验证码发送失败，请稍后重试');
     }
   };
@@ -163,10 +168,11 @@ export function useLogin() {
       return;
     }
 
-    if (!isLogin && !code) {
-      toast.error('请输入验证码');
-      return;
-    }
+    // [DISABLED] 注册验证码校验已移除，使用固定码兜底
+    // if (!isLogin && !code) {
+    //   toast.error('请输入验证码');
+    //   return;
+    // }
 
     if (!isLogin && !inviteCode) {
       toast.error('请输入邀请码');
@@ -214,10 +220,11 @@ export function useLogin() {
         toast.error('请输入正确的孩子手机号');
         return;
       }
-      if (!childCode) {
-        toast.error('请输入孩子验证码');
-        return;
-      }
+      // [DISABLED] 孩子验证码校验已移除，使用固定码兜底
+      // if (!childCode) {
+      //   toast.error('请输入孩子验证码');
+      //   return;
+      // }
     }
 
     try {
@@ -247,7 +254,7 @@ export function useLogin() {
 
       const registerResult = await authService.register({
         phone,
-        code,
+        code: '123456', // [DISABLED] 验证码已隐藏，使用固定码兜底
         password,
         name: name.trim(),
         nickname: nickname.trim() || `用户${phone.slice(-4)}`,
@@ -264,7 +271,7 @@ export function useLogin() {
           await parentService.bindChild({
             childName,
             phone: childPhone,
-            code: childCode,
+            code: '123456', // [DISABLED] 验证码已隐藏，使用固定码兜底
             school: childSchool,
           });
           toast.success('自动绑定孩子成功');
@@ -294,24 +301,39 @@ export function useLogin() {
   return {
     // mode
     isLogin,
-    loginMode, setLoginMode,
+    loginMode,
+    setLoginMode,
     // form fields
-    phone, setPhone,
-    code, setCode,
-    password, setPassword,
-    inviteCode, setInviteCode,
-    showPassword, setShowPassword,
-    name, setName,
-    nickname, setNickname,
+    phone,
+    setPhone,
+    code,
+    setCode,
+    password,
+    setPassword,
+    inviteCode,
+    setInviteCode,
+    showPassword,
+    setShowPassword,
+    name,
+    setName,
+    nickname,
+    setNickname,
     // student fields
-    grade, setGrade,
-    age, setAge,
-    school, setSchool,
+    grade,
+    setGrade,
+    age,
+    setAge,
+    school,
+    setSchool,
     // parent / child fields
-    childName, setChildName,
-    childPhone, setChildPhone,
-    childCode, setChildCode,
-    childSchool, setChildSchool,
+    childName,
+    setChildName,
+    childPhone,
+    setChildPhone,
+    childCode,
+    setChildCode,
+    childSchool,
+    setChildSchool,
     // countdown
     countdown,
     childCountdown,

@@ -125,6 +125,7 @@ export function LoginPage() {
               <Label htmlFor="code">
                 {isLogin && loginMode === 'password' ? '密码' : '验证码'}
               </Label>
+              {/* [DISABLED] 验证码登录切换按钮，暂时隐藏，恢复时取消注释
               {isLogin && (
                 <button
                   type="button"
@@ -138,6 +139,7 @@ export function LoginPage() {
                   {loginMode === 'code' ? '使用密码登录' : '使用验证码登录'}
                 </button>
               )}
+              */}
             </div>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -162,6 +164,7 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {/* [DISABLED] 验证码按钮，暂时隐藏，恢复时取消注释
               {(!isLogin || loginMode === 'code') && (
                 <Button
                   onClick={handleGetCode}
@@ -172,6 +175,7 @@ export function LoginPage() {
                   {countdown > 0 ? `${countdown}秒` : '获取验证码'}
                 </Button>
               )}
+              */}
             </div>
           </div>
 
@@ -341,6 +345,7 @@ export function LoginPage() {
                 </div>
               </div>
 
+              {/* [DISABLED] 孩子验证码，暂时隐藏，恢复时取消注释
               <div className="space-y-2">
                 <Label htmlFor="childCode">验证码 *</Label>
                 <div className="flex gap-2">
@@ -360,6 +365,7 @@ export function LoginPage() {
                   </Button>
                 </div>
               </div>
+              */}
             </div>
           )}
 

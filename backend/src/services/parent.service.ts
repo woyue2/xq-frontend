@@ -15,11 +15,17 @@
  */
 import { prisma } from '../config/database';
 import { AppError } from '../errors/AppError';
+import { env } from '../config/env';
+
+const FIXED_CODE = env.DEV_FIXED_CODE ?? '';
 
 // Helper to verify SMS code for parent-child binding.
-// 与 AuthService 中验证码校验逻辑保持一致：始终依赖 VerificationCode 表，不再引入环境级“万能码”。
 const verifyCode = async (phone: string, code: string, type: string) => {
   const normalizedPhone = phone.replace(/\D/g, '');
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // 非生产环境允许固定码直接通过
+  if (!isProd && FIXED_CODE && code === FIXED_CODE) return true;
 
   const record = await prisma.verificationCode.findFirst({
     where: {
