@@ -79,9 +79,7 @@ export function LoginPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* 顶部标题栏 */}
-      <div className="bg-white shadow-sm py-4">
-        <h1 className="text-center text-xl">{isLogin ? '账号登录' : '账号注册'}</h1>
-      </div>
+
 
       {/* 中间内容区 */}
       <div className="flex-1 flex flex-col justify-center pb-10">
@@ -93,7 +91,7 @@ export function LoginPage() {
             </div>
             <h2 className="text-2xl mb-1">初中知识问答</h2>
             <p className="text-xs text-[#D5BDAF] font-bold mb-3">好好学习，天天向上</p>
-            <p className="text-gray-500">欢迎来到知识星球</p>
+            {/* <p className="text-gray-500">欢迎来到知识星球</p> */}
           </div>
 
           {/* 手机号输入 */}
@@ -394,7 +392,7 @@ export function LoginPage() {
             >
               忘记密码？
             </button>
-            <p className="text-xs text-gray-400">登录即表示同意《用户协议》和《隐私政策》</p>
+            {/* <p className="text-xs text-gray-400">登录即表示同意《用户协议》和《隐私政策》</p> */}
           </div>
         </div>
       </div>
