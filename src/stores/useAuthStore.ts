@@ -102,9 +102,13 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
-        // isActiveMember 和 permissions 不持久化，每次初始化或 hydrate 时应该重算（为了简单先持久化，实际项目可以在 onRehydrate 中算）
-        // 实际上 Zustand persist 会恢复所有字段。这里简单处理。
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.user) {
+          state.isActiveMember = isMemberActive(state.user);
+          state.permissions = getUserPermissions(state.user);
+        }
+      },
     },
   ),
 );
