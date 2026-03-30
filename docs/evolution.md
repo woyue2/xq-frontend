@@ -15,6 +15,19 @@ QuestionCard 和 HomePage 缺少 `ROUTES` import，运行时 `ROUTES` 为 `undef
 - `QuestionDetailPage.tsx`：解构加 `setPlayingAnswerId`
 - 后端 `GET /api/questions/:id` 已改为 `optionalAuthMiddleware`，重启后端生效
 
+## 变动  修复多页面运行时崩溃（缺失 import / hook 未暴露）
+### 原因
+重构过程中多处文件的 import 语句和 hook return 未同步更新，ErrorBoundary 捕获 ReferenceError，/audit /admin /my-likes /my-favorites 等路由全部显示「应用加载失败」。
+### 影响
+- `AuditPage`: 解构补 `setScoreDialogOpen`
+- `AdminManagementPage`: `useAdminWhitelist` 补暴露 `calculateNewExpiry`/`setPendingExpiry`
+- `MyFavoritesPage`/`MyLikesPage`: 补 `useNavigate`/`Badge` import
+- `GoodQuestionsPage`/`StatusListPage`/`NotificationsPage`: 补多个 lucide 图标 import
+- `StudentHistoryPage`/`ParentQuestionPage`: 补 `useParams`/`useNavigate` import
+- `parentService.ts`: 补 `BindChildPayload`/`ChildInfo` import
+- `subjectConfig.service.ts`: 补 `TAXONOMY` import，修 `.data` 访问路径
+- `types/api.ts`: 补 `SubjectDto`/`TopicDto`，`FavoritePayload` 加 `targetType`/`targetId`，`QuestionListParams` 加 `topic`
+
 ## 变动  mock-data 顶层 import 隔离 + USE_MOCK 条件初始化
 ### 原因
 生产构建时 userLikes/userFavorites 的 mock 状态不应混入真实 liked/favorited 初始值；LoginPage 邀请码前端校验不应在生产环境拦截真实注册流程。
