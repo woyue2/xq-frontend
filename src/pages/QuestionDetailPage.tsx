@@ -4,12 +4,13 @@
  *   兄弟：AnswerQuestionPage.tsx / CreateQuestionPage.tsx
  *
  * [INPUT]
- *   - react                  → useEffect
+ *   - react                  → useEffect / useState
  *   - react-router-dom       → useParams / useNavigate / useLocation / useSearchParams
  *   - @/hooks/useQuestionDetail → useQuestionDetail
  *   - @/stores/useAuthStore  → useAuthStore
  *   - @/lib/share            → buildQuestionShareUrl / copyToClipboardSafe
  *   - @/config/app-constants → ROUTES
+ *   - @/components/ui/alert-dialog → AlertDialog（游客登录引导）
  *
  * [OUTPUT]
  *   - QuestionDetailPage（页面组件）
@@ -18,7 +19,7 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Share2,
@@ -51,6 +52,16 @@ import { UI_CONFIG } from '@/config/ui-config';
 import { Pin } from 'lucide-react';
 import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
 import { ROUTES } from '@/config/app-constants';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function QuestionDetailPage() {
   const { id: questionId } = useParams();
@@ -59,6 +70,7 @@ export function QuestionDetailPage() {
   const [searchParams] = useSearchParams();
   const { user: currentUser } = useAuthStore();
   const safeQuestionId = questionId || '';
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   const {
     question,
@@ -95,7 +107,7 @@ export function QuestionDetailPage() {
     handleSubmitComment,
     handleDelete,
     setTargetAnswerId,
-  } = useQuestionDetail(safeQuestionId);
+  } = useQuestionDetail(safeQuestionId, () => setShowLoginDialog(true));
 
   // 从路由参数/状态中读取目标 answerId，在 answers 加载后触发滚动
   useEffect(() => {
@@ -178,8 +190,7 @@ export function QuestionDetailPage() {
 
   const handleAuthorClick = () => {
     if (!currentUser) {
-      toast.error('请先登录');
-      navigate(ROUTES.login);
+      setShowLoginDialog(true);
       return;
     }
 
@@ -741,6 +752,24 @@ export function QuestionDetailPage() {
         open={!!selectedImage}
         onClose={() => setSelectedImage(null)}
       />
+
+      {/* 游客登录引导 */}
+      <AlertDialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>需要登录</AlertDialogTitle>
+            <AlertDialogDescription>
+              该功能需要登录后使用，请登录或注册账号。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate(ROUTES.login)}>
+              去登录 / 注册
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

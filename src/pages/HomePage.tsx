@@ -7,6 +7,7 @@
  *   - react                  → useState / useRef / useCallback
  *   - react-router-dom       → useSearchParams / useNavigate
  *   - sonner                 → toast
+ *   - @/components/ui/alert-dialog → AlertDialog（游客登录引导）
  *
  * [OUTPUT]
  *   - HomePage（页面组件）
@@ -25,6 +26,16 @@ import { TOAST_MESSAGES } from '@/config/app-constants';
 import type { Question } from '@/types';
 import { QuestionList } from '@/components/QuestionList';
 import { QuestionFilter } from '@/components/QuestionFilter';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function HomePage() {
   const { user } = useAuthStore();
@@ -51,11 +62,18 @@ export function HomePage() {
     Record<string, 'understood' | 'not_understood' | null>
   >({});
 
+  // 游客登录引导 dialog
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+
+  const requireLogin = () => {
+    setShowLoginDialog(true);
+  };
+
   const handleLike = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     // [IMPL] 原因：游客点击互动按钮时提示登录，而非静默操作
     if (!user) {
-      toast.error('请先登录后再点赞');
+      requireLogin();
       return;
     }
     const newLikes = new Set(likedQuestions);
@@ -73,7 +91,7 @@ export function HomePage() {
     e.stopPropagation();
     // [IMPL] 原因：游客点击互动按钮时提示登录
     if (!user) {
-      toast.error('请先登录后再收藏');
+      requireLogin();
       return;
     }
     const newFavorites = new Set(favoritedQuestions);
@@ -185,6 +203,22 @@ export function HomePage() {
         onToggleUnderstanding={handleToggleUnderstanding}
         onAuthorClick={handleAuthorClick}
       />
+
+      {/* 游客登录引导 */}
+      <AlertDialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>需要登录</AlertDialogTitle>
+            <AlertDialogDescription>
+              该功能需要登录后使用，请登录或注册账号。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate('/login')}>去登录 / 注册</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

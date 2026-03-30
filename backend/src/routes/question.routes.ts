@@ -126,7 +126,7 @@ questionRouter.get(
 // 查询某个问题的回答列表（只返回已通过审核的回答）
 questionRouter.get(
   '/:questionId/answers',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { questionId } = req.params;
@@ -149,7 +149,7 @@ questionRouter.get(
 // 查询某个问题的评论列表（只返回已通过审核的评论）
 questionRouter.get(
   '/:questionId/comments',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { questionId } = req.params;
@@ -356,14 +356,14 @@ questionRouter.delete(
 // 查询问题详情
 questionRouter.get(
   '/:id',
-  authMiddleware,
+  optionalAuthMiddleware,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id;
-      const data = await questionService.getById(id, {
-        userId: req.user!.id,
-        role: req.user!.role
-      });
+      const data = await questionService.getById(id, req.user ? {
+        userId: req.user.id,
+        role: req.user.role
+      } : undefined);
 
       return res.json({
         code: 200,

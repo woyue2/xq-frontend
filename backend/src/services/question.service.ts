@@ -385,7 +385,7 @@ export class QuestionService {
     if (userContext?.userId) {
       const [like, favorite, understanding] = await Promise.all([
         prisma.like.findUnique({
-          where: { userId_questionId: { userId: userContext.userId, questionId: id } }
+          where: { userId_targetType_targetId: { userId: userContext.userId, targetType: 'question', targetId: id } }
         }),
         prisma.favorite.findUnique({
           where: { userId_questionId: { userId: userContext.userId, questionId: id } }

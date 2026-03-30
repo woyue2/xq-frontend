@@ -6,12 +6,11 @@
  * [INPUT]
  *   - react-router-dom       → Outlet / useLocation / useNavigate
  *   - @/stores/useAuthStore  → useAuthStore
- *   - @/components/ui/*      → SidebarProvider / Avatar / Button / Input
+ *   - @/components/ui/*      → SidebarProvider / Avatar / Button / Input / AlertDialog
  *   - lucide-react           → Search / Plus / X / Bell
  *   - framer-motion          → motion / AnimatePresence
  *   - @/lib/utils            → cn
  *   - react                  → useState / useEffect
- *   - sonner                 → toast
  *
  * [OUTPUT]
  *   - MainLayout（布局组件）
@@ -33,7 +32,16 @@ import { useState, useEffect } from 'react';
 import { getCurrentSlogan } from '@/config/ai-text';
 import { notificationService } from '@/services/api';
 import { ROUTES } from '@/config/app-constants';
-import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function MainLayout() {
   const { user, logout, isActiveMember } = useAuthStore();
@@ -43,6 +51,7 @@ export function MainLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [slogan, setSlogan] = useState(getCurrentSlogan());
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   useEffect(() => {
     // Update slogan every minute to check if 5-minute block changed
@@ -131,7 +140,10 @@ export function MainLayout() {
                     className="rounded-full hover:bg-white/50 active:scale-95 transition-transform relative"
                     onClick={() => {
                       // [IMPL] 原因：游客点击时提示登录
-                      if (!user) { toast.error('请先登录'); return; }
+                      if (!user) {
+                        setShowLoginDialog(true);
+                        return;
+                      }
                       navigate(ROUTES.notifications);
                     }}
                     aria-label="notifications"
@@ -149,8 +161,11 @@ export function MainLayout() {
                     type="button"
                     className="relative cursor-pointer active:scale-95 transition-transform focus:outline-none"
                     onClick={() => {
-                      // [IMPL] 原因：游客点击头像时跳登录页
-                      if (!user) { navigate(ROUTES.login); return; }
+                      // [IMPL] 原因：游客点击头像时提示登录
+                      if (!user) {
+                        setShowLoginDialog(true);
+                        return;
+                      }
                       navigate(ROUTES.profile);
                     }}
                     data-testid="nav-profile"
@@ -224,6 +239,24 @@ export function MainLayout() {
           </button>
         </div>
       )}
+
+      {/* 游客登录引导 */}
+      <AlertDialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>需要登录</AlertDialogTitle>
+            <AlertDialogDescription>
+              该功能需要登录后使用，请登录或注册账号。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate(ROUTES.login)}>
+              去登录 / 注册
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

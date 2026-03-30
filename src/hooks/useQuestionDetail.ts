@@ -16,7 +16,8 @@
  *   - @/types                → Comment / Answer
  *
  * [OUTPUT]
- *   - useQuestionDetail(questionId: string) → 问题/答案/评论 state、点赞/收藏/音频/评论 handler
+ *   - useQuestionDetail(questionId: string, onRequireLogin?: () => void)
+ *     → 问题/答案/评论 state、点赞/收藏/音频/评论 handler
  *
  * [TODO] QuestionDetailPage.tsx 目前未消费此 hook，自行实现了平行逻辑。
  *        待专项 PR：页面迁移至本 hook，删除页面内重复实现。
@@ -66,10 +67,18 @@ function normalizeQuestion(raw: any) {
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-export function useQuestionDetail(questionId: string) {
+export function useQuestionDetail(questionId: string, onRequireLogin?: () => void) {
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
   const { getQuestionById } = useQuestions();
+
+  const requireLogin = () => {
+    if (onRequireLogin) {
+      onRequireLogin();
+    } else {
+      navigate(ROUTES.login);
+    }
+  };
 
   // ── 问题
   const [rawQuestion, setRawQuestion] = useState<any>(() =>
@@ -179,8 +188,7 @@ export function useQuestionDetail(questionId: string) {
   // ── Actions
   const handleLike = async () => {
     if (!currentUser) {
-      toast.error('请先登录');
-      navigate(ROUTES.login);
+      requireLogin();
       return;
     }
     if (!question) return;
@@ -204,8 +212,7 @@ export function useQuestionDetail(questionId: string) {
 
   const handleFavorite = async () => {
     if (!currentUser) {
-      toast.error('请先登录');
-      navigate(ROUTES.login);
+      requireLogin();
       return;
     }
     if (!question) return;
@@ -306,8 +313,7 @@ export function useQuestionDetail(questionId: string) {
 
   const handleSubmitComment = async () => {
     if (!currentUser) {
-      toast.error('请先登录');
-      navigate(ROUTES.login);
+      requireLogin();
       return;
     }
     if (!question) return;
