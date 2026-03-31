@@ -4,10 +4,11 @@
  *   兄弟：useAdminDimension.ts（同 hooks 层，题目维度配置）
  *
  * [INPUT]
- *   - react              → useState
- *   - sonner             → toast
- *   - @/services/api     → adminService
- *   - @/types/api        → SubjectAdminDto / TopicAdminDto
+ *   - react                          → useState
+ *   - sonner                         → toast
+ *   - @/services/api                 → adminService
+ *   - @/services/subjectConfig.service → subjectConfigService
+ *   - @/types/api                    → SubjectAdminDto / TopicAdminDto
  *
  * [OUTPUT]
  *   - useAdminSubject() → subjects / selectedSubject / topics / loading 状态 / 全部 handler
@@ -19,6 +20,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { adminService } from '@/services/api';
+import { subjectConfigService } from '@/services/subjectConfig.service';
 import type { SubjectAdminDto, TopicAdminDto } from '@/types/api';
 
 export function useAdminSubject() {
@@ -59,10 +61,13 @@ export function useAdminSubject() {
       });
       setSubjects((prev) =>
         prev.map((s) =>
-          s.key === updated.key ? { ...s, name: updated.name, enabled: updated.enabled, order: updated.order } : s,
+          s.key === updated.key
+            ? { ...s, name: updated.name, enabled: updated.enabled, order: updated.order }
+            : s,
         ),
       );
       toast.success('科目信息已保存');
+      subjectConfigService.clearCache();
     } catch {
       toast.error('保存失败，请稍后重试');
     } finally {
@@ -72,9 +77,7 @@ export function useAdminSubject() {
 
   const setSelectedSubjectField = (field: keyof SubjectAdminDto, value: unknown) => {
     setSubjects((prev) =>
-      prev.map((s) =>
-        s.key === selectedSubjectKey ? { ...s, [field]: value } : s,
-      ),
+      prev.map((s) => (s.key === selectedSubjectKey ? { ...s, [field]: value } : s)),
     );
   };
 
@@ -94,6 +97,7 @@ export function useAdminSubject() {
         ),
       );
       toast.success('考点已更新');
+      subjectConfigService.clearCache();
     } catch {
       toast.error('更新失败，请稍后重试');
     }
@@ -117,6 +121,7 @@ export function useAdminSubject() {
         ),
       );
       toast.success('考点已添加');
+      subjectConfigService.clearCache();
     } catch {
       toast.error('添加失败，请稍后重试');
     }

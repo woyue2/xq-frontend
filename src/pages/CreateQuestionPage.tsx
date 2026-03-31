@@ -50,7 +50,6 @@ import { questionService, configService } from '@/services/api';
 import { subjectConfigService } from '@/services/subjectConfig.service';
 import type { Question } from '@/types';
 import type { QuestionDimensionDto } from '@/types/api';
-import { ROUTES } from '@/config/app-constants';
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
@@ -77,7 +76,7 @@ export function CreateQuestionPage() {
   // Derived options based on subject
   const [subjectList, setSubjectList] = useState<SubjectDto[]>([]);
   const currentSubjectConfig =
-    subjectList.find((s) => s.key === `subject_${selectedSubject}`) ?? null;
+    (subjectList ?? []).find((s) => s.key === `subject_${selectedSubject}`) ?? null;
 
   // 解题方法/办法维度配置（从后端动态获取，可关闭或改名）
   const [methodDimension, setMethodDimension] = useState<QuestionDimensionDto | null>(null);
@@ -139,14 +138,15 @@ export function CreateQuestionPage() {
     };
   }, []);
 
-  // 科目/考点动态加载
+  // 科目/考点动态加载（每次进入页面强制刷新，绕过缓存）
   useEffect(() => {
+    subjectConfigService.clearCache();
     subjectConfigService
       .getSubjects()
-      .then(setSubjectList)
-      .catch(() => {
-        // 静默失败：降级到空列表（subjectConfigService 内部已有 TAXONOMY 降级）
-      });
+      .then((list) => {
+        setSubjectList(Array.isArray(list) ? list : []);
+      })
+      .catch(() => {});
   }, []);
 
   const showMethodField = !!currentSubjectConfig;
@@ -318,7 +318,7 @@ export function CreateQuestionPage() {
               选择科目 <span className="text-red-500">*</span>
             </Label>
             <div className="flex gap-2 flex-wrap">
-              {subjectList.map((sub) => (
+              {(subjectList ?? []).map((sub) => (
                 <button
                   key={sub.key}
                   onClick={() => {
@@ -371,23 +371,7 @@ export function CreateQuestionPage() {
                       <SelectValue placeholder="尝试了什么方法？" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(methodOptions.length > 0
-                        ? methodOptions
-                        : currentSubjectConfig.methods.map((m) => {
-                            if (m === '暂不确定') {
-                              return {
-                                value: 'unknown',
-                                label: m,
-                                order: 999,
-                              };
-                            }
-                            return {
-                              value: m,
-                              label: m,
-                              order: 0,
-                            };
-                          })
-                      ).map((opt) => (
+                      {(methodOptions.length > 0 ? methodOptions : []).map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
