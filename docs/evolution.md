@@ -14,6 +14,14 @@
 - 前端：useAdminSubject hook + AdminManagementPage 科目管理 UI + CreateQuestionPage 选科目
 - 前端：admin.service 补充科目/考点 API，types/api.ts 新增 SubjectAdminDto/TopicAdminDto
 
+## 变动  修复科目禁用/考点新增未同步到创建问题页
+### 原因
+subjectConfig.service.ts 读取响应数据路径错误（少了一层 `.data`），导致解析结果为 undefined 并缓存；同时 CreateQuestionPage 未在每次进入时强制刷新，缓存 5 分钟内管理端修改不生效。
+### 影响
+- subjectConfig.service.ts：修正路径为 `response.data.data.subjects`，加 Array.isArray 校验防止 undefined 缓存
+- CreateQuestionPage：每次 mount 调用 clearCache() 强制重新加载
+- useAdminSubject：保存科目/考点/新增考点成功后调用 clearCache()
+
 ## 变动  AI 审核正式接入 + 老师评论补齐审核
 ### 原因
 `.env` 中 `AI_AUDIT_BASE_URL`/`AI_AUDIT_API_KEY` 填入后，Jest 测试环境因相对路径问题无法加载 `.env`，导致 AI 审核在测试中始终 disabled。同时发现老师发评论绕过了 AI 审核直接 approved，存在安全漏洞。
