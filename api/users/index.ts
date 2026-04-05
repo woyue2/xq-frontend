@@ -157,17 +157,7 @@ async function handleLikes(req: any, res: VercelResponse) {
         orderBy: { createdAt: 'desc' },
         skip,
         take: Number(limit),
-        include: {
-          question: {
-            select: {
-              id: true, title: true, content: true, subject: true,
-              tags: true, images: true, difficulty: true, status: true,
-              isGoodQuestion: true, isPinned: true, likes: true,
-              favorites: true, comments: true, answers: true,
-              authorId: true, authorName: true, authorAvatar: true, createdAt: true
-            }
-          }
-        }
+        include: { question: true }
       }),
       prisma.like.count({ where: { userId, targetType: 'question' } })
     ])

@@ -3,7 +3,15 @@
  *   所属：API 工具层 | 角色：JWT 鉴权中间件
  */
 import jwt from 'jsonwebtoken'
+import type { VercelRequest } from '@vercel/node'
 import { prisma } from '../../src/lib/prisma'
+
+// 扩展 VercelRequest 类型
+declare module '@vercel/node' {
+  interface VercelRequest {
+    user?: AuthUser
+  }
+}
 
 const JWT_SECRET = process.env.JWT_SECRET!
 
@@ -12,6 +20,13 @@ export interface AuthUser {
   phone: string
   role: string
   nickname: string
+}
+
+// 扩展 VercelRequest 类型
+declare module '@vercel/node' {
+  interface VercelRequest {
+    user?: AuthUser
+  }
 }
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {

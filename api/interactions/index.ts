@@ -118,16 +118,7 @@ async function handleGetFavorites(req: VercelRequest, res: VercelResponse) {
     const [favorites, total] = await Promise.all([
       prisma.favorite.findMany({
         where: { userId }, orderBy: { createdAt: 'desc' }, skip, take: Number(limit),
-        include: {
-          question: {
-            select: {
-              id: true, title: true, content: true, subject: true, tags: true,
-              images: true, difficulty: true, status: true, isGoodQuestion: true,
-              isPinned: true, likes: true, favorites: true, comments: true, answers: true,
-              authorId: true, authorName: true, authorAvatar: true, createdAt: true
-            }
-          }
-        }
+        include: { question: true }
       }),
       prisma.favorite.count({ where: { userId } })
     ])
