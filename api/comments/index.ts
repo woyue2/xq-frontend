@@ -7,8 +7,39 @@
  *   - POST → 创建评论
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../_lib/prisma'
-import { getCurrentUser } from '../_lib/auth'
+import { PrismaClient } from '@prisma/client'
+import * as jwt from 'jsonwebtoken'
+
+// === 内联 Prisma 客户端 ===
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+// === 内联 Auth 工具 ===
+const JWT_SECRET = process.env.JWT_SECRET!
+
+interface AuthUser {
+  id: string
+  phone: string
+  role: string
+  nickname: string
+}
+
+async function verifyToken(token: string): Promise<AuthUser | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    return decoded
+  } catch {
+    return null
+  }
+}
+
+async function getCurrentUser(req: VercelRequest): Promise<AuthUser | null> {
+  const authHeader = req.headers?.authorization
+  if (!authHeader?.startsWith('Bearer ')) return null
+  return verifyToken(authHeader.slice(7))
+}
 
 export default async function handler(
   req: VercelRequest,

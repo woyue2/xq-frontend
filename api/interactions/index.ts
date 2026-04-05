@@ -12,8 +12,50 @@
  *   - POST /interactions/understanding → 标记理解状态
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../_lib/prisma'
-import { requireAuth } from '../_lib/auth'
+import { PrismaClient } from '@prisma/client'
+import * as jwt from 'jsonwebtoken'
+
+// === 内联 Prisma 客户端 ===
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+// === 内联 Auth 工具 ===
+const JWT_SECRET = process.env.JWT_SECRET!
+
+interface AuthUser {
+  id: string
+  phone: string
+  role: string
+  nickname: string
+}
+
+async function verifyToken(token: string): Promise<AuthUser | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    return decoded
+  } catch {
+    return null
+  }
+}
+
+async function getCurrentUser(req: VercelRequest): Promise<AuthUser | null> {
+  const authHeader = req.headers?.authorization
+  if (!authHeader?.startsWith('Bearer ')) return null
+  return verifyToken(authHeader.slice(7))
+}
+
+function requireAuth(handler: Function) {
+  return async (req: VercelRequest, res: any) => {
+    const user = await getCurrentUser(req)
+    if (!user) {
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
+    }
+    ;(req as any).user = user
+    return handler(req, res)
+  }
+}
 
 async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')

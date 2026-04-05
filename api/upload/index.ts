@@ -6,7 +6,42 @@
  *   - POST → 上传文件到 Supabase Storage
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireAuth } from '../_lib/auth'
+import * as jwt from 'jsonwebtoken'
+
+// === 内联 Auth 工具 ===
+const JWT_SECRET = process.env.JWT_SECRET!
+
+interface AuthUser {
+  id: string
+  phone: string
+  role: string
+  nickname: string
+}
+
+async function verifyToken(token: string): Promise<AuthUser | null> {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    return decoded
+  } catch {
+    return null
+  }
+}
+
+async function getCurrentUser(req: any): Promise<AuthUser | null> {
+  const authHeader = req.headers?.authorization
+  if (!authHeader?.startsWith('Bearer ')) return null
+  return verifyToken(authHeader.slice(7))
+}
+
+function requireAuth(handler: Function) {
+  return async (req: any, res: any) => {
+    const user = await getCurrentUser(req)
+    if (!user) {
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
+    }
+    return handler(req, res)
+  }
+}
 
 // Supabase Storage 配置
 const SUPABASE_URL = process.env.SUPABASE_URL!
