@@ -1,6 +1,7 @@
 /**
- * [POS] api/questions/[id].ts
+ * [POS] api/questions/detail.ts
  *   所属：API 路由层 | 角色：问题详情
+ *   路由: /api/questions/detail?id=xxx
  *
  * [METHODS]
  *   - GET → 获取问题详情
@@ -87,7 +88,7 @@ export default async function handler(
     })
 
   } catch (error) {
-    console.error('[API /questions/:id]', error)
+    console.error('[API /questions/detail]', error)
     return res.status(500).json({
       code: 500,
       message: '服务器内部错误',
