@@ -8,9 +8,29 @@
  *   - POST /auth/register → 用户注册
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../_lib/prisma'
-import { generateToken } from '../_lib/auth'
+import { PrismaClient } from '@prisma/client'
+import * as jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+
+// === 内联 Prisma 客户端 ===
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+// === 内联 Auth 工具 ===
+const JWT_SECRET = process.env.JWT_SECRET!
+
+interface AuthUser {
+  id: string
+  phone: string
+  role: string
+  nickname: string
+}
+
+function generateToken(user: AuthUser): string {
+  return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' })
+}
 
 export default async function handler(
   req: VercelRequest,

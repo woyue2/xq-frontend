@@ -11,7 +11,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
 
 // === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {

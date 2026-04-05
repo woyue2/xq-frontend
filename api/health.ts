@@ -7,7 +7,13 @@
  *   - GET /health → 检查数据库连接状态
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from './_lib/prisma'
+import { PrismaClient } from '@prisma/client'
+
+// === 内联 Prisma 客户端 ===
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
 export default async function handler(
   req: VercelRequest,
