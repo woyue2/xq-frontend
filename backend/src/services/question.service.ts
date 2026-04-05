@@ -95,15 +95,16 @@ export class QuestionService {
       }
     }
 
-    // AI 内容审核（仅对非老师用户）
+    // AI 内容审核（所有角色统一走 AI+人工双重审核）
     let auditResult: { safe: boolean; reason?: string; category?: string; quality?: { clear: boolean; suggestion?: string } } = {
       safe: true,
       quality: { clear: true, suggestion: undefined }
     };
-    let initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+    // 所有角色统一进 pending，需人工复核
+    let initialStatus: 'pending' | 'rejected' = 'pending';
     let aiResultText = '无违规';
-
-    // 组装标签：在原有 tags 基础上为学生自动补充“年级”标签
+    
+    // 组装标签：在原有 tags 基础上为学生自动补充"年级"标签
     let effectiveTags = Array.isArray(tags) ? [...tags] : [];
     if (author.role === 'student' && author.grade) {
       const gradeTag = author.grade.trim();
@@ -111,50 +112,42 @@ export class QuestionService {
         effectiveTags.push(gradeTag);
       }
     }
-
-    if (author.role !== 'teacher') {
-      // 1. 文本审核
-      const contentToAudit = `${title}\n\n${content || ''}`.trim();
-      const result = await aiAuditService.auditContent(contentToAudit, 'question');
-      auditResult = {
-        safe: result.safe,
-        reason: result.reason,
-        category: result.category,
-        quality: result.quality
-      };
-
-      // 2. 图片审核（如果有图片且文本审核通过）
-      if (auditResult.safe && images && images.length > 0) {
-        const imageResults = await aiAuditService.auditImages(images);
-        const unsafeImage = imageResults.find(r => !r.safe);
-        if (unsafeImage) {
-          auditResult.safe = false;
-          auditResult.reason = `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}`;
-          auditResult.category = unsafeImage.category || 'image_violation';
-        }
+    
+    // 1. 文本审核（所有角色）
+    const contentToAudit = `${title}\n\n${content || ''}`.trim();
+    const result = await aiAuditService.auditContent(contentToAudit, 'question');
+    auditResult = {
+      safe: result.safe,
+      reason: result.reason,
+      category: result.category,
+      quality: result.quality
+    };
+    
+    // 2. 图片审核（如果有图片且文本审核通过）
+    if (auditResult.safe && images && images.length > 0) {
+      const imageResults = await aiAuditService.auditImages(images);
+      const unsafeImage = imageResults.find(r => !r.safe);
+      if (unsafeImage) {
+        auditResult.safe = false;
+        auditResult.reason = `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}`;
+        auditResult.category = unsafeImage.category || 'image_violation';
       }
-
-      if (!auditResult.safe) {
-        // 内容违规，直接拒绝
-        initialStatus = 'rejected';
-        aiResultText = JSON.stringify({
-          safe: false,
-          reason: auditResult.reason,
-          category: auditResult.category
-        });
-      } else {
-        // 内容安全
-        // 注意：此处不自动设为 approved。
-        // 根据业务规则，学生发布的内容即使通过 AI 审核，也默认为 pending (需老师复核)。
-        // 初始状态已经在上方根据角色设定好了 (status = pending)，所以这里保持不变即可。
-
-        // initialStatus = 'approved'; // DELETE: 不要自动通过
-
-        aiResultText = JSON.stringify({
-          safe: true,
-          quality: auditResult.quality
-        });
-      }
+    }
+    
+    if (!auditResult.safe) {
+      // 内容违规，直接拒绝
+      initialStatus = 'rejected';
+      aiResultText = JSON.stringify({
+        safe: false,
+        reason: auditResult.reason,
+        category: auditResult.category
+      });
+    } else {
+      // 内容安全，进 pending 待人工复核
+      aiResultText = JSON.stringify({
+        safe: true,
+        quality: auditResult.quality
+      });
     }
 
     const created = await prisma.question.create({
@@ -511,24 +504,22 @@ export class QuestionService {
     const effectiveContent = content ?? question.content ?? '';
     const effectiveImages = images ?? question.images ?? [];
 
-    const author = await prisma.user.findUnique({ where: { id: userId } });
-    if (author && author.role !== 'teacher') {
-      const contentToAudit = `${effectiveTitle}\n\n${effectiveContent}`.trim();
-      const textResult = await aiAuditService.auditContent(contentToAudit, 'question');
-      if (!textResult.safe) {
-        aiResultText = JSON.stringify({ safe: false, reason: textResult.reason, category: textResult.category });
-      } else {
-        if (effectiveImages.length > 0) {
-          const imageResults = await aiAuditService.auditImages(effectiveImages);
-          const unsafeImage = imageResults.find(r => !r.safe);
-          if (unsafeImage) {
-            aiResultText = JSON.stringify({ safe: false, reason: `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}` });
-          } else {
-            aiResultText = JSON.stringify({ safe: true });
-          }
+    // 所有角色编辑问题都需重新走 AI 审核
+    const contentToAudit = `${effectiveTitle}\n\n${effectiveContent}`.trim();
+    const textResult = await aiAuditService.auditContent(contentToAudit, 'question');
+    if (!textResult.safe) {
+      aiResultText = JSON.stringify({ safe: false, reason: textResult.reason, category: textResult.category });
+    } else {
+      if (effectiveImages.length > 0) {
+        const imageResults = await aiAuditService.auditImages(effectiveImages);
+        const unsafeImage = imageResults.find(r => !r.safe);
+        if (unsafeImage) {
+          aiResultText = JSON.stringify({ safe: false, reason: `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}` });
         } else {
           aiResultText = JSON.stringify({ safe: true });
         }
+      } else {
+        aiResultText = JSON.stringify({ safe: true });
       }
     }
 
