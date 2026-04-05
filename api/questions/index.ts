@@ -181,9 +181,9 @@ async function handleDetail(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.json({ code: 200, data: question, timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Questions Detail]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -191,8 +191,8 @@ async function handleDetail(req: VercelRequest, res: VercelResponse) {
 async function handleDelete(req: any, res: VercelResponse) {
   try {
     const { id } = req.body
-    const userId = req.user?.id as string
-    const userRole = req.user?.role as string
+    const userId = (req as any).user?.id as string
+    const userRole = (req as any).user?.role as string
 
     if (!id) {
       return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })

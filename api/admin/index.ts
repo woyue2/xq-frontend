@@ -106,7 +106,7 @@ async function handleAuditPending(req: VercelRequest, res: VercelResponse) {
 async function handleAuditApprove(req: any, res: VercelResponse) {
   try {
     const { id, type, isGoodQuestion, score, tags, difficulty } = req.body
-    const auditorId = req.user?.id as string
+    const auditorId = (req as any).user?.id as string
 
     if (!id || !type) {
       return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
@@ -136,7 +136,7 @@ async function handleAuditApprove(req: any, res: VercelResponse) {
 async function handleAuditReject(req: any, res: VercelResponse) {
   try {
     const { id, type, reason } = req.body
-    const auditorId = req.user?.id as string
+    const auditorId = (req as any).user?.id as string
 
     if (!id || !type) {
       return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
@@ -163,7 +163,7 @@ async function handleAuditReject(req: any, res: VercelResponse) {
 async function handleAuditBan(req: any, res: VercelResponse) {
   try {
     const { id, type, reason } = req.body
-    const auditorId = req.user?.id as string
+    const auditorId = (req as any).user?.id as string
     const now = new Date()
 
     if (!id || !type) {
@@ -301,7 +301,7 @@ async function handleWhitelistAdd(req: VercelRequest, res: VercelResponse) {
 async function handleWhitelistDelete(req: any, res: VercelResponse) {
   try {
     const { id } = req.body
-    const adminId = req.user?.id as string
+    const adminId = (req as any).user?.id as string
 
     if (!id) {
       return res.status(400).json({ code: 400, message: '白名单ID为必填项', timestamp: Date.now() })

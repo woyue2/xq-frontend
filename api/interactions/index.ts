@@ -66,7 +66,7 @@ async function handleLike(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ code: 409, message: '已点赞', timestamp: Date.now() })
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.like.create({ data: { userId, targetType, targetId } })
       if (targetType === 'question') {
         await tx.question.update({ where: { id: targetId }, data: { likes: { increment: 1 } } })
@@ -92,7 +92,7 @@ async function handleUnlike(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ code: 400, message: '参数不完整', timestamp: Date.now() })
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.like.deleteMany({ where: { userId, targetType: targetType as string, targetId: targetId as string } })
       if (targetType === 'question') {
         await tx.question.update({ where: { id: targetId as string }, data: { likes: { decrement: 1 } } })
@@ -164,7 +164,7 @@ async function handleAddFavorite(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ code: 409, message: '已收藏该问题', timestamp: Date.now() })
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.favorite.create({ data: { userId, questionId } })
       await tx.question.update({ where: { id: questionId }, data: { favorites: { increment: 1 } } })
     })
@@ -186,7 +186,7 @@ async function handleRemoveFavorite(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.favorite.deleteMany({ where: { userId, questionId: questionId as string } })
       await tx.question.update({ where: { id: questionId as string }, data: { favorites: { decrement: 1 } } })
     })
@@ -248,7 +248,7 @@ async function handleSetUnderstanding(req: VercelRequest, res: VercelResponse) {
       where: { questionId_userId: { questionId, userId } }
     })
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.questionUnderstanding.upsert({
         where: { questionId_userId: { questionId, userId } },
         update: { status, updatedAt: new Date() },

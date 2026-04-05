@@ -19,7 +19,7 @@ async function handler(req: any, res: VercelResponse) {
     return res.status(200).end()
   }
 
-  const userId = req.user?.id as string
+  const userId = (req as any).user?.id as string
 
   // GET - 获取通知列表
   if (req.method === 'GET') {
