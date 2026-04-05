@@ -17,17 +17,23 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  console.log('[DEBUG] API handler started', { method: req.method, url: req.url })
+  
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
   if (req.method === 'OPTIONS') {
+    console.log('[DEBUG] OPTIONS request, returning 200')
     return res.status(200).end()
   }
 
   try {
+    console.log('[DEBUG] Checking prisma import:', typeof prisma)
+    
     if (req.method === 'GET') {
+      console.log('[DEBUG] Handling GET request')
       const { subject, status = 'approved', page = '1', limit = '20' } = req.query
 
       const where: any = { status: String(status) }
@@ -150,7 +156,9 @@ export default async function handler(
     })
 
   } catch (error: any) {
-    console.error('[API /questions]', error)
+    console.error('[DEBUG] CATCH ERROR:', error)
+    console.error('[DEBUG] Error stack:', error.stack)
+    console.error('[DEBUG] Error message:', error.message)
     return res.status(500).json({
       code: 500,
       message: '服务器内部错误: ' + (error.message || 'Unknown error'),
