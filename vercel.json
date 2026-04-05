@@ -8,6 +8,22 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/subjects",
+      "destination": "/api/subjects"
+    },
+    {
+      "source": "/questions",
+      "destination": "/api/questions"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
