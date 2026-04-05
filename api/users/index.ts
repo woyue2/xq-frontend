@@ -54,9 +54,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 // GET /users/me
-async function handleMe(req: VercelRequest, res: VercelResponse) {
+async function handleMe(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id
+    const userId = req.user?.id as string
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -77,9 +77,9 @@ async function handleMe(req: VercelRequest, res: VercelResponse) {
 }
 
 // GET /users/profile
-async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
+async function handleGetProfile(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id
+    const userId = req.user?.id as string
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -111,9 +111,9 @@ async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
 }
 
 // PUT /users/profile
-async function handleUpdateProfile(req: VercelRequest, res: VercelResponse) {
+async function handleUpdateProfile(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id
+    const userId = req.user?.id as string
     const { nickname, avatar, grade, age, school, name } = req.body
 
     const updateData: any = {}
@@ -145,9 +145,9 @@ async function handleUpdateProfile(req: VercelRequest, res: VercelResponse) {
 }
 
 // GET /users/likes
-async function handleLikes(req: VercelRequest, res: VercelResponse) {
+async function handleLikes(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id
+    const userId = req.user?.id as string
     const { page = '1', limit = '20' } = req.query
     const skip = (Number(page) - 1) * Number(limit)
 
@@ -172,12 +172,12 @@ async function handleLikes(req: VercelRequest, res: VercelResponse) {
       prisma.like.count({ where: { userId, targetType: 'question' } })
     ])
 
-    const validLikes = likes.filter(like => like.question !== null)
+    const validLikes = likes.filter((like: any) => like.question !== null)
 
     return res.json({
       code: 200,
       data: {
-        list: validLikes.map(like => ({ ...like.question, likedAt: like.createdAt })),
+        list: validLikes.map((like: any) => ({ ...like.question, likedAt: like.createdAt })),
         pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) }
       },
       timestamp: Date.now()

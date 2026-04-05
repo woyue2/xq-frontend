@@ -10,7 +10,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { prisma } from '../../src/lib/prisma'
 import { requireAuth } from '../_lib/auth'
 
-async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: any, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -19,7 +19,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end()
   }
 
-  const userId = req.user?.id
+  const userId = req.user?.id as string
 
   // GET - 获取通知列表
   if (req.method === 'GET') {
