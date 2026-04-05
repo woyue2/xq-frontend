@@ -103,10 +103,10 @@ async function handleAuditPending(req: VercelRequest, res: VercelResponse) {
 }
 
 // POST /admin/audit/approve
-async function handleAuditApprove(req: VercelRequest, res: VercelResponse) {
+async function handleAuditApprove(req: any, res: VercelResponse) {
   try {
     const { id, type, isGoodQuestion, score, tags, difficulty } = req.body
-    const auditorId = req.user?.id
+    const auditorId = req.user?.id as string
 
     if (!id || !type) {
       return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
@@ -133,10 +133,10 @@ async function handleAuditApprove(req: VercelRequest, res: VercelResponse) {
 }
 
 // POST /admin/audit/reject
-async function handleAuditReject(req: VercelRequest, res: VercelResponse) {
+async function handleAuditReject(req: any, res: VercelResponse) {
   try {
     const { id, type, reason } = req.body
-    const auditorId = req.user?.id
+    const auditorId = req.user?.id as string
 
     if (!id || !type) {
       return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
@@ -160,10 +160,10 @@ async function handleAuditReject(req: VercelRequest, res: VercelResponse) {
 }
 
 // POST /admin/audit/ban
-async function handleAuditBan(req: VercelRequest, res: VercelResponse) {
+async function handleAuditBan(req: any, res: VercelResponse) {
   try {
     const { id, type, reason } = req.body
-    const auditorId = req.user?.id
+    const auditorId = req.user?.id as string
     const now = new Date()
 
     if (!id || !type) {
@@ -216,7 +216,7 @@ async function handleStats(req: VercelRequest, res: VercelResponse) {
     return res.json({
       code: 200,
       data: {
-        users: { total: totalUsers, newToday: newUsersToday, byRole: usersByRole.reduce((acc, item) => ({ ...acc, [item.role]: item._count.id }), {}) },
+        users: { total: totalUsers, newToday: newUsersToday, byRole: usersByRole.reduce((acc: any, item: any) => ({ ...acc, [item.role]: item._count.id }), {}) },
         questions: { total: totalQuestions, pending: pendingQuestions, approved: approvedQuestions, rejected: rejectedQuestions, today: questionsToday },
         answers: { total: totalAnswers, pending: pendingAnswers, today: answersToday },
         comments: { total: totalComments, pending: pendingComments },
@@ -298,10 +298,10 @@ async function handleWhitelistAdd(req: VercelRequest, res: VercelResponse) {
 }
 
 // POST /admin/whitelist/delete
-async function handleWhitelistDelete(req: VercelRequest, res: VercelResponse) {
+async function handleWhitelistDelete(req: any, res: VercelResponse) {
   try {
     const { id } = req.body
-    const adminId = req.user?.id
+    const adminId = req.user?.id as string
 
     if (!id) {
       return res.status(400).json({ code: 400, message: '白名单ID为必填项', timestamp: Date.now() })
