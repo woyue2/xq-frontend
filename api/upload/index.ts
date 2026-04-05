@@ -3,7 +3,7 @@
  *   所属：API 路由层 | 角色：文件上传
  *
  * [METHODS]
- *   - POST → 上传文件到 Supabase Storage
+ *   - POST → 上传文件到 imgurl.org OSS
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import * as jwt from 'jsonwebtoken'
@@ -43,9 +43,9 @@ function requireAuth(handler: Function) {
   }
 }
 
-// Supabase Storage 配置
-const SUPABASE_URL = process.env.SUPABASE_URL!
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!
+// OSS 图床配置 (imgurl.org)
+const OSS_UPLOAD_BASE_URL = process.env.OSS_UPLOAD_BASE_URL!
+const OSS_UPLOAD_TOKEN = process.env.OSS_UPLOAD_TOKEN!
 
 async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -65,7 +65,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { file, fileName, fileType, folder = 'general' } = req.body
+    const { file, fileName, fileType } = req.body
 
     if (!file || !fileName) {
       return res.status(400).json({
@@ -76,49 +76,39 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 验证文件类型
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    const allowedAudioTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'audio/mp4']
-    const allowedTypes = [...allowedImageTypes, ...allowedAudioTypes]
-
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     if (!allowedTypes.includes(fileType)) {
       return res.status(400).json({
         code: 400,
-        message: '不支持的文件类型',
+        message: '只支持图片格式：jpg, png, gif, webp',
         timestamp: Date.now()
       })
     }
 
-    // 验证文件大小 (Base64 解码后)
-    const fileBuffer = Buffer.from(file, 'base64')
-    const maxImageSize = 10 * 1024 * 1024 // 10MB
-    const maxAudioSize = 50 * 1024 * 1024 // 50MB
-    const maxSize = allowedImageTypes.includes(fileType) ? maxImageSize : maxAudioSize
-
-    if (fileBuffer.length > maxSize) {
+    // Base64 处理
+    const base64Data = file.replace(/^data:image\/\w+;base64,/, '')
+    
+    // 验证文件大小 (10MB)
+    const sizeInBytes = Math.ceil(base64Data.length * 0.75)
+    if (sizeInBytes > 10 * 1024 * 1024) {
       return res.status(400).json({
         code: 400,
-        message: `文件大小超过限制，最大允许 ${maxSize / 1024 / 1024}MB`,
+        message: '文件大小超过10MB限制',
         timestamp: Date.now()
       })
     }
 
-    // 生成唯一文件名
-    const timestamp = Date.now()
-    const randomStr = Math.random().toString(36).substring(2, 8)
-    const ext = fileName.split('.').pop() || 'bin'
-    const uniqueFileName = `${folder}/${timestamp}-${randomStr}.${ext}`
+    // 上传到 imgurl.org
+    const formData = new URLSearchParams()
+    formData.append('file', base64Data)
 
-    // 上传到 Supabase Storage
-    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/uploads/${uniqueFileName}`
-    
-    const uploadRes = await fetch(uploadUrl, {
+    const uploadRes = await fetch(OSS_UPLOAD_BASE_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        'Content-Type': fileType,
-        'x-upsert': 'true'
+        'Authorization': `Bearer ${OSS_UPLOAD_TOKEN}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: fileBuffer
+      body: formData.toString()
     })
 
     if (!uploadRes.ok) {
@@ -131,15 +121,22 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       })
     }
 
-    // 获取公开访问 URL
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/uploads/${uniqueFileName}`
+    const result = await uploadRes.json()
+
+    if (result.code !== 200) {
+      console.error('[Upload API Error]', result)
+      return res.status(500).json({
+        code: 500,
+        message: result.msg || '上传失败',
+        timestamp: Date.now()
+      })
+    }
 
     return res.status(201).json({
       code: 201,
       data: {
-        url: publicUrl,
-        path: uniqueFileName,
-        size: fileBuffer.length,
+        url: result.data?.url || result.url,
+        size: sizeInBytes,
         type: fileType
       },
       message: '上传成功',
@@ -151,7 +148,6 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({
       code: 500,
       message: '服务器内部错误: ' + (error.message || 'Unknown'),
-      error: error.message,
       timestamp: Date.now()
     })
   }
