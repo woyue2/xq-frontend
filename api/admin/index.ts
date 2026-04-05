@@ -96,9 +96,9 @@ async function handleAuditPending(req: VercelRequest, res: VercelResponse) {
       code: 200, data: { list: data, pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) } },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Audit Pending]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -126,9 +126,9 @@ async function handleAuditApprove(req: any, res: VercelResponse) {
     await prisma.auditLog.create({ data: { auditorId, targetType: type, targetId: id, action: 'approve' } })
 
     return res.json({ code: 200, data: { id, type, status: 'approved' }, message: '审核通过', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Audit Approve]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -153,9 +153,9 @@ async function handleAuditReject(req: any, res: VercelResponse) {
     await prisma.auditLog.create({ data: { auditorId, targetType: type, targetId: id, action: 'reject', reason } })
 
     return res.json({ code: 200, data: { id, type, status: 'rejected' }, message: '已拒绝', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Audit Reject]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -185,9 +185,9 @@ async function handleAuditBan(req: any, res: VercelResponse) {
     await prisma.auditLog.create({ data: { auditorId, targetType: type, targetId: id, action: 'ban', reason } })
 
     return res.json({ code: 200, data: { id, type, status: 'banned' }, message: '已封禁', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Audit Ban]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -224,9 +224,9 @@ async function handleStats(req: VercelRequest, res: VercelResponse) {
       },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Stats]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -253,9 +253,9 @@ async function handleWhitelistList(req: VercelRequest, res: VercelResponse) {
       code: 200, data: { list, pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) } },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Whitelist List]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -291,9 +291,9 @@ async function handleWhitelistAdd(req: VercelRequest, res: VercelResponse) {
     })
 
     return res.status(201).json({ code: 201, data: whitelist, message: '白名单用户添加成功', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Whitelist Add]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -315,9 +315,9 @@ async function handleWhitelistDelete(req: any, res: VercelResponse) {
     await prisma.userWhitelist.update({ where: { id }, data: { deletedAt: new Date(), deletedBy: adminId } })
 
     return res.json({ code: 200, message: '白名单用户已删除', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Admin Whitelist Delete]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 

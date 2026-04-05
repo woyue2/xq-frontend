@@ -140,9 +140,9 @@ async function handleGetFavorites(req: VercelRequest, res: VercelResponse) {
       },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Favorites GET]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -170,9 +170,9 @@ async function handleAddFavorite(req: VercelRequest, res: VercelResponse) {
     })
 
     return res.status(201).json({ code: 201, message: '收藏成功', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Favorite POST]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -192,9 +192,9 @@ async function handleRemoveFavorite(req: VercelRequest, res: VercelResponse) {
     })
 
     return res.json({ code: 200, message: '取消收藏成功', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Favorite DELETE]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -223,9 +223,9 @@ async function handleGetUnderstanding(req: VercelRequest, res: VercelResponse) {
       data: { myStatus: understanding?.status || null, stats: question || { understoodCount: 0, notUnderstoodCount: 0 } },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Understanding GET]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -277,9 +277,9 @@ async function handleSetUnderstanding(req: VercelRequest, res: VercelResponse) {
     })
 
     return res.json({ code: 200, message: status === 'understood' ? '已标记为懂了' : '已标记为没懂', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Understanding POST]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
