@@ -8,6 +8,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { prisma } from '../../src/lib/prisma'
+import { requireAuth, getCurrentUser } from '../_lib/auth'
 
 export default async function handler(
   req: VercelRequest,
@@ -83,13 +84,22 @@ export default async function handler(
     }
 
     if (req.method === 'POST') {
-      // TODO: 添加鉴权中间件
-      const { title, content, subject, tags, images, difficulty, authorId, authorName, authorAvatar } = req.body
+      // 鉴权
+      const user = await getCurrentUser(req)
+      if (!user) {
+        return res.status(401).json({
+          code: 401,
+          message: '未登录',
+          timestamp: Date.now()
+        })
+      }
 
-      if (!title || !authorId) {
+      const { title, content, subject, tags, images, difficulty } = req.body
+
+      if (!title) {
         return res.status(400).json({
           code: 400,
-          message: '标题和作者ID不能为空',
+          message: '标题不能为空',
           timestamp: Date.now()
         })
       }
@@ -102,9 +112,9 @@ export default async function handler(
           tags: tags || [],
           images: images || [],
           difficulty,
-          authorId,
-          authorName: authorName || '匿名用户',
-          authorAvatar,
+          authorId: user.id,
+          authorName: user.nickname,
+          authorAvatar: null,
           status: 'pending' // 默认待审核
         }
       })
