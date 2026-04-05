@@ -7,7 +7,7 @@
  *   - GET /health → 检查数据库连接状态
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../src/lib/prisma'
+import { prisma } from './_lib/prisma'
 
 export default async function handler(
   req: VercelRequest,

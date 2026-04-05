@@ -3,7 +3,7 @@
  *   所属：API 工具层 | 角色：JWT 鉴权中间件
  */
 import jwt from 'jsonwebtoken'
-import { prisma } from '../../src/lib/prisma'
+import { prisma } from './prisma'
 
 const JWT_SECRET = process.env.JWT_SECRET!
 

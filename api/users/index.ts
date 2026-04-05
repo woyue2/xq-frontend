@@ -11,7 +11,7 @@
  *   - GET  /users/list     → 获取用户列表（管理员）
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../../src/lib/prisma'
+import { prisma } from '../_lib/prisma'
 import { requireAuth, requireRole } from '../_lib/auth'
 
 async function handler(req: VercelRequest, res: VercelResponse) {

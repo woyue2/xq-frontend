@@ -8,7 +8,7 @@
  *   - POST /auth/register → 用户注册
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../../src/lib/prisma'
+import { prisma } from '../_lib/prisma'
 import { generateToken } from '../_lib/auth'
 import bcrypt from 'bcryptjs'
 

@@ -6,7 +6,7 @@
  *   - GET → 获取学科列表及考点
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../../src/lib/prisma'
+import { prisma } from '../_lib/prisma'
 
 export default async function handler(
   req: VercelRequest,

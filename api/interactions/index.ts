@@ -12,7 +12,7 @@
  *   - POST /interactions/understanding → 标记理解状态
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { prisma } from '../../src/lib/prisma'
+import { prisma } from '../_lib/prisma'
 import { requireAuth } from '../_lib/auth'
 
 async function handler(req: VercelRequest, res: VercelResponse) {
