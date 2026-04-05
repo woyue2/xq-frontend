@@ -27,6 +27,19 @@
           "value": "Content-Type, Authorization"
         }
       ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
     }
   ],
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . :!backend/"
