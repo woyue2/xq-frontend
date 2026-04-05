@@ -18,6 +18,13 @@
 - 新增 `deploy/Caddyfile.example`，提供同域名部署模板
 - 新增 `deploy/SERVER_DEPLOY_CHECKLIST.md`，沉淀服务器准备、后端启动、前端构建、验收与回滚流程
 
+## 变动  修复 Vercel 部署 API 模块找不到错误
+### 原因  API 层错误引用前端 src/lib/prisma 路径，Vercel Serverless 环境中该路径不存在，导致 ERR_MODULE_NOT_FOUND
+### 影响
+- 新增 `api/_lib/prisma.ts` 专用 Prisma 客户端
+- 修复 11 个 API 文件的 prisma 引用路径，统一改为 `_lib/prisma`
+- 解决 `/api/questions` 等 API 端点部署时崩溃问题
+
 # 2026-03-31
 
 ## 变动  新增科目/考点管理功能
