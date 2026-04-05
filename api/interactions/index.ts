@@ -76,9 +76,9 @@ async function handleLike(req: VercelRequest, res: VercelResponse) {
     })
 
     return res.status(201).json({ code: 201, message: '点赞成功', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Like]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -102,9 +102,9 @@ async function handleUnlike(req: VercelRequest, res: VercelResponse) {
     })
 
     return res.json({ code: 200, message: '取消点赞成功', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Interactions Unlike]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
