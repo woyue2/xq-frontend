@@ -52,7 +52,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleLike(req: VercelRequest, res: VercelResponse) {
   try {
     const { targetType, targetId } = req.body
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
 
     if (!targetType || !targetId || !['question', 'answer'].includes(targetType)) {
       return res.status(400).json({ code: 400, message: '无效的目标类型', timestamp: Date.now() })
@@ -86,7 +86,7 @@ async function handleLike(req: VercelRequest, res: VercelResponse) {
 async function handleUnlike(req: VercelRequest, res: VercelResponse) {
   try {
     const { targetType, targetId } = req.query
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
 
     if (!targetType || !targetId) {
       return res.status(400).json({ code: 400, message: '参数不完整', timestamp: Date.now() })
@@ -111,22 +111,31 @@ async function handleUnlike(req: VercelRequest, res: VercelResponse) {
 // GET /interactions/favorite
 async function handleGetFavorites(req: VercelRequest, res: VercelResponse) {
   try {
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
     const { page = '1', limit = '20' } = req.query
     const skip = (Number(page) - 1) * Number(limit)
 
     const [favorites, total] = await Promise.all([
       prisma.favorite.findMany({
-        where: { userId }, orderBy: { createdAt: 'desc' }, skip, take: Number(limit),
-        include: { question: true }
+        where: { userId }, orderBy: { createdAt: 'desc' }, skip, take: Number(limit)
       }),
       prisma.favorite.count({ where: { userId } })
     ])
 
+    // 手动查询关联的问题
+    const questionIds = favorites.map((f: any) => f.questionId)
+    const questions = await prisma.question.findMany({
+      where: { id: { in: questionIds } }
+    })
+    const questionMap = new Map(questions.map((q: any) => [q.id, q]))
+
     return res.json({
       code: 200,
       data: {
-        list: favorites.map(f => ({ ...f.question, favoritedAt: f.createdAt })),
+        list: favorites.map((f: any) => {
+          const question = questionMap.get(f.questionId)
+          return question ? { ...question, favoritedAt: f.createdAt } : null
+        }).filter(Boolean),
         pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) }
       },
       timestamp: Date.now()
@@ -141,7 +150,7 @@ async function handleGetFavorites(req: VercelRequest, res: VercelResponse) {
 async function handleAddFavorite(req: VercelRequest, res: VercelResponse) {
   try {
     const { questionId } = req.body
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
 
     if (!questionId) {
       return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })
@@ -171,7 +180,7 @@ async function handleAddFavorite(req: VercelRequest, res: VercelResponse) {
 async function handleRemoveFavorite(req: VercelRequest, res: VercelResponse) {
   try {
     const { questionId } = req.query
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
 
     if (!questionId) {
       return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })
@@ -193,7 +202,7 @@ async function handleRemoveFavorite(req: VercelRequest, res: VercelResponse) {
 async function handleGetUnderstanding(req: VercelRequest, res: VercelResponse) {
   try {
     const { questionId } = req.query
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
 
     if (!questionId) {
       return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })
@@ -224,7 +233,7 @@ async function handleGetUnderstanding(req: VercelRequest, res: VercelResponse) {
 async function handleSetUnderstanding(req: VercelRequest, res: VercelResponse) {
   try {
     const { questionId, status } = req.body
-    const userId = req.user?.id
+    const userId = (req as any).user?.id
 
     if (!questionId || !status || !['understood', 'not_understood'].includes(status)) {
       return res.status(400).json({ code: 400, message: '无效参数', timestamp: Date.now() })

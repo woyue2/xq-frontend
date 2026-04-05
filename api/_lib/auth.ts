@@ -6,13 +6,6 @@ import jwt from 'jsonwebtoken'
 import type { VercelRequest } from '@vercel/node'
 import { prisma } from '../../src/lib/prisma'
 
-// 扩展 VercelRequest 类型
-declare module '@vercel/node' {
-  interface VercelRequest {
-    user?: AuthUser
-  }
-}
-
 const JWT_SECRET = process.env.JWT_SECRET!
 
 export interface AuthUser {

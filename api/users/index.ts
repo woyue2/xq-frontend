@@ -56,7 +56,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 // GET /users/me
 async function handleMe(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id as string
+    const userId = (req as any).user?.id as string
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -79,7 +79,7 @@ async function handleMe(req: any, res: VercelResponse) {
 // GET /users/profile
 async function handleGetProfile(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id as string
+    const userId = (req as any).user?.id as string
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -113,7 +113,7 @@ async function handleGetProfile(req: any, res: VercelResponse) {
 // PUT /users/profile
 async function handleUpdateProfile(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id as string
+    const userId = (req as any).user?.id as string
     const { nickname, avatar, grade, age, school, name } = req.body
 
     const updateData: any = {}
@@ -147,7 +147,7 @@ async function handleUpdateProfile(req: any, res: VercelResponse) {
 // GET /users/likes
 async function handleLikes(req: any, res: VercelResponse) {
   try {
-    const userId = req.user?.id as string
+    const userId = (req as any).user?.id as string
     const { page = '1', limit = '20' } = req.query
     const skip = (Number(page) - 1) * Number(limit)
 
@@ -156,18 +156,27 @@ async function handleLikes(req: any, res: VercelResponse) {
         where: { userId, targetType: 'question' },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: Number(limit),
-        include: { question: true }
+        take: Number(limit)
       }),
       prisma.like.count({ where: { userId, targetType: 'question' } })
     ])
 
-    const validLikes = likes.filter((like: any) => like.question !== null)
+    // 手动查询关联的问题
+    const questionIds = likes.map((l: any) => l.targetId)
+    const questions = await prisma.question.findMany({
+      where: { id: { in: questionIds } }
+    })
+    const questionMap = new Map(questions.map((q: any) => [q.id, q]))
+
+    const validLikes = likes.filter((like: any) => questionMap.has(like.targetId))
 
     return res.json({
       code: 200,
       data: {
-        list: validLikes.map((like: any) => ({ ...like.question, likedAt: like.createdAt })),
+        list: validLikes.map((like: any) => ({
+          ...(questionMap.get(like.targetId) as any),
+          likedAt: like.createdAt
+        })),
         pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) }
       },
       timestamp: Date.now()
