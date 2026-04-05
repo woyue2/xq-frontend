@@ -1,9 +1,9 @@
 /**
  * [POS] api/answers/index.ts
- *   所属：API 路由层 | 角色：回答列表/创建
+ *   所属：API 路由层 | 角色：回答列表/创建/详情
  *
  * [METHODS]
- *   - GET  → 获取问题回答列表
+ *   - GET  → 获取问题回答列表 (questionId) 或 回答详情 (id)
  *   - POST → 创建回答（教师）
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
@@ -24,7 +24,39 @@ export default async function handler(
 
   try {
     if (req.method === 'GET') {
-      const { questionId, page = '1', limit = '20' } = req.query
+      const { id, questionId, page = '1', limit = '20' } = req.query
+
+      // 如果有 id 参数，返回回答详情
+      if (id) {
+        const answer = await prisma.answer.findUnique({
+          where: { 
+            id: String(id),
+            deletedAt: null
+          },
+          include: {
+            question: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
+          }
+        })
+
+        if (!answer) {
+          return res.status(404).json({
+            code: 404,
+            message: '回答不存在',
+            timestamp: Date.now()
+          })
+        }
+
+        return res.json({
+          code: 200,
+          data: answer,
+          timestamp: Date.now()
+        })
+      }
 
       if (!questionId) {
         return res.status(400).json({
