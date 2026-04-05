@@ -7,11 +7,12 @@
     "node": "20.x"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "prisma generate && vite build",
     "dev": "vite dev",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@popperjs/core": "2.11.8",
