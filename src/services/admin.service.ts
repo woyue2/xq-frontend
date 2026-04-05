@@ -72,7 +72,8 @@ export const adminService = {
     return data.data;
   },
   removeFromWhitelist: async (id: string) => {
-    const { data } = await api.delete<ApiResponse<null>>(`/admin/whitelist/${id}`);
+    // 新 API: POST /admin/whitelist/delete (软删除)
+    const { data } = await api.post<ApiResponse<null>>('/admin/whitelist/delete', { id });
     return data.data;
   },
   updateValidity: async (id: string, validUntil: string) => {
@@ -186,30 +187,33 @@ export const auditService = {
     contentId: string,
     payload: { isGoodQuestion?: boolean; score?: number; tags?: string[]; difficulty?: string },
   ): Promise<ApproveQuestionResponse> => {
+    // 新 API: POST /admin/audit/approve
     const { data } = await api.post<ApiResponse<ApproveQuestionResponse>>(
-      `/admin/audit/${encodeURIComponent(contentId)}/approve`,
-      { type: 'question', ...payload },
+      '/admin/audit/approve',
+      { id: contentId, type: 'question', ...payload },
     );
     return data.data;
   },
   rejectQuestion: async (contentId: string, reason: string): Promise<RejectQuestionResponse> => {
+    // TODO: 需要实现 reject API
     const { data } = await api.post<ApiResponse<RejectQuestionResponse>>(
-      `/admin/audit/${encodeURIComponent(contentId)}/reject`,
-      { type: 'question', reason },
+      '/admin/audit/reject',
+      { id: contentId, type: 'question', reason },
     );
     return data.data;
   },
   approveComment: async (contentId: string): Promise<ApproveCommentResponse> => {
     const { data } = await api.post<ApiResponse<ApproveCommentResponse>>(
-      `/admin/audit/${encodeURIComponent(contentId)}/approve`,
-      { type: 'comment' },
+      '/admin/audit/approve',
+      { id: contentId, type: 'comment' },
     );
     return data.data;
   },
   banComment: async (contentId: string, reason: string): Promise<BanCommentResponse> => {
+    // TODO: 需要实现 ban API
     const { data } = await api.post<ApiResponse<BanCommentResponse>>(
-      `/admin/audit/${encodeURIComponent(contentId)}/ban`,
-      { type: 'comment', reason },
+      '/admin/audit/ban',
+      { id: contentId, type: 'comment', reason },
     );
     return data.data;
   },
@@ -227,15 +231,18 @@ export const answerService = {
     questionId: string,
     payload: { content?: string; images?: string[]; audioUrl?: string; audioUrls?: string[] },
   ) => {
+    // 新 API: POST /answers (questionId 在 payload 中)
     const { data } = await api.post<ApiResponse<Answer>>(
-      `/questions/${questionId}/answers`,
-      payload,
+      '/answers',
+      { questionId, ...payload },
     );
     return data.data;
   },
   listByQuestion: async (questionId: string) => {
+    // 新 API: GET /answers?questionId=xxx
     const { data } = await api.get<ApiResponse<{ list: Answer[]; total: number }>>(
-      `/questions/${questionId}/answers`,
+      '/answers',
+      { params: { questionId } },
     );
     return data.data;
   },
@@ -243,15 +250,18 @@ export const answerService = {
 
 export const commentService = {
   create: async (questionId: string, payload: { content?: string; image?: string }) => {
+    // 新 API: POST /comments (questionId 在 payload 中)
     const { data } = await api.post<ApiResponse<Comment>>(
-      `/questions/${questionId}/comments`,
-      payload,
+      '/comments',
+      { questionId, ...payload },
     );
     return data.data;
   },
   listByQuestion: async (questionId: string) => {
+    // 新 API: GET /comments?questionId=xxx
     const { data } = await api.get<ApiResponse<{ list: Comment[]; total: number }>>(
-      `/questions/${questionId}/comments`,
+      '/comments',
+      { params: { questionId } },
     );
     return data.data;
   },
@@ -260,21 +270,23 @@ export const commentService = {
 // ─── Profile ──────────────────────────────────────────────────────────────────
 export const profileService = {
   getMyLikes: async (params?: { page?: number; pageSize?: number }) => {
+    // 新 API: GET /users/likes
     const { data } = await api.get<
       ApiResponse<{
         list: MyLikedQuestion[];
-        pagination: { page: number; pageSize: number; total: number; totalPages: number };
+        pagination: { page: number; limit: number; total: number; totalPages: number };
       }>
-    >('/users/me/likes', { params });
+    >('/users/likes', { params });
     return data.data;
   },
   getMyFavorites: async (params?: { page?: number; pageSize?: number }) => {
+    // 新 API: GET /interactions/favorite
     const { data } = await api.get<
       ApiResponse<{
         list: MyFavoritedQuestion[];
-        pagination: { page: number; pageSize: number; total: number; totalPages: number };
+        pagination: { page: number; limit: number; total: number; totalPages: number };
       }>
-    >('/users/me/favorites', { params });
+    >('/interactions/favorite', { params });
     return data.data;
   },
   getMyAnswers: async (params?: { page?: number; pageSize?: number }) => {

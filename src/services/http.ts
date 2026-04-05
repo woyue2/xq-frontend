@@ -23,6 +23,7 @@ import { mockQuestions, mockUsers, mockChildren } from '@/lib/mock-data';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { USE_MOCK } from '@/lib/mock-env';
 
+// Vercel Serverless API Routes - 本地开发用代理，生产环境用绝对路径
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export const api = axios.create({

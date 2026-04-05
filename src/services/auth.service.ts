@@ -51,7 +51,8 @@ export const authService = {
 
 export const userService = {
     updateProfile: async (data: UpdateProfilePayload) => {
-        const { data: res } = await api.patch<ApiResponse<User>>('/users/me', data);
+        // 新 API: PUT /users/profile
+        const { data: res } = await api.put<ApiResponse<User>>('/users/profile', data);
         return res.data;
     },
 };
