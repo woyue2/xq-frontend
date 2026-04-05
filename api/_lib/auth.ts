@@ -3,7 +3,6 @@
  *   所属：API 工具层 | 角色：JWT 鉴权中间件
  */
 import jwt from 'jsonwebtoken'
-import type { VercelRequest } from '@vercel/node'
 import { prisma } from '../../src/lib/prisma'
 
 const JWT_SECRET = process.env.JWT_SECRET!
