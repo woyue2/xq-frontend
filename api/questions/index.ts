@@ -1,10 +1,13 @@
 /**
  * [POS] api/questions/index.ts
- *   所属：API 路由层 | 角色：问题列表/创建 API
+ *   所属：API 路由层 | 角色：问题管理入口
+ *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  *
  * [METHODS]
- *   - GET  → 获取问题列表
- *   - POST → 创建问题
+ *   - GET  /questions      → 获取问题列表
+ *   - POST /questions      → 创建问题
+ *   - GET  /questions/detail?id=xxx → 获取问题详情
+ *   - POST /questions/delete → 删除问题
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { prisma } from '../../src/lib/prisma'
@@ -129,6 +132,17 @@ export default async function handler(
       })
     }
 
+    // 检查 action 参数
+    const { action } = req.query
+    
+    if (action === 'detail' && req.method === 'GET') {
+      return handleDetail(req, res)
+    }
+    
+    if (action === 'delete' && req.method === 'POST') {
+      return requireAuth(handleDelete)(req, res)
+    }
+
     return res.status(405).json({
       code: 405,
       message: '方法不允许',
@@ -142,5 +156,77 @@ export default async function handler(
       message: '服务器内部错误',
       timestamp: Date.now()
     })
+  }
+}
+
+// GET /questions/detail
+async function handleDetail(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { id } = req.query
+
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id },
+      include: {
+        answerList: { where: { deletedAt: null } },
+        commentList: { where: { deletedAt: null } }
+      }
+    })
+
+    if (!question) {
+      return res.status(404).json({ code: 404, message: '问题不存在', timestamp: Date.now() })
+    }
+
+    return res.json({ code: 200, data: question, timestamp: Date.now() })
+  } catch (error) {
+    console.error('[Questions Detail]', error)
+    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+  }
+}
+
+// POST /questions/delete
+async function handleDelete(req: any, res: VercelResponse) {
+  try {
+    const { id } = req.body
+    const userId = req.user?.id as string
+    const userRole = req.user?.role as string
+
+    if (!id) {
+      return res.status(400).json({ code: 400, message: '问题ID为必填项', timestamp: Date.now() })
+    }
+
+    const question = await prisma.question.findUnique({
+      where: { id },
+      include: {
+        answerList: { where: { deletedAt: null } },
+        commentList: { where: { deletedAt: null } }
+      }
+    })
+
+    if (!question) {
+      return res.status(404).json({ code: 404, message: '问题不存在', timestamp: Date.now() })
+    }
+
+    if (question.authorId !== userId && userRole !== 'admin') {
+      return res.status(403).json({ code: 403, message: '无权删除此问题', timestamp: Date.now() })
+    }
+
+    await prisma.$transaction(async (tx: any) => {
+      if (question.answerList.length > 0) {
+        await tx.answer.updateMany({ where: { questionId: id }, data: { deletedAt: new Date() } })
+      }
+      if (question.commentList.length > 0) {
+        await tx.comment.updateMany({ where: { questionId: id }, data: { deletedAt: new Date() } })
+      }
+      await tx.question.update({ where: { id }, data: { status: 'rejected' } })
+    })
+
+    return res.json({ code: 200, message: '问题已删除', timestamp: Date.now() })
+  } catch (error) {
+    console.error('[Questions Delete]', error)
+    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
   }
 }
