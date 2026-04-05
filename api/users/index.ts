@@ -12,7 +12,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { prisma } from '../_lib/prisma'
-import { requireAuth, requireRole } from '../_lib/auth'
+import { requireAuth, requireRole, AuthenticatedRequest } from '../_lib/auth'
 
 async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -54,9 +54,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 // GET /users/me
-async function handleMe(req: any, res: VercelResponse) {
+async function handleMe(req: AuthenticatedRequest, res: VercelResponse) {
   try {
-    const userId = (req as any).user?.id as string
+    const userId = req.user?.id as string
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -77,9 +77,9 @@ async function handleMe(req: any, res: VercelResponse) {
 }
 
 // GET /users/profile
-async function handleGetProfile(req: any, res: VercelResponse) {
+async function handleGetProfile(req: AuthenticatedRequest, res: VercelResponse) {
   try {
-    const userId = (req as any).user?.id as string
+    const userId = req.user?.id as string
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -111,9 +111,9 @@ async function handleGetProfile(req: any, res: VercelResponse) {
 }
 
 // PUT /users/profile
-async function handleUpdateProfile(req: any, res: VercelResponse) {
+async function handleUpdateProfile(req: AuthenticatedRequest, res: VercelResponse) {
   try {
-    const userId = (req as any).user?.id as string
+    const userId = req.user?.id as string
     const { nickname, avatar, grade, age, school, name } = req.body
 
     const updateData: any = {}
@@ -145,9 +145,9 @@ async function handleUpdateProfile(req: any, res: VercelResponse) {
 }
 
 // GET /users/likes
-async function handleLikes(req: any, res: VercelResponse) {
+async function handleLikes(req: AuthenticatedRequest, res: VercelResponse) {
   try {
-    const userId = (req as any).user?.id as string
+    const userId = req.user?.id as string
     const { page = '1', limit = '20' } = req.query
     const skip = (Number(page) - 1) * Number(limit)
 

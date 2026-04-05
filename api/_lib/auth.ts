@@ -3,6 +3,7 @@
  *   所属：API 工具层 | 角色：JWT 鉴权中间件
  */
 import jwt from 'jsonwebtoken'
+import type { VercelRequest } from '@vercel/node'
 import { prisma } from './prisma'
 
 const JWT_SECRET = process.env.JWT_SECRET!
@@ -14,12 +15,12 @@ export interface AuthUser {
   nickname: string
 }
 
-// 扩展 VercelRequest 类型
-declare module '@vercel/node' {
-  interface VercelRequest {
-    user?: AuthUser
-  }
+// 扩展的 VercelRequest 类型
+export interface AuthenticatedRequest extends VercelRequest {
+  user?: AuthUser
 }
+
+export type { VercelRequest } from '@vercel/node'
 
 export async function verifyToken(token: string): Promise<AuthUser | null> {
   try {
@@ -45,7 +46,7 @@ export async function getCurrentUser(req: any): Promise<AuthUser | null> {
 }
 
 export function requireAuth(handler: Function) {
-  return async (req: any, res: any) => {
+  return async (req: VercelRequest, res: any) => {
     const user = await getCurrentUser(req)
     
     if (!user) {
@@ -56,15 +57,15 @@ export function requireAuth(handler: Function) {
       })
     }
     
-    req.user = user
+    ;(req as AuthenticatedRequest).user = user
     return handler(req, res)
   }
 }
 
 export function requireRole(roles: string[]) {
   return (handler: Function) => {
-    return async (req: any, res: any) => {
-      const user = req.user as AuthUser
+    return async (req: VercelRequest, res: any) => {
+      const user = (req as AuthenticatedRequest).user
       
       if (!user) {
         return res.status(401).json({
