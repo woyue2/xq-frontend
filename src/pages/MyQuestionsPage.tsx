@@ -15,7 +15,7 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Heart, Star, ChevronRight, Trash2, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -193,6 +193,19 @@ export function MyQuestionsPage() {
                       <Heart className="w-3 h-3" />
                       <span>{question.likeCount || 0}</span>
                     </div>
+                    {question.status === 'pending' && question.authorId === user?.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(ROUTES.editQuestion(question.id));
+                        }}
+                        className="text-blue-400 hover:text-blue-500 transition-colors p-1"
+                        title="编辑问题"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                     {canDeleteQuestion(question) && (
                       <button
                         type="button"

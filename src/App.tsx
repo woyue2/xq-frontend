@@ -74,6 +74,7 @@ export function App() {
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/create" element={<CreateQuestionPage />} />
+              <Route path="/edit/:id" element={<CreateQuestionPage />} />
               <Route path="/question/:id" element={<QuestionDetailPage />} />
               <Route path="/answer/:id" element={<AnswerQuestionPage />} />
               <Route path="/profile" element={<ProfilePage />} />

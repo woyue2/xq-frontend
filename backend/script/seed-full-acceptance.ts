@@ -6,18 +6,45 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('🚀 正在初始化全场景深度验收环境...');
 
+    // 本地头像列表（从 public/avatars 目录）
+    const localAvatars = [
+        '/avatars/notionists-1775390793571.svg',
+        '/avatars/notionists-1775390806025.svg',
+        '/avatars/notionists-1775390810100.svg',
+        '/avatars/notionists-1775390812760.svg',
+        '/avatars/notionists-1775390819759.svg',
+        '/avatars/notionists-1775390827521.svg',
+        '/avatars/notionists-1775390829628.svg',
+        '/avatars/notionists-1775390831345.svg',
+        '/avatars/notionists-1775390832944.svg',
+        '/avatars/notionists-1775390835123.svg',
+        '/avatars/notionists-1775390836926.svg',
+        '/avatars/notionists-1775390838432.svg',
+        '/avatars/notionists-1775390839930.svg',
+        '/avatars/notionists-1775390842266.svg',
+        '/avatars/notionists-1775390843868.svg',
+        '/avatars/notionists-1775390845252.svg',
+        '/avatars/notionists-1775390846480.svg',
+        '/avatars/notionists-1775390848600.svg',
+        '/avatars/notionists-1775390849662.svg',
+        '/avatars/notionists-1775390851658.svg',
+        '/avatars/notionists-1775390853241.svg'
+    ];
+
     // 1. 初始化老师账号 (管理员)
     const teacherPhone = '11111111111';
     const hashedPassword = await bcrypt.hash('123123123', 10);
+    const teacherAvatar = localAvatars[0];
     const teacher = await prisma.user.upsert({
         where: { phone: teacherPhone },
-        update: { role: 'teacher', passwordHash: hashedPassword, isActive: true },
+        update: { role: 'teacher', passwordHash: hashedPassword, isActive: true, avatar: teacherAvatar },
         create: {
             phone: teacherPhone,
             nickname: '验收管理员(老师)',
             role: 'teacher',
             passwordHash: hashedPassword,
-            isActive: true
+            isActive: true,
+            avatar: teacherAvatar
         }
     });
 
@@ -40,22 +67,24 @@ async function main() {
 
     // 2. 初始化家长账号
     const parentPhone = '13300000002';
+    const parentAvatar = localAvatars[1];
     const parent = await prisma.user.upsert({
         where: { phone: parentPhone },
-        update: { role: 'parent', passwordHash: hashedPassword, isActive: true },
+        update: { role: 'parent', passwordHash: hashedPassword, isActive: true, avatar: parentAvatar },
         create: {
             phone: parentPhone,
             nickname: '验收家长-全能爸爸',
             role: 'parent',
             passwordHash: hashedPassword,
-            isActive: true
+            isActive: true,
+            avatar: parentAvatar
         }
     });
 
     // 3. 多孩场景：初始化两个绑定的孩子
     const childrenData = [
-        { phone: '13300000001', nickname: '子涵(老大)', school: '第一小学' },
-        { phone: '13300000003', nickname: '子凡(老二)', school: '实验小学' }
+        { phone: '13300000001', nickname: '子涵(老大)', school: '第一小学', avatar: localAvatars[2] },
+        { phone: '13300000003', nickname: '子凡(老二)', school: '实验小学', avatar: localAvatars[3] }
     ];
 
     const thirtyDaysLater = new Date();
@@ -64,8 +93,8 @@ async function main() {
     for (const c of childrenData) {
         const student = await prisma.user.upsert({
             where: { phone: c.phone },
-            update: { role: 'student', passwordHash: hashedPassword, isActive: true, nickname: c.nickname },
-            create: { phone: c.phone, nickname: c.nickname, role: 'student', passwordHash: hashedPassword, isActive: true }
+            update: { role: 'student', passwordHash: hashedPassword, isActive: true, nickname: c.nickname, avatar: c.avatar },
+            create: { phone: c.phone, nickname: c.nickname, role: 'student', passwordHash: hashedPassword, isActive: true, avatar: c.avatar }
         });
 
         // 绑定到白名单并设置有效期
@@ -85,10 +114,11 @@ async function main() {
 
     // 4. 过期场景：初始化一个已过期的学生 (模拟欠费拦截)
     const expiredPhone = '13300000004';
+    const expiredAvatar = localAvatars[4];
     const expiredStudent = await prisma.user.upsert({
         where: { phone: expiredPhone },
-        update: { role: 'student', passwordHash: hashedPassword, isActive: true },
-        create: { phone: expiredPhone, nickname: '已到期学生(小明)', role: 'student', passwordHash: hashedPassword, isActive: true }
+        update: { role: 'student', passwordHash: hashedPassword, isActive: true, avatar: expiredAvatar },
+        create: { phone: expiredPhone, nickname: '已到期学生(小明)', role: 'student', passwordHash: hashedPassword, isActive: true, avatar: expiredAvatar }
     });
 
     const longAgo = new Date();

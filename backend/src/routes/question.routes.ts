@@ -329,6 +329,45 @@ questionRouter.post(
   }
 );
 
+// 编辑问题（仅 pending 状态，仅作者本人）
+questionRouter.patch(
+  '/:id',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { title, content, images, tags, difficulty, subject } = req.body as {
+        title?: string;
+        content?: string;
+        images?: string[];
+        tags?: string[];
+        difficulty?: string;
+        subject?: string;
+      };
+
+      const updated = await questionService.update({
+        id,
+        userId: req.user!.id,
+        title,
+        content,
+        images,
+        tags,
+        difficulty,
+        subject
+      });
+
+      return res.json({
+        code: 200,
+        message: '更新成功',
+        data: updated,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // 删除问题
 questionRouter.delete(
   '/:id',

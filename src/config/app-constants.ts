@@ -61,6 +61,7 @@ export const ROUTES = {
   // 动态路由（函数形式，参数显式传入）
   question: (id: string) => `/question/${id}`,
   answer: (id: string) => `/answer/${id}`,
+  editQuestion: (id: string) => `/edit/${id}`,
   studentHistory: (userId: string) => `/student/${userId}/questions`,
   parentChild: (childId: string) => `/parent/questions/${childId}`,
   questionWithAnswer: (id: string, answerId: string) =>

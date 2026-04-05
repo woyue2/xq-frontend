@@ -475,6 +475,79 @@ export class QuestionService {
     });
   }
 
+  async update(params: {
+    id: string;
+    userId: string;
+    title?: string;
+    content?: string;
+    images?: string[];
+    tags?: string[];
+    difficulty?: string;
+    subject?: string;
+  }) {
+    const { id, userId, title, content, images, tags, difficulty, subject } = params;
+
+    const question = await prisma.question.findUnique({ where: { id } });
+
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
+    }
+
+    if (question.authorId !== userId) {
+      throw new AppError(403, 'PERMISSION_DENIED', '无权编辑该问题', undefined, 3003);
+    }
+
+    if (question.status !== 'pending') {
+      throw new AppError(403, 'EDIT_NOT_ALLOWED', '只有待审核的问题可以编辑', undefined, 3005);
+    }
+
+    if (title && title.length > 100) {
+      throw new AppError(400, 'TITLE_TOO_LONG', '标题长度不能超过100字符');
+    }
+
+    // AI 重新审核
+    let aiResultText = question.aiResult ?? '无违规';
+    const effectiveTitle = title ?? question.title;
+    const effectiveContent = content ?? question.content ?? '';
+    const effectiveImages = images ?? question.images ?? [];
+
+    const author = await prisma.user.findUnique({ where: { id: userId } });
+    if (author && author.role !== 'teacher') {
+      const contentToAudit = `${effectiveTitle}\n\n${effectiveContent}`.trim();
+      const textResult = await aiAuditService.auditContent(contentToAudit, 'question');
+      if (!textResult.safe) {
+        aiResultText = JSON.stringify({ safe: false, reason: textResult.reason, category: textResult.category });
+      } else {
+        if (effectiveImages.length > 0) {
+          const imageResults = await aiAuditService.auditImages(effectiveImages);
+          const unsafeImage = imageResults.find(r => !r.safe);
+          if (unsafeImage) {
+            aiResultText = JSON.stringify({ safe: false, reason: `图片违规：${unsafeImage.reason || '包含不适合未成年人的内容'}` });
+          } else {
+            aiResultText = JSON.stringify({ safe: true });
+          }
+        } else {
+          aiResultText = JSON.stringify({ safe: true });
+        }
+      }
+    }
+
+    const updated = await prisma.question.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(content !== undefined && { content }),
+        ...(images !== undefined && { images }),
+        ...(tags !== undefined && { tags }),
+        ...(difficulty !== undefined && { difficulty }),
+        ...(subject !== undefined && { subject }),
+        aiResult: aiResultText,
+      }
+    });
+
+    return updated;
+  }
+
   async delete(params: { id: string; userId: string; role: string }) {
     const { id, userId, role } = params;
 

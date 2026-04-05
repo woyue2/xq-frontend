@@ -25,6 +25,7 @@ import type {
   ApiResponse,
   PaginatedResponse,
   CreateQuestionPayload,
+  UpdateQuestionPayload,
   QuestionListParams,
 } from '@/types/api';
 import type { Question, SubjectType, DifficultyLevel, AuditStatus } from '@/types';
@@ -174,6 +175,11 @@ export const questionService = {
 
   createQuestion: async (payload: CreateQuestionPayload) => {
     const { data } = await api.post<ApiResponse<Question>>('/questions', payload);
+    return data.data;
+  },
+
+  updateQuestion: async (id: string, payload: UpdateQuestionPayload) => {
+    const { data } = await api.patch<ApiResponse<Question>>(`/questions/${id}`, payload);
     return data.data;
   },
 

@@ -80,6 +80,15 @@ export interface CreateQuestionPayload {
   subject?: string;
 }
 
+export interface UpdateQuestionPayload {
+  title?: string;
+  content?: string;
+  images?: string[];
+  tags?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
+  subject?: string;
+}
+
 export interface QuestionListParams {
   page?: number;
   pageSize?: number;

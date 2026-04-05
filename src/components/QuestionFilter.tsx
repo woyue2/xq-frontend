@@ -4,9 +4,11 @@
  *   兄弟：QuestionCard.tsx / QuestionList.tsx
  *
  * [INPUT]
- *   - lucide-react        → Filter
- *   - @/lib/utils         → cn
- *   - @/config/taxonomy   → TAXONOMY / SUBJECT_OPTIONS
+ *   - react                             → useEffect / useState
+ *   - lucide-react                      → Filter
+ *   - @/lib/utils                       → cn
+ *   - @/services/subjectConfig.service  → subjectConfigService
+ *   - @/types/api                       → SubjectDto
  *
  * [OUTPUT]
  *   - QuestionFilter（筛选器组件）
@@ -16,11 +18,13 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/components/CLAUDE.md 的文件清单
  */
+import { useEffect, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TAXONOMY, SUBJECT_OPTIONS } from '@/config/taxonomy';
+import { subjectConfigService } from '@/services/subjectConfig.service';
+import type { SubjectDto } from '@/types/api';
 
-interface QuestionFilterProps {
+export interface QuestionFilterProps {
   selectedSubject: string;
   setSelectedSubject: (subject: string) => void;
   selectedTopic: string;
@@ -33,6 +37,17 @@ export function QuestionFilter({
   selectedTopic,
   setSelectedTopic,
 }: QuestionFilterProps) {
+  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
+
+  useEffect(() => {
+    subjectConfigService
+      .getSubjects()
+      .then(setSubjects)
+      .catch(() => setSubjects([]));
+  }, []);
+
+  const currentSubject = subjects.find((s) => s.key.replace('subject_', '') === selectedSubject);
+
   return (
     <div className="sticky top-[3.5rem] z-40 bg-gray-50/95 backdrop-blur py-2 -mx-4 px-4 space-y-2 transition-all">
       {/* Subject Filter (Capsules) */}
@@ -51,44 +66,44 @@ export function QuestionFilter({
         >
           全部
         </button>
-        {SUBJECT_OPTIONS.map((sub) => (
+        {subjects.map((sub) => (
           <button
-            key={sub.value}
+            key={sub.key}
             onClick={() => {
-              setSelectedSubject(sub.value);
+              setSelectedSubject(sub.key.replace('subject_', ''));
               setSelectedTopic('');
             }}
             className={cn(
               'px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border',
-              selectedSubject === sub.value
-                ? 'bg-morandi-5 text-white border-morandi-5 shadow-md transform scale-105'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-morandi-2',
+              selectedSubject === sub.key.replace('subject_', '')
+                ? 'bg-gray-800 text-white border-gray-800 shadow-md'
+                : 'bg-white text-gray-600 border-gray-200',
             )}
           >
-            {sub.label}
+            {sub.name}
           </button>
         ))}
       </div>
 
-      {/* Topic Filter (Only if subject selected) */}
-      {selectedSubject && TAXONOMY[selectedSubject] && (
-        <div className="flex overflow-x-auto gap-2 scrollbar-hide animate-in slide-in-from-top-1 fade-in duration-300 border-t border-gray-200 pt-2">
+      {/* Topic Filter */}
+      {selectedSubject && currentSubject && currentSubject.topics.length > 0 && (
+        <div className="flex overflow-x-auto gap-2 scrollbar-hide border-t border-gray-200 pt-2">
           <div className="flex items-center text-xs text-gray-400 px-1">
             <Filter className="w-3 h-3 mr-1" />
             考点:
           </div>
-          {TAXONOMY[selectedSubject].topics.map((topic) => (
+          {currentSubject.topics.map((topic) => (
             <button
-              key={topic}
-              onClick={() => setSelectedTopic(selectedTopic === topic ? '' : topic)}
+              key={topic.value}
+              onClick={() => setSelectedTopic(selectedTopic === topic.value ? '' : topic.value)}
               className={cn(
                 'px-3 py-1 rounded-md text-[10px] whitespace-nowrap transition-colors',
-                selectedTopic === topic
+                selectedTopic === topic.value
                   ? 'bg-morandi-3 text-morandi-5 font-bold'
                   : 'bg-white text-gray-500 hover:bg-gray-100',
               )}
             >
-              {topic}
+              {topic.label}
             </button>
           ))}
         </div>

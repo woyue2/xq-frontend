@@ -196,11 +196,6 @@ export class AuditService {
       return q;
     }
 
-    // 自审校验
-    if (q.authorId === auditorId) {
-      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止角色内自我审核');
-    }
-
 
     const updated = await prisma.$transaction(async (tx) => {
       const res = await tx.question.update({
@@ -256,11 +251,6 @@ export class AuditService {
     // 幂等性校验
     if (comment.status !== 'pending') {
       return comment;
-    }
-
-    // 自审校验
-    if (comment.authorId === auditorId) {
-      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止审批自己发布的内容');
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -339,11 +329,6 @@ export class AuditService {
       return q;
     }
 
-    // 自审校验
-    if (q.authorId === auditorId) {
-      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止控制自己发布的内容状态');
-    }
-
     const updated = await prisma.$transaction(async (tx) => {
       const res = await tx.question.update({
         where: { id },
@@ -402,11 +387,6 @@ export class AuditService {
       return comment;
     }
 
-    // 自审校验
-    if (comment.authorId === auditorId) {
-      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止审批自己发布的内容');
-    }
-
     const updated = await prisma.$transaction(async (tx) => {
       const res = await tx.comment.update({
         where: { id },
@@ -445,12 +425,6 @@ export class AuditService {
     if (!q) {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
-
-    // 自审校验
-    if (q.authorId === auditorId) {
-      throw new AppError(403, 'SELF_AUDIT_FORBIDDEN', '禁止操作自己发布的内容置顶状态');
-    }
-
 
     const newPinned = !q.isPinned;
 

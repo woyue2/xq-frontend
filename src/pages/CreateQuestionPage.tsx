@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '@/config/app-constants';
 import type { SubjectDto } from '@/types/api';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -53,6 +53,8 @@ import type { QuestionDimensionDto } from '@/types/api';
 
 export function CreateQuestionPage() {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id: string }>();
+  const isEditMode = !!editId;
   const { user } = useAuthStore();
 
   // Permission Check
@@ -89,6 +91,25 @@ export function CreateQuestionPage() {
   const debouncedTitle = useDebounce(title, 500);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // 编辑模式：加载现有问题数据
+  useEffect(() => {
+    if (!editId) return;
+    questionService
+      .getQuestionById(editId)
+      .then((q) => {
+        if (!q) return;
+        setTitle(q.title ?? '');
+        setContent(q.content ?? '');
+        setImages(q.images ?? []);
+        setSelectedSubject(q.subject ?? '');
+        if (Array.isArray(q.tags)) {
+          const method = q.tags.find((t) => t && t !== q.subject);
+          if (method) setSelectedMethod(method);
+        }
+      })
+      .catch(() => toast.error('加载问题失败'));
+  }, [editId]);
 
   // Smart Search Effect
   useEffect(() => {
@@ -254,6 +275,13 @@ export function CreateQuestionPage() {
         images,
       };
 
+      if (isEditMode && editId) {
+        await questionService.updateQuestion(editId, payload);
+        toast.success('问题已更新');
+        navigate(ROUTES.question(editId));
+        return;
+      }
+
       const created = await questionService.createQuestion(payload);
 
       // 处理 AI 审核结果
@@ -298,7 +326,7 @@ export function CreateQuestionPage() {
           <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full transition">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl flex-1 text-center">编辑我的问题</h1>
+          <h1 className="text-xl flex-1 text-center">{isEditMode ? '编辑问题' : '编辑我的问题'}</h1>
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit}
