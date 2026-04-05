@@ -90,9 +90,9 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
       },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Auth Login]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -176,8 +176,8 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
       },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Auth Register]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }

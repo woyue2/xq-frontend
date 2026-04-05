@@ -79,11 +79,12 @@ export default async function handler(
       timestamp: Date.now()
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[API /subjects]', error)
     return res.status(500).json({
       code: 500,
-      message: '服务器内部错误',
+      message: '服务器内部错误: ' + (error.message || 'Unknown'),
+      error: error.message,
       timestamp: Date.now()
     })
   }

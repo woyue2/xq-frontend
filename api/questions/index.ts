@@ -225,8 +225,8 @@ async function handleDelete(req: any, res: VercelResponse) {
     })
 
     return res.json({ code: 200, message: '问题已删除', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Questions Delete]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }

@@ -70,9 +70,9 @@ async function handleMe(req: any, res: VercelResponse) {
     }
 
     return res.json({ code: 200, data: user, timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Users Me]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -104,9 +104,9 @@ async function handleGetProfile(req: any, res: VercelResponse) {
       data: { ...user, stats: { questionCount, answerCount, favoriteCount } },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Users Profile GET]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -138,9 +138,9 @@ async function handleUpdateProfile(req: any, res: VercelResponse) {
     })
 
     return res.json({ code: 200, data: user, message: '资料更新成功', timestamp: Date.now() })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Users Profile PUT]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -182,9 +182,9 @@ async function handleLikes(req: any, res: VercelResponse) {
       },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Users Likes]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -225,9 +225,9 @@ async function handleList(req: VercelRequest, res: VercelResponse) {
       data: { list, pagination: { page: Number(page), limit: Number(limit), total, totalPages: Math.ceil(total / Number(limit)) } },
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Users List]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误', timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
