@@ -3,6 +3,21 @@
 > 最新记录在最前。
 
 ---
+# 2026-04-06
+
+## 变动  重构生产部署骨架
+### 原因  旧 deploy 目录中的 1c1g 文档、脚本与当前基于 Supabase、Redis 和 Docker 的部署路径不一致，且生产镜像曾误读 `backend/.env` 导致容器在 production 模式下启动失败。
+### 影响
+- 新增 `.dockerignore`，阻止 `backend/.env` 进入 Docker 构建上下文
+- 新增 `deploy/Dockerfile.backend` 与 `deploy/docker-compose.prod.yml`，后端镜像改为显式复制源码并在构建阶段执行 `prisma generate`
+- 移除旧的 deploy 目录文档、草稿脚本与过时 worker 参考文件，统一为新的生产部署入口
+
+## 变动  补充服务器部署文档与反向代理模板
+### 原因  需要为线上域名提供可直接落地的部署说明，统一前端静态托管与 `/api`、`/static` 反向代理路径，降低首次上服务器的操作成本。
+### 影响
+- 新增 `deploy/Caddyfile.example`，提供同域名部署模板
+- 新增 `deploy/SERVER_DEPLOY_CHECKLIST.md`，沉淀服务器准备、后端启动、前端构建、验收与回滚流程
+
 # 2026-03-31
 
 ## 变动  新增科目/考点管理功能

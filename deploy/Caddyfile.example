@@ -1,0 +1,18 @@
+88888245.xyz {
+    encode gzip zstd
+
+    root * /opt/xq/xq-frontend/dist
+
+    handle /api/* {
+        reverse_proxy 127.0.0.1:3000
+    }
+
+    handle /static/* {
+        reverse_proxy 127.0.0.1:3000
+    }
+
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
+}
