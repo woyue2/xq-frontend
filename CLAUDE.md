@@ -105,6 +105,20 @@ xq-frontend/
 │   ├── layouts/            ← 布局组件
 │   ├── styles/             ← 样式系统
 │   └── test/               ← 测试套件
+├── api/                    ← Vercel Serverless API → api/CLAUDE.md
+│   ├── _lib/               ← API 工具层
+│   ├── admin/              ← 管理员功能
+│   ├── answers/            ← 回答管理
+│   ├── auth/               ← 用户认证
+│   ├── behavior/           ← 行为分析（预留）
+│   ├── comments/           ← 评论管理
+│   ├── health.ts           ← 健康检查
+│   ├── interactions/       ← 交互管理
+│   ├── notifications/      ← 通知管理
+│   ├── questions/          ← 问题管理
+│   ├── subjects/           ← 学科管理
+│   ├── upload/             ← 文件上传
+│   └── users/              ← 用户管理
 └── backend/src/            ← 后端源码 → backend/src/CLAUDE.md
     ├── routes/             ← Express 路由
     ├── services/           ← 业务逻辑
@@ -115,4 +129,5 @@ xq-frontend/
 ## 子模块文档
 
 - [前端源码层 →](./src/CLAUDE.md)
+- [Vercel Serverless API →](./api/CLAUDE.md)
 - [后端源码层 →](./backend/src/CLAUDE.md)

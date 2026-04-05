@@ -1,6 +1,21 @@
 /**
  * [POS] api/_lib/auth.ts
  *   所属：API 工具层 | 角色：JWT 鉴权中间件
+ *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ *
+ * [INPUT]
+ *   - jwt → JSON Web Token 处理
+ *   - VercelRequest → 扩展请求类型
+ *   - prisma → 数据库客户端
+ *
+ * [OUTPUT]
+ *   - AuthUser → 认证用户接口
+ *   - AuthenticatedRequest → 扩展的请求接口
+ *   - verifyToken → Token 验证函数
+ *   - generateToken → Token 生成函数
+ *   - getCurrentUser → 获取当前用户
+ *   - requireAuth → 鉴权中间件
+ *   - requireRole → 角色权限中间件
  */
 import jwt from 'jsonwebtoken'
 import type { VercelRequest } from '@vercel/node'
