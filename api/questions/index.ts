@@ -157,11 +157,11 @@ export default async function handler(
 
   } catch (error: any) {
     console.error('[DEBUG] CATCH ERROR:', error)
-    console.error('[DEBUG] Error stack:', error.stack)
-    console.error('[DEBUG] Error message:', error.message)
     return res.status(500).json({
       code: 500,
-      message: '服务器内部错误: ' + (error.message || 'Unknown error'),
+      message: 'DEBUG ERROR: ' + (error.message || 'Unknown'),
+      stack: error.stack,
+      name: error.name,
       timestamp: Date.now()
     })
   }
