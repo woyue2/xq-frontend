@@ -19,12 +19,32 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Content-Type', 'application/json')
-
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
+  
   try {
+    console.log(`[Health:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      query: req.query,
+      url: req.url
+    })
+
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-request-id')
+
+    if (req.method === 'OPTIONS') {
+      console.log(`[Health:${requestId}] OPTIONS request handled`)
+      return res.status(200).end()
+    }
+
+    console.log(`[Health:${requestId}] Testing database connection...`)
     // 测试数据库连接
     const result = await prisma.$queryRaw`SELECT 1 as connected`
+    
+    const duration = Date.now() - startTime
+    console.log(`[Health:${requestId}] Success:`, { connected: !!result, duration: `${duration}ms` })
     
     return res.json({
       status: 'ok',
