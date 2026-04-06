@@ -573,12 +573,12 @@ export function CreateQuestionPage() {
             </div>
           </div>
 
-          {/* 审核提示 */}
+          {/* 审核提示
           <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
             <p className="text-sm text-indigo-800">
               💡 AI 小贴士：准确选择 <b>科目</b> 和 <b>考点</b> 能让老师更快回答哦！
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
 

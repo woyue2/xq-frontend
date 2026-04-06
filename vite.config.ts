@@ -6,7 +6,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      jsxRuntime: 'automatic',
+      babel: {
+        plugins: []
+      }
+    }),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -33,6 +38,9 @@ export default defineConfig({
     },
   },
   server: {
+    hmr: {
+      overlay: false
+    },
     proxy: {
       '/api': {
         target: 'https://know-ans.vercel.app',

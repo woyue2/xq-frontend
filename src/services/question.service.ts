@@ -169,23 +169,21 @@ export const questionService = {
   },
 
   getQuestionById: async (id: string) => {
-    // 新 API: GET /questions/:id
-    const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`);
+    const { data } = await api.get<ApiResponse<Question>>(`/content?action=questions-get&id=${id}`);
     return data.data;
   },
 
   createQuestion: async (payload: CreateQuestionPayload) => {
-    const { data } = await api.post<ApiResponse<Question>>('/questions', payload);
+    const { data } = await api.post<ApiResponse<Question>>('/content?action=questions-create', payload);
     return data.data;
   },
 
   updateQuestion: async (id: string, payload: UpdateQuestionPayload) => {
-    const { data } = await api.patch<ApiResponse<Question>>(`/questions/${id}`, payload);
+    const { data } = await api.patch<ApiResponse<Question>>(`/content?action=questions-update&id=${id}`, payload);
     return data.data;
   },
 
   setUnderstandingStatus: async (questionId: string, status: 'understood' | 'not_understood') => {
-    // 新 API: POST /questions/:questionId/understanding
     const { data } = await api.post<
       ApiResponse<{
         questionId: string;
@@ -193,13 +191,12 @@ export const questionService = {
         understoodCount: number;
         notUnderstoodCount: number;
       }>
-    >(`/questions/${questionId}/understanding`, { status });
+    >(`/content?action=questions-understanding&id=${questionId}`, { status });
     return data.data;
   },
 
   delete: async (id: string) => {
-    // 新 API: DELETE /questions/:id
-    const { data } = await api.delete<ApiResponse<void>>(`/questions/${id}`);
+    const { data } = await api.delete<ApiResponse<void>>(`/content?action=questions-delete&id=${id}`);
     return data.data;
   },
 

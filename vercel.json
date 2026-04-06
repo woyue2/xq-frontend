@@ -6,71 +6,47 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/health",
-      "destination": "/api/core?module=health"
-    },
-    {
-      "source": "/subjects",
-      "destination": "/api/core?module=subjects"
-    },
-    {
-      "source": "/questions",
-      "destination": "/api/content?module=questions"
-    },
-    {
-      "source": "/api/admin",
-      "destination": "/api/admin?module=admin"
-    },
-    {
-      "source": "/api/admin/:path*",
-      "destination": "/api/admin?module=admin&path=:path*"
-    },
-    {
-      "source": "/api/core/:path*",
-      "destination": "/api/core?module=:path*"
-    },
-    {
       "source": "/api/auth/:path*",
-      "destination": "/api/auth?module=auth&path=:path*"
+      "destination": "/api/auth.ts?module=auth"
     },
     {
-      "source": "/api/users/:path*",
-      "destination": "/api/auth?module=users&path=:path*"
-    },
-    {
-      "source": "/api/questions/:path*",
-      "destination": "/api/content?module=questions&path=:path*"
-    },
-    {
-      "source": "/api/answers/:path*",
-      "destination": "/api/content?module=answers&path=:path*"
-    },
-    {
-      "source": "/api/comments/:path*",
-      "destination": "/api/content?module=comments&path=:path*"
-    },
-    {
-      "source": "/api/interactions/:path*",
-      "destination": "/api/social?module=interactions&path=:path*"
+      "source": "/api/social/:path*",
+      "destination": "/api/social.ts?module=interactions"
     },
     {
       "source": "/api/notifications/:path*",
-      "destination": "/api/social?module=notifications&path=:path*"
+      "destination": "/api/social.ts?module=notifications"
     },
     {
-      "source": "/api/behavior/:path*",
-      "destination": "/api/admin?module=behavior&path=:path*"
+      "source": "/api/core/:path*",
+      "destination": "/api/core.ts?module=health"
     },
     {
-      "source": "/api/parent/:path*",
-      "destination": "/api/family?module=parent&path=:path*"
+      "source": "/api/family/:path*",
+      "destination": "/api/family.ts?module=parent"
     },
     {
       "source": "/api/upload/:path*",
-      "destination": "/api/upload?module=upload&path=:path*"
+      "destination": "/api/upload.ts?module=upload"
     },
     {
-      "source": "/(.*)",
+      "source": "/api/config/:path*",
+      "destination": "/api/config/subjects.ts"
+    },
+    {
+      "source": "/api/questions/:path*",
+      "destination": "/api/questions.ts"
+    },
+    {
+      "source": "/api/content/:path*",
+      "destination": "/api/content.ts"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "/api/admin.ts"
+    },
+    {
+      "source": "/((?!api/|@|src/|node_modules/|static/).*)",
       "destination": "/index.html"
     }
   ],

@@ -46,7 +46,7 @@ class SubjectConfigService {
       console.log('[SubjectConfigService] Raw response:', response);
       console.log('[SubjectConfigService] Response data:', response.data);
       
-      const subjects = (response.data as any).data?.subjects as SubjectDto[];
+      const subjects = (response.data as any).subjects as SubjectDto[];
       
       console.log('[SubjectConfigService] Extracted subjects:', subjects);
 
