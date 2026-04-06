@@ -6,9 +6,10 @@
 
 ## Executive Summary
 
-Total patterns identified: **4**
-- High severity: **3**
-- Medium severity: **1**
+Total patterns identified: **19**
+- High severity: **4**
+- Medium severity: **12**
+- Low severity: **3**
 
 ## Findings by Category
 
