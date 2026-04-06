@@ -79,7 +79,8 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).end()
     }
 
-    const { action } = req.query
+    const urlAction = req.url?.split('?')[0].split('/api/interactions/')[1]
+    const action = req.query.action || urlAction
     console.log(`[Interactions:${requestId}] Processing action:`, { action, method: req.method })
 
     // Like

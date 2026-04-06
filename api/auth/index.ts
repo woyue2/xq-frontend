@@ -48,7 +48,11 @@ export default async function handler(
     return res.status(405).json({ code: 405, message: '方法不允许', timestamp: Date.now() })
   }
 
-  const { action } = req.query
+  // 支持两种路由风格：
+  // 1. /api/auth?action=password-login  (query param)
+  // 2. /api/auth/password-login         (path style, via Vercel rewrite)
+  const urlAction = req.url?.split('?')[0].split('/api/auth/')[1]
+  const action = req.query.action || urlAction
 
   // POST /auth/login
   if (action === 'login') {
