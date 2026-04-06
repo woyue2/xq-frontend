@@ -55,9 +55,24 @@ export default async function handler(
     return handleLogin(req, res)
   }
 
+  // POST /auth/password-login  
+  if (action === 'password-login') {
+    return handleLogin(req, res)
+  }
+
   // POST /auth/register
   if (action === 'register') {
     return handleRegister(req, res)
+  }
+
+  // POST /auth/send-code
+  if (action === 'send-code') {
+    return handleSendCode(req, res)
+  }
+
+  // POST /auth/set-password
+  if (action === 'set-password') {
+    return handleSetPassword(req, res)
   }
 
   return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
@@ -199,5 +214,87 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error('[Auth Register]', error)
     return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+  }
+}
+
+async function handleSendCode(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { phone, type } = req.body
+
+    if (!phone) {
+      return res.status(400).json({ code: 400, message: '手机号为必填项', timestamp: Date.now() })
+    }
+
+    // 验证手机号格式
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ code: 400, message: '手机号格式不正确', timestamp: Date.now() })
+    }
+
+    // 生成6位验证码
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    
+    // 这里应该调用短信服务发送验证码，暂时返回模拟数据
+    console.log(`[Send Code] 手机号: ${phone}, 验证码: ${code}, 类型: ${type || 'login'}`)
+
+    return res.json({
+      code: 200,
+      data: {
+        success: true,
+        message: '验证码已发送',
+        // 开发环境返回验证码，生产环境不返回
+        ...(process.env.NODE_ENV !== 'production' && { code })
+      },
+      timestamp: Date.now()
+    })
+  } catch (error: any) {
+    console.error('[Auth SendCode]', error)
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
+  }
+}
+
+async function handleSetPassword(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { newPassword } = req.body
+
+    if (!newPassword) {
+      return res.status(400).json({ code: 400, message: '新密码为必填项', timestamp: Date.now() })
+    }
+
+    // 验证密码长度
+    if (newPassword.length < 6) {
+      return res.status(400).json({ code: 400, message: '密码长度至少6位', timestamp: Date.now() })
+    }
+
+    // 从 JWT token 获取用户信息
+    const authHeader = req.headers?.authorization
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
+    }
+
+    const token = authHeader.slice(7)
+    let user: AuthUser
+    try {
+      user = jwt.verify(token, JWT_SECRET) as any
+    } catch {
+      return res.status(401).json({ code: 401, message: 'token无效', timestamp: Date.now() })
+    }
+
+    // 更新密码
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash }
+    })
+
+    return res.json({
+      code: 200,
+      data: { success: true },
+      message: '密码设置成功',
+      timestamp: Date.now()
+    })
+  } catch (error: any) {
+    console.error('[Auth SetPassword]', error)
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
   }
 }
