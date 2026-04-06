@@ -45,19 +45,31 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
+  
   try {
+    console.log(`[Comments:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      url: req.url
+    })
+
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
+
+    if (req.method === 'OPTIONS') {
+      console.log(`[Comments:${requestId}] OPTIONS request handled`)
+      return res.status(200).end()
     if (req.method === 'GET') {
       const { questionId, page = '1', limit = '20' } = req.query
+      console.log(`[Comments:${requestId}] Getting comments:`, { questionId, page, limit })
 
       if (!questionId) {
+        console.log(`[Comments:${requestId}] Missing questionId`)
         return res.status(400).json({
           code: 400,
           message: '问题ID不能为空',
@@ -66,6 +78,7 @@ export default async function handler(
       }
 
       const skip = (Number(page) - 1) * Number(limit)
+      console.log(`[Comments:${requestId}] Querying comments for question:`, { questionId, skip, take: Number(limit) })
 
       const [comments, total] = await Promise.all([
         prisma.comment.findMany({

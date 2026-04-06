@@ -58,36 +58,89 @@ function requireAuth(handler: Function) {
 }
 
 async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
+  
+  try {
+    console.log(`[Interactions:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      url: req.url
+    })
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
+
+    if (req.method === 'OPTIONS') {
+      console.log(`[Interactions:${requestId}] OPTIONS request handled`)
+      return res.status(200).end()
+    }
+
+    const { action } = req.query
+    console.log(`[Interactions:${requestId}] Processing action:`, { action, method: req.method })
+
+    // Like
+    if (action === 'like') {
+      if (req.method === 'POST') {
+        console.log(`[Interactions:${requestId}] Handling like request`)
+        return requireAuth(handleLike)(req, res)
+      }
+      if (req.method === 'DELETE') {
+        console.log(`[Interactions:${requestId}] Handling unlike request`)
+        return requireAuth(handleUnlike)(req, res)
+      }
+    }
+
+    // Favorite
+    if (action === 'favorite') {
+      if (req.method === 'GET') {
+        console.log(`[Interactions:${requestId}] Handling get favorites request`)
+        return requireAuth(handleGetFavorites)(req, res)
+      }
+      if (req.method === 'POST') {
+        console.log(`[Interactions:${requestId}] Handling add favorite request`)
+        return requireAuth(handleAddFavorite)(req, res)
+      }
+      if (req.method === 'DELETE') {
+        console.log(`[Interactions:${requestId}] Handling remove favorite request`)
+        return requireAuth(handleRemoveFavorite)(req, res)
+      }
+    }
+
+    // Understanding
+    if (action === 'understanding') {
+      if (req.method === 'GET') {
+        console.log(`[Interactions:${requestId}] Handling get understanding request`)
+        return requireAuth(handleGetUnderstanding)(req, res)
+      }
+      if (req.method === 'POST') {
+        console.log(`[Interactions:${requestId}] Handling set understanding request`)
+        return requireAuth(handleSetUnderstanding)(req, res)
+      }
+    }
+
+    const duration = Date.now() - startTime
+    console.log(`[Interactions:${requestId}] Invalid action:`, { action, method: req.method, duration: `${duration}ms` })
+    return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    console.error(`[Interactions:${requestId}] ERROR:`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      duration: `${duration}ms`
+    })
+    return res.status(500).json({ 
+      code: 500, 
+      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
+      error: error.message, 
+      timestamp: Date.now() 
+    })
   }
-
-  const { action } = req.query
-
-  // Like
-  if (action === 'like') {
-    if (req.method === 'POST') return requireAuth(handleLike)(req, res)
-    if (req.method === 'DELETE') return requireAuth(handleUnlike)(req, res)
-  }
-
-  // Favorite
-  if (action === 'favorite') {
-    if (req.method === 'GET') return requireAuth(handleGetFavorites)(req, res)
-    if (req.method === 'POST') return requireAuth(handleAddFavorite)(req, res)
-    if (req.method === 'DELETE') return requireAuth(handleRemoveFavorite)(req, res)
-  }
-
-  // Understanding
-  if (action === 'understanding') {
-    if (req.method === 'GET') return requireAuth(handleGetUnderstanding)(req, res)
-    if (req.method === 'POST') return requireAuth(handleSetUnderstanding)(req, res)
-  }
-
-  return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
 }
 
 // POST /interactions/like

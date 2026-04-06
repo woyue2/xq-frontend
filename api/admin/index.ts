@@ -72,53 +72,90 @@ function requireRole(roles: string[]) {
 }
 
 async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
+  
+  try {
+    console.log(`[Admin:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      url: req.url
+    })
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
+
+    if (req.method === 'OPTIONS') {
+      console.log(`[Admin:${requestId}] OPTIONS request handled`)
+      return res.status(200).end()
+    }
+
+    const { action } = req.query
+    console.log(`[Admin:${requestId}] Processing action:`, { action, method: req.method })
+
+    // Audit
+    if (action === 'audit') {
+      const { subaction } = req.query
+      console.log(`[Admin:${requestId}] Audit subaction:`, { subaction })
+      
+      if (req.method === 'GET' && subaction === 'pending') {
+        return requireAuth(requireRole(['admin', 'teacher'])(handleAuditPending))(req, res)
+      }
+      if (req.method === 'POST' && subaction === 'approve') {
+        return requireAuth(requireRole(['admin', 'teacher'])(handleAuditApprove))(req, res)
+      }
+      if (req.method === 'POST' && subaction === 'reject') {
+        return requireAuth(requireRole(['admin', 'teacher'])(handleAuditReject))(req, res)
+      }
+      if (req.method === 'POST' && subaction === 'ban') {
+        return requireAuth(requireRole(['admin', 'teacher'])(handleAuditBan))(req, res)
+      }
+    }
+
+    // Stats
+    if (action === 'stats' && req.method === 'GET') {
+      console.log(`[Admin:${requestId}] Getting stats`)
+      return requireAuth(requireRole(['admin', 'teacher'])(handleStats))(req, res)
+    }
+
+    // Whitelist
+    if (action === 'whitelist') {
+      const { subaction } = req.query
+      console.log(`[Admin:${requestId}] Whitelist subaction:`, { subaction, method: req.method })
+      
+      if (req.method === 'GET') {
+        return requireAuth(requireRole(['admin'])(handleWhitelistList))(req, res)
+      }
+      if (req.method === 'POST' && subaction === 'delete') {
+        return requireAuth(requireRole(['admin'])(handleWhitelistDelete))(req, res)
+      }
+      if (req.method === 'POST') {
+        return requireAuth(requireRole(['admin'])(handleWhitelistAdd))(req, res)
+      }
+    }
+
+    const duration = Date.now() - startTime
+    console.log(`[Admin:${requestId}] Invalid action:`, { action, method: req.method, duration: `${duration}ms` })
+    return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    console.error(`[Admin:${requestId}] ERROR:`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      duration: `${duration}ms`
+    })
+    return res.status(500).json({ 
+      code: 500, 
+      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
+      error: error.message, 
+      timestamp: Date.now() 
+    })
   }
-
-  const { action } = req.query
-
-  // Audit
-  if (action === 'audit') {
-    const { subaction } = req.query
-    if (req.method === 'GET' && subaction === 'pending') {
-      return requireAuth(requireRole(['admin', 'teacher'])(handleAuditPending))(req, res)
-    }
-    if (req.method === 'POST' && subaction === 'approve') {
-      return requireAuth(requireRole(['admin', 'teacher'])(handleAuditApprove))(req, res)
-    }
-    if (req.method === 'POST' && subaction === 'reject') {
-      return requireAuth(requireRole(['admin', 'teacher'])(handleAuditReject))(req, res)
-    }
-    if (req.method === 'POST' && subaction === 'ban') {
-      return requireAuth(requireRole(['admin', 'teacher'])(handleAuditBan))(req, res)
-    }
-  }
-
-  // Stats
-  if (action === 'stats' && req.method === 'GET') {
-    return requireAuth(requireRole(['admin', 'teacher'])(handleStats))(req, res)
-  }
-
-  // Whitelist
-  if (action === 'whitelist') {
-    const { subaction } = req.query
-    if (req.method === 'GET') {
-      return requireAuth(requireRole(['admin'])(handleWhitelistList))(req, res)
-    }
-    if (req.method === 'POST' && subaction === 'delete') {
-      return requireAuth(requireRole(['admin'])(handleWhitelistDelete))(req, res)
-    }
-    if (req.method === 'POST') {
-      return requireAuth(requireRole(['admin'])(handleWhitelistAdd))(req, res)
-    }
-  }
-
-  return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
 }
 
 // GET /admin/audit/pending
