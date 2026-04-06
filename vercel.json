@@ -7,15 +7,63 @@
   "rewrites": [
     {
       "source": "/health",
-      "destination": "/api/health"
+      "destination": "/api/core?module=health"
     },
     {
       "source": "/subjects",
-      "destination": "/api/subjects"
+      "destination": "/api/core?module=subjects"
     },
     {
       "source": "/questions",
-      "destination": "/api/questions"
+      "destination": "/api/content?module=questions"
+    },
+    {
+      "source": "/api/core/:path*",
+      "destination": "/api/core?module=:path*"
+    },
+    {
+      "source": "/api/auth/:path*",
+      "destination": "/api/auth?module=auth&path=:path*"
+    },
+    {
+      "source": "/api/users/:path*",
+      "destination": "/api/auth?module=users&path=:path*"
+    },
+    {
+      "source": "/api/questions/:path*",
+      "destination": "/api/content?module=questions&path=:path*"
+    },
+    {
+      "source": "/api/answers/:path*",
+      "destination": "/api/content?module=answers&path=:path*"
+    },
+    {
+      "source": "/api/comments/:path*",
+      "destination": "/api/content?module=comments&path=:path*"
+    },
+    {
+      "source": "/api/interactions/:path*",
+      "destination": "/api/social?module=interactions&path=:path*"
+    },
+    {
+      "source": "/api/notifications/:path*",
+      "destination": "/api/social?module=notifications&path=:path*"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "/api/admin?module=admin&path=:path*"
+    },
+    {
+      "source": "/api/behavior/:path*",
+      "destination": "/api/admin?module=behavior&path=:path*"
+    },
+    {
+      "source": "/api/parent/:path*",
+      "destination": "/api/family?module=parent&path=:path*"
+    },
+    {
+      "source": "/api/upload/:path*",
+      "destination": "/api/upload?module=upload&path=:path*"
     },
     {
       "source": "/(.*)",
