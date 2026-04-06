@@ -91,7 +91,7 @@ async function handleBind(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ code: 401, message: '未登录', timestamp: Date.now() })
     }
 
-    const { childId, relation } = req.body
+    const { childId } = req.body
 
     if (!childId) {
       return res.status(400).json({ code: 400, message: '孩子ID为必填项', timestamp: Date.now() })
@@ -124,8 +124,7 @@ async function handleBind(req: VercelRequest, res: VercelResponse) {
     const binding = await prisma.parentChild.create({
       data: {
         parentId: user.id,
-        childId,
-        relation: relation || 'parent'
+        childId
       }
     })
 
@@ -134,7 +133,6 @@ async function handleBind(req: VercelRequest, res: VercelResponse) {
       data: {
         id: binding.id,
         childId,
-        relation: binding.relation,
         child: {
           id: child.id,
           nickname: child.nickname,
@@ -178,7 +176,6 @@ async function handleGetChildren(req: VercelRequest, res: VercelResponse) {
       code: 200,
       data: bindings.map(binding => ({
         id: binding.id,
-        relation: binding.relation,
         child: binding.child
       })),
       timestamp: Date.now()
