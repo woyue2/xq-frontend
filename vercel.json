@@ -18,6 +18,10 @@
       "destination": "/api/questions"
     },
     {
+      "source": "/api/(auth|users|interactions|admin|answers)/(.*)",
+      "destination": "/api/combined?action=$1&path=$2"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
