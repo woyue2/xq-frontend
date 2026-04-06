@@ -89,7 +89,7 @@ async function subjectsHandler(req: VercelRequest, res: VercelResponse) {
 
     // 使用前端期望的格式
     return res.json({
-      data: subjects
+      subjects: subjects
     });
   } catch (error) {
     return res.status(500).json({ error: 'Subjects API error' });
