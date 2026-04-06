@@ -18,13 +18,26 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // 导入原始模块处理器
-import interactionsHandler from './interactions/index';
-import notificationsHandler from './notifications/index';
+// import interactionsHandler from './interactions/index';
+// import notificationsHandler from './notifications/index';
+
+// Social Handler
+async function socialHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return res.json({
+      code: 200,
+      message: 'Social API - TODO',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Social API error' });
+  }
+}
 
 // 模块映射
 const handlers: Record<string, Function> = {
-  interactions: interactionsHandler,
-  notifications: notificationsHandler,
+  interactions: socialHandler,
+  notifications: socialHandler,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

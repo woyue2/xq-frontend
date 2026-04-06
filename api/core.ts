@@ -17,9 +17,33 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// 导入原始模块处理器
-import healthHandler from './health';
-import subjectsHandler from './subjects/index';
+// Health Handler
+async function healthHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return res.json({
+      status: 'ok',
+      timestamp: Date.now(),
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Health check failed' });
+  }
+}
+
+// Subjects Handler
+async function subjectsHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    // TODO: 实现科目管理逻辑
+    return res.json({
+      code: 200,
+      data: [],
+      message: 'Subjects API - TODO',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Subjects API error' });
+  }
+}
 
 // 模块映射
 const handlers: Record<string, Function> = {

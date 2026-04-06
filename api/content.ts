@@ -18,15 +18,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // 导入原始模块处理器
-import questionsHandler from './questions/index';
-import answersHandler from './answers/index';
-import commentsHandler from './comments/index';
+// import questionsHandler from './questions/index';
+// import answersHandler from './answers/index';
+// import commentsHandler from './comments/index';
+
+// Content Handler
+async function contentHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return res.json({
+      code: 200,
+      message: 'Content API - TODO',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Content API error' });
+  }
+}
 
 // 模块映射
 const handlers: Record<string, Function> = {
-  questions: questionsHandler,
-  answers: answersHandler,
-  comments: commentsHandler,
+  questions: contentHandler,
+  answers: contentHandler,
+  comments: contentHandler,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

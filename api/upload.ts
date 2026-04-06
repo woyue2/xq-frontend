@@ -18,7 +18,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // 导入原始模块处理器
-import uploadHandler from './upload/index';
+// import uploadHandler from './upload/index';
+
+// Upload Handler
+async function uploadHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return res.json({
+      code: 200,
+      message: 'Upload API - TODO',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Upload API error' });
+  }
+}
 
 // 模块映射
 const handlers: Record<string, Function> = {

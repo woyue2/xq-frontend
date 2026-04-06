@@ -18,13 +18,26 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // 导入原始模块处理器
-import adminHandler from './admin/index';
-import behaviorHandler from './behavior/index';
+// import adminHandler from './admin/index';
+// import behaviorHandler from './behavior/index';
+
+// Admin Handler
+async function adminHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return res.json({
+      code: 200,
+      message: 'Admin API - TODO',
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Admin API error' });
+  }
+}
 
 // 模块映射
 const handlers: Record<string, Function> = {
   admin: adminHandler,
-  behavior: behaviorHandler,
+  behavior: adminHandler,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
