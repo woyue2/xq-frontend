@@ -57,7 +57,7 @@ import type { Answer, Comment } from '@/types';
 // ─── Admin: 白名单 + 题目维度 ────────────────────────────────────────────────
 export const adminService = {
   getWhitelist: async (params: WhitelistParams) => {
-    const { data } = await api.get<ApiResponse<any>>('/admin', { params: { action: 'whitelist', ...params } });
+    const { data } = await api.get<ApiResponse<any>>('/admin/whitelist', { params });
     const { list, pagination } = data.data || {};
     if (!list || !pagination) throw new Error('白名单数据格式异常');
     return {
@@ -68,11 +68,11 @@ export const adminService = {
     };
   },
   addToWhitelist: async (payload: AddWhitelistPayload) => {
-    const { data } = await api.post<ApiResponse<WhitelistUser>>('/admin', payload, { params: { action: 'whitelist' } });
+    const { data } = await api.post<ApiResponse<WhitelistUser>>('/admin/whitelist', payload);
     return data.data;
   },
   removeFromWhitelist: async (id: string) => {
-    const { data } = await api.post<ApiResponse<null>>('/admin', { id }, { params: { action: 'whitelist', subaction: 'delete' } });
+    const { data } = await api.delete<ApiResponse<null>>(`/admin/whitelist/${id}`);
     return data.data;
   },
   updateValidity: async (id: string, validUntil: string) => {
@@ -169,7 +169,7 @@ export const auditService = {
         pagination: { page: number; pageSize: number; total: number; totalPages: number };
         statistics: AuditStatistics;
       }>
-    >('/admin', { params: { action: 'audit', subaction: 'pending', ...(params || {}), type: 'question' } });
+    >('/admin/audit/pending', { params: { type: 'question', ...(params || {}) } });
     return data.data;
   },
   getPendingComments: async (params?: { page?: number; pageSize?: number }) => {
@@ -179,7 +179,7 @@ export const auditService = {
         list: PendingComment[];
         pagination?: { page: number; pageSize: number; total: number; totalPages: number };
       }>
-    >('/admin', { params: { action: 'audit', subaction: 'pending', ...(params || {}), type: 'comment' } });
+    >('/admin/audit/pending', { params: { type: 'comment', ...(params || {}) } });
     return data.data;
   },
   approveQuestion: async (
@@ -187,41 +187,35 @@ export const auditService = {
     payload: { isGoodQuestion?: boolean; score?: number; tags?: string[]; difficulty?: string },
   ): Promise<ApproveQuestionResponse> => {
     const { data } = await api.post<ApiResponse<ApproveQuestionResponse>>(
-      '/admin',
-      { id: contentId, type: 'question', ...payload },
-      { params: { action: 'audit', subaction: 'approve' } }
+      `/admin/audit/${contentId}/approve`,
+      { type: 'question', ...payload }
     );
     return data.data;
   },
   rejectQuestion: async (contentId: string, reason: string): Promise<RejectQuestionResponse> => {
     const { data } = await api.post<ApiResponse<RejectQuestionResponse>>(
-      '/admin',
-      { id: contentId, type: 'question', reason },
-      { params: { action: 'audit', subaction: 'reject' } }
+      `/admin/audit/${contentId}/reject`,
+      { type: 'question', reason }
     );
     return data.data;
   },
   approveComment: async (contentId: string): Promise<ApproveCommentResponse> => {
     const { data } = await api.post<ApiResponse<ApproveCommentResponse>>(
-      '/admin',
-      { id: contentId, type: 'comment' },
-      { params: { action: 'audit', subaction: 'approve' } }
+      `/admin/audit/${contentId}/approve`,
+      { type: 'comment' }
     );
     return data.data;
   },
   banComment: async (contentId: string, reason: string): Promise<BanCommentResponse> => {
     const { data } = await api.post<ApiResponse<BanCommentResponse>>(
-      '/admin',
-      { id: contentId, type: 'comment', reason },
-      { params: { action: 'audit', subaction: 'ban' } }
+      `/admin/audit/${contentId}/ban`,
+      { type: 'comment', reason }
     );
     return data.data;
   },
   togglePinQuestion: async (questionId: string): Promise<TogglePinQuestionResponse> => {
     const { data } = await api.post<ApiResponse<TogglePinQuestionResponse>>(
-      '/admin',
-      { id: questionId, type: 'question' },
-      { params: { action: 'audit', subaction: 'pin' } }
+      `/admin/audit/questions/${questionId}/pin`
     );
     return data.data;
   },
@@ -233,18 +227,17 @@ export const answerService = {
     questionId: string,
     payload: { content?: string; images?: string[]; audioUrl?: string; audioUrls?: string[] },
   ) => {
-    // 新 API: POST /answers (questionId 在 payload 中)
+    // 新 API: POST /questions/:questionId/answers
     const { data } = await api.post<ApiResponse<Answer>>(
-      '/answers',
-      { questionId, ...payload },
+      `/questions/${questionId}/answers`,
+      payload,
     );
     return data.data;
   },
   listByQuestion: async (questionId: string) => {
-    // 新 API: GET /answers?questionId=xxx
+    // 新 API: GET /questions/:questionId/answers
     const { data } = await api.get<ApiResponse<{ list: Answer[]; total: number }>>(
-      '/answers',
-      { params: { questionId } },
+      `/questions/${questionId}/answers`,
     );
     return data.data;
   },
@@ -252,18 +245,17 @@ export const answerService = {
 
 export const commentService = {
   create: async (questionId: string, payload: { content?: string; image?: string }) => {
-    // 新 API: POST /comments (questionId 在 payload 中)
+    // 新 API: POST /questions/:questionId/comments
     const { data } = await api.post<ApiResponse<Comment>>(
-      '/comments',
-      { questionId, ...payload },
+      `/questions/${questionId}/comments`,
+      payload,
     );
     return data.data;
   },
   listByQuestion: async (questionId: string) => {
-    // 新 API: GET /comments?questionId=xxx
+    // 新 API: GET /questions/:questionId/comments
     const { data } = await api.get<ApiResponse<{ list: Comment[]; total: number }>>(
-      '/comments',
-      { params: { questionId } },
+      `/questions/${questionId}/comments`,
     );
     return data.data;
   },
@@ -272,23 +264,23 @@ export const commentService = {
 // ─── Profile ──────────────────────────────────────────────────────────────────
 export const profileService = {
   getMyLikes: async (params?: { page?: number; pageSize?: number }) => {
-    // 新 API: GET /users/likes
+    // 新 API: GET /users/me/likes
     const { data } = await api.get<
       ApiResponse<{
         list: MyLikedQuestion[];
         pagination: { page: number; limit: number; total: number; totalPages: number };
       }>
-    >('/users/likes', { params });
+    >('/users/me/likes', { params });
     return data.data;
   },
   getMyFavorites: async (params?: { page?: number; pageSize?: number }) => {
-    // 新 API: GET /interactions/favorite
+    // 新 API: GET /users/me/favorites
     const { data } = await api.get<
       ApiResponse<{
         list: MyFavoritedQuestion[];
         pagination: { page: number; limit: number; total: number; totalPages: number };
       }>
-    >('/interactions/favorite', { params });
+    >('/users/me/favorites', { params });
     return data.data;
   },
   getMyAnswers: async (params?: { page?: number; pageSize?: number }) => {

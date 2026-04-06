@@ -40,8 +40,8 @@ class SubjectConfigService {
 
     try {
       // 2. 请求后端
-      const response = await api.get<{ subjects: SubjectDto[] }>('/subjects');
-      const subjects = (response.data as any).subjects as SubjectDto[];
+      const response = await api.get<{ subjects: SubjectDto[] }>('/config/subjects');
+      const subjects = (response.data as any).data?.subjects as SubjectDto[];
 
       if (!Array.isArray(subjects)) {
         throw new Error('Invalid subjects response');

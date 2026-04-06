@@ -169,8 +169,8 @@ export const questionService = {
   },
 
   getQuestionById: async (id: string) => {
-    // 新 API: /questions/detail?id=xxx (避免 Windows [id].ts 文件名问题)
-    const { data } = await api.get<ApiResponse<Question>>('/questions/detail', { params: { id } });
+    // 新 API: GET /questions/:id
+    const { data } = await api.get<ApiResponse<Question>>(`/questions/${id}`);
     return data.data;
   },
 
@@ -185,7 +185,7 @@ export const questionService = {
   },
 
   setUnderstandingStatus: async (questionId: string, status: 'understood' | 'not_understood') => {
-    // 新 API: /interactions/understanding
+    // 新 API: POST /questions/:questionId/understanding
     const { data } = await api.post<
       ApiResponse<{
         questionId: string;
@@ -193,13 +193,13 @@ export const questionService = {
         understoodCount: number;
         notUnderstoodCount: number;
       }>
-    >('/interactions/understanding', { questionId, status });
+    >(`/questions/${questionId}/understanding`, { status });
     return data.data;
   },
 
   delete: async (id: string) => {
-    // 新 API: POST /questions/delete (软删除)
-    const { data } = await api.post<ApiResponse<void>>('/questions/delete', { id });
+    // 新 API: DELETE /questions/:id
+    const { data } = await api.delete<ApiResponse<void>>(`/questions/${id}`);
     return data.data;
   },
 
