@@ -1,18 +1,18 @@
 /**
  * [POS] api/auth/index.ts
- *   所属：API 路由层 | 角色：认证入口
- *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ *   所属：API 路由�?| 角色：认证入�?
+ *   [PROTOCOL]: 变更时更新此头部，然后检�?CLAUDE.md
  *
  * [METHODS]
- *   - POST /auth/login    → 用户登录
- *   - POST /auth/register → 用户注册
+ *   - POST /auth/login    �?用户登录
+ *   - POST /auth/register �?用户注册
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
-import * as jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 
-// === 内联 Prisma 客户端 ===
+// === 内联 Prisma 客户�?===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -45,10 +45,10 @@ export default async function handler(
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ code: 405, message: '方法不允许', timestamp: Date.now() })
+    return res.status(405).json({ code: 405, message: '方法不允�?, timestamp: Date.now() })
   }
 
-  // 支持两种路由风格：
+  // 支持两种路由风格�?
   // 1. /api/auth?action=password-login  (query param)
   // 2. /api/auth/password-login         (path style, via Vercel rewrite)
   const urlAction = req.url?.split('?')[0].split('/api/auth/')[1]
@@ -79,7 +79,7 @@ export default async function handler(
     return handleSetPassword(req, res)
   }
 
-  return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
+  return res.status(400).json({ code: 400, message: '无效的操作类�?, timestamp: Date.now() })
 }
 
 async function handleLogin(req: VercelRequest, res: VercelResponse) {
@@ -162,7 +162,7 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
     })
     return res.status(500).json({ 
       code: 500, 
-      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
+      message: '服务器内部错�? ' + (error.message || 'Unknown'), 
       error: error.message, 
       timestamp: Date.now() 
     })
@@ -181,13 +181,13 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
       })
     }
 
-    // 验证手机号格式
+    // 验证手机号格�?
     const phoneRegex = /^1[3-9]\d{9}$/
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({ code: 400, message: '手机号格式不正确', timestamp: Date.now() })
     }
 
-    // 检查白名单（如果是学生/家长角色）
+    // 检查白名单（如果是学生/家长角色�?
     if (role === 'student' || role === 'parent') {
       const whitelist = await prisma.userWhitelist.findUnique({ where: { phone } })
       if (!whitelist || whitelist.deletedAt) {
@@ -198,10 +198,10 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 检查手机号是否已注册
+    // 检查手机号是否已注�?
     const existing = await prisma.user.findUnique({ where: { phone } })
     if (existing) {
-      return res.status(409).json({ code: 409, message: '该手机号已注册', timestamp: Date.now() })
+      return res.status(409).json({ code: 409, message: '该手机号已注�?, timestamp: Date.now() })
     }
 
     // 创建用户
@@ -219,7 +219,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
       }
     })
 
-    // 更新白名单注册状态
+    // 更新白名单注册状�?
     await prisma.userWhitelist.updateMany({
       where: { phone },
       data: { isRegistered: true, registeredAt: new Date(), userId: user.id }
@@ -251,7 +251,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Auth Register]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -260,10 +260,10 @@ async function handleSendCode(req: VercelRequest, res: VercelResponse) {
     const { phone, type } = req.body
 
     if (!phone) {
-      return res.status(400).json({ code: 400, message: '手机号为必填项', timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '手机号为必填�?, timestamp: Date.now() })
     }
 
-    // 验证手机号格式
+    // 验证手机号格�?
     const phoneRegex = /^1[3-9]\d{9}$/
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({ code: 400, message: '手机号格式不正确', timestamp: Date.now() })
@@ -272,14 +272,14 @@ async function handleSendCode(req: VercelRequest, res: VercelResponse) {
     // 生成6位验证码
     const code = Math.floor(100000 + Math.random() * 900000).toString()
     
-    // 这里应该调用短信服务发送验证码，暂时返回模拟数据
-    console.log(`[Send Code] 手机号: ${phone}, 验证码: ${code}, 类型: ${type || 'login'}`)
+    // 这里应该调用短信服务发送验证码，暂时返回模拟数�?
+    console.log(`[Send Code] 手机�? ${phone}, 验证�? ${code}, 类型: ${type || 'login'}`)
 
     return res.json({
       code: 200,
       data: {
         success: true,
-        message: '验证码已发送',
+        message: '验证码已发�?,
         // 开发环境返回验证码，生产环境不返回
         ...(process.env.NODE_ENV !== 'production' && { code })
       },
@@ -287,7 +287,7 @@ async function handleSendCode(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Auth SendCode]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), timestamp: Date.now() })
   }
 }
 
@@ -296,18 +296,18 @@ async function handleSetPassword(req: VercelRequest, res: VercelResponse) {
     const { newPassword } = req.body
 
     if (!newPassword) {
-      return res.status(400).json({ code: 400, message: '新密码为必填项', timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '新密码为必填�?, timestamp: Date.now() })
     }
 
     // 验证密码长度
     if (newPassword.length < 6) {
-      return res.status(400).json({ code: 400, message: '密码长度至少6位', timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '密码长度至少6�?, timestamp: Date.now() })
     }
 
-    // 从 JWT token 获取用户信息
+    // �?JWT token 获取用户信息
     const authHeader = req.headers?.authorization
     if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
     }
 
     const token = authHeader.slice(7)
@@ -333,6 +333,6 @@ async function handleSetPassword(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Auth SetPassword]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), timestamp: Date.now() })
   }
 }

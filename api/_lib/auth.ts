@@ -1,21 +1,21 @@
 /**
  * [POS] api/_lib/auth.ts
- *   所属：API 工具层 | 角色：JWT 鉴权中间件
- *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ *   所属：API 工具�?| 角色：JWT 鉴权中间�?
+ *   [PROTOCOL]: 变更时更新此头部，然后检�?CLAUDE.md
  *
  * [INPUT]
- *   - jwt → JSON Web Token 处理
- *   - VercelRequest → 扩展请求类型
- *   - prisma → 数据库客户端
+ *   - jwt �?JSON Web Token 处理
+ *   - VercelRequest �?扩展请求类型
+ *   - prisma �?数据库客户端
  *
  * [OUTPUT]
- *   - AuthUser → 认证用户接口
- *   - AuthenticatedRequest → 扩展的请求接口
- *   - verifyToken → Token 验证函数
- *   - generateToken → Token 生成函数
- *   - getCurrentUser → 获取当前用户
- *   - requireAuth → 鉴权中间件
- *   - requireRole → 角色权限中间件
+ *   - AuthUser �?认证用户接口
+ *   - AuthenticatedRequest �?扩展的请求接�?
+ *   - verifyToken �?Token 验证函数
+ *   - generateToken �?Token 生成函数
+ *   - getCurrentUser �?获取当前用户
+ *   - requireAuth �?鉴权中间�?
+ *   - requireRole �?角色权限中间�?
  */
 import jwt from 'jsonwebtoken'
 import type { VercelRequest } from '@vercel/node'
@@ -30,7 +30,7 @@ export interface AuthUser {
   nickname: string
 }
 
-// 扩展的 VercelRequest 类型
+// 扩展�?VercelRequest 类型
 export interface AuthenticatedRequest extends VercelRequest {
   user?: AuthUser
 }
@@ -67,7 +67,7 @@ export function requireAuth(handler: Function) {
     if (!user) {
       return res.status(401).json({
         code: 401,
-        message: '未登录或token已过期',
+        message: '未登录或token已过�?,
         timestamp: Date.now()
       })
     }
@@ -85,7 +85,7 @@ export function requireRole(roles: string[]) {
       if (!user) {
         return res.status(401).json({
           code: 401,
-          message: '未登录',
+          message: '未登�?,
           timestamp: Date.now()
         })
       }

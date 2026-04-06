@@ -1,19 +1,19 @@
 /**
  * [POS] api/questions/index.ts
- *   所属：API 路由层 | 角色：问题管理入口
- *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ *   所属：API 路由�?| 角色：问题管理入�?
+ *   [PROTOCOL]: 变更时更新此头部，然后检�?CLAUDE.md
  *
  * [METHODS]
- *   - GET  /questions      → 获取问题列表
- *   - POST /questions      → 创建问题
- *   - GET  /questions/detail?id=xxx → 获取问题详情
- *   - POST /questions/delete → 删除问题
+ *   - GET  /questions      �?获取问题列表
+ *   - POST /questions      �?创建问题
+ *   - GET  /questions/detail?id=xxx �?获取问题详情
+ *   - POST /questions/delete �?删除问题
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
-import * as jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户端 ===
+// === 内联 Prisma 客户�?===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -57,7 +57,7 @@ function requireAuth(handler: Function) {
     if (!user) {
       return res.status(401).json({
         code: 401,
-        message: '未登录或token已过期',
+        message: '未登录或token已过�?,
         timestamp: Date.now()
       })
     }
@@ -194,7 +194,7 @@ export default async function handler(
               authorId: userId,
               authorName: req.user?.nickname || '',
               authorAvatar: null,
-              status: 'pending' // 默认待审核
+              status: 'pending' // 默认待审�?
             }
           })
 
@@ -207,7 +207,7 @@ export default async function handler(
           return res.status(201).json({
             code: 201,
             data: question,
-            message: '问题创建成功，等待审核',
+            message: '问题创建成功，等待审�?,
             timestamp: Date.now()
           })
         } catch (createError: any) {
@@ -224,7 +224,7 @@ export default async function handler(
       })(req, res)
     }
 
-    // 检查 action 参数
+    // 检�?action 参数
     const { action } = req.query
     
     if (action === 'detail' && req.method === 'GET') {
@@ -237,7 +237,7 @@ export default async function handler(
 
     return res.status(405).json({
       code: 405,
-      message: '方法不允许',
+      message: '方法不允�?,
       timestamp: Date.now()
     })
 
@@ -271,13 +271,13 @@ async function handleDetail(req: VercelRequest, res: VercelResponse) {
     })
 
     if (!question) {
-      return res.status(404).json({ code: 404, message: '问题不存在', timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '问题不存�?, timestamp: Date.now() })
     }
 
     return res.json({ code: 200, data: question, timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Questions Detail]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -301,11 +301,11 @@ async function handleDelete(req: AuthenticatedRequest, res: VercelResponse) {
     })
 
     if (!question) {
-      return res.status(404).json({ code: 404, message: '问题不存在', timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '问题不存�?, timestamp: Date.now() })
     }
 
     if (question.authorId !== userId && userRole !== 'admin') {
-      return res.status(403).json({ code: 403, message: '无权删除此问题', timestamp: Date.now() })
+      return res.status(403).json({ code: 403, message: '无权删除此问�?, timestamp: Date.now() })
     }
 
     await prisma.$transaction(async (tx: any) => {
@@ -318,9 +318,9 @@ async function handleDelete(req: AuthenticatedRequest, res: VercelResponse) {
       await tx.question.update({ where: { id }, data: { status: 'rejected' } })
     })
 
-    return res.json({ code: 200, message: '问题已删除', timestamp: Date.now() })
+    return res.json({ code: 200, message: '问题已删�?, timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Questions Delete]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }

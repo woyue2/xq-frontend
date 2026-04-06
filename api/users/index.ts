@@ -1,20 +1,20 @@
 /**
  * [POS] api/users/index.ts
- *   所属：API 路由层 | 角色：用户管理入口
- *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ *   所属：API 路由�?| 角色：用户管理入�?
+ *   [PROTOCOL]: 变更时更新此头部，然后检�?CLAUDE.md
  *
  * [METHODS]
- *   - GET  /users/me       → 获取当前用户信息
- *   - GET  /users/profile  → 获取用户详细资料
- *   - PUT  /users/profile  → 更新用户资料
- *   - GET  /users/likes    → 获取用户点赞列表
- *   - GET  /users/list     → 获取用户列表（管理员）
+ *   - GET  /users/me       �?获取当前用户信息
+ *   - GET  /users/profile  �?获取用户详细资料
+ *   - PUT  /users/profile  �?更新用户资料
+ *   - GET  /users/likes    �?获取用户点赞列表
+ *   - GET  /users/list     �?获取用户列表（管理员�?
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
-import * as jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户端 ===
+// === 内联 Prisma 客户�?===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -53,7 +53,7 @@ function requireAuth(handler: Function) {
   return async (req: VercelRequest, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
     }
     ;(req as AuthenticatedRequest).user = user
     return handler(req, res)
@@ -120,7 +120,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
     const duration = Date.now() - startTime
     console.log(`[Users:${requestId}] Invalid action:`, { action, method: req.method, duration: `${duration}ms` })
-    return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
+    return res.status(400).json({ code: 400, message: '无效的操作类�?, timestamp: Date.now() })
   } catch (error: any) {
     const duration = Date.now() - startTime
     console.error(`[Users:${requestId}] ERROR:`, {
@@ -132,7 +132,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     })
     return res.status(500).json({ 
       code: 500, 
-      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
+      message: '服务器内部错�? ' + (error.message || 'Unknown'), 
       error: error.message, 
       timestamp: Date.now() 
     })
@@ -152,13 +152,13 @@ async function handleMe(req: AuthenticatedRequest, res: VercelResponse) {
     })
 
     if (!user) {
-      return res.status(404).json({ code: 404, message: '用户不存在', timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '用户不存�?, timestamp: Date.now() })
     }
 
     return res.json({ code: 200, data: user, timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Users Me]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -176,7 +176,7 @@ async function handleGetProfile(req: AuthenticatedRequest, res: VercelResponse) 
     })
 
     if (!user) {
-      return res.status(404).json({ code: 404, message: '用户不存在', timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '用户不存�?, timestamp: Date.now() })
     }
 
     const [questionCount, answerCount, favoriteCount] = await Promise.all([
@@ -192,7 +192,7 @@ async function handleGetProfile(req: AuthenticatedRequest, res: VercelResponse) 
     })
   } catch (error: any) {
     console.error('[Users Profile GET]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -226,7 +226,7 @@ async function handleUpdateProfile(req: AuthenticatedRequest, res: VercelRespons
     return res.json({ code: 200, data: user, message: '资料更新成功', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Users Profile PUT]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -247,7 +247,7 @@ async function handleLikes(req: AuthenticatedRequest, res: VercelResponse) {
       prisma.like.count({ where: { userId, targetType: 'question' } })
     ])
 
-    // 手动查询关联的问题
+    // 手动查询关联的问�?
     const questionIds = likes.map((l: any) => l.targetId)
     const questions = await prisma.question.findMany({
       where: { id: { in: questionIds } }
@@ -269,7 +269,7 @@ async function handleLikes(req: AuthenticatedRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Users Likes]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -312,7 +312,7 @@ async function handleList(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Users List]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 

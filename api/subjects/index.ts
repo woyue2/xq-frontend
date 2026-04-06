@@ -1,14 +1,14 @@
 /**
  * [POS] api/subjects/index.ts
- *   所属：API 路由层 | 角色：学科/考点管理
+ *   所属：API 路由�?| 角色：学�?考点管理
  *
  * [METHODS]
- *   - GET → 获取学科列表及考点
+ *   - GET �?获取学科列表及考点
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 
-// === 内联 Prisma 客户端 ===
+// === 内联 Prisma 客户�?===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -29,7 +29,7 @@ export default async function handler(
   if (req.method !== 'GET') {
     return res.status(405).json({
       code: 405,
-      message: '方法不允许',
+      message: '方法不允�?,
       timestamp: Date.now()
     })
   }
@@ -55,7 +55,7 @@ export default async function handler(
       if (!subject) {
         return res.status(404).json({
           code: 404,
-          message: '学科不存在',
+          message: '学科不存�?,
           timestamp: Date.now()
         })
       }
@@ -89,7 +89,7 @@ export default async function handler(
     console.error('[API /subjects]', error)
     return res.status(500).json({
       code: 500,
-      message: '服务器内部错误: ' + (error.message || 'Unknown'),
+      message: '服务器内部错�? ' + (error.message || 'Unknown'),
       error: error.message,
       timestamp: Date.now()
     })
