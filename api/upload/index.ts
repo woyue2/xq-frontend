@@ -112,6 +112,12 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ code: 405, message: '方法不允许', timestamp: Date.now() })
   }
 
+  // 鉴权检查（POST 请求必须）
+  const user = await getCurrentUser(req)
+  if (!user) {
+    return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
+  }
+
   try {
     const contentType = req.headers['content-type'] || ''
     
@@ -233,4 +239,4 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler)
+export default handler

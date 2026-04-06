@@ -64,6 +64,8 @@ export default async function handler(
     if (req.method === 'OPTIONS') {
       console.log(`[Comments:${requestId}] OPTIONS request handled`)
       return res.status(200).end()
+    }
+
     if (req.method === 'GET') {
       const { questionId, page = '1', limit = '20' } = req.query
       console.log(`[Comments:${requestId}] Getting comments:`, { questionId, page, limit })
