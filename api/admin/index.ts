@@ -93,13 +93,17 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).end()
     }
 
-    const urlAction = req.url?.split('?')[0].split('/api/admin/')[1]
+    const urlPath = req.url?.split('?')[0].split('/api/admin/')[1] || ''
+    const urlParts = urlPath.split('/')
+    const urlAction = urlParts[0]
+    const urlSubaction = urlParts[1]
     const action = req.query.action || urlAction
+    const subactionFromUrl = urlSubaction || req.query.subaction
     console.log(`[Admin:${requestId}] Processing action:`, { action, method: req.method })
 
     // Audit
     if (action === 'audit') {
-      const { subaction } = req.query
+      const subaction = subactionFromUrl
       console.log(`[Admin:${requestId}] Audit subaction:`, { subaction })
       
       if (req.method === 'GET' && subaction === 'pending') {
@@ -124,7 +128,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Whitelist
     if (action === 'whitelist') {
-      const { subaction } = req.query
+      const subaction = subactionFromUrl
       console.log(`[Admin:${requestId}] Whitelist subaction:`, { subaction, method: req.method })
       
       if (req.method === 'GET') {
