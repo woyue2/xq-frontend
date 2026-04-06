@@ -325,6 +325,13 @@ export function AnswerQuestionPage() {
         audioUrl: audioUrl ?? undefined,
       });
 
+      // 验证响应包含有效的回答 ID
+      if (!result || !(result as any).id) {
+        toast.error('创建回答失败：未返回有效的回答ID');
+        setIsSubmitting(false);
+        return;
+      }
+
       // 处理 AI 审核结果
       const aiAudit = (result as any)?.aiAudit;
       if (aiAudit && !aiAudit.safe) {
@@ -333,8 +340,38 @@ export function AnswerQuestionPage() {
         return;
       }
 
-      toast.success('回答已提交');
-      navigate(ROUTES.question(questionId));
+      // 验证问题是否可以访问（防止竞态条件）
+      try {
+        await questionService.getQuestionById(questionId);
+        toast.success('回答已提交');
+        navigate(ROUTES.question(questionId));
+      } catch (error) {
+        // 如果问题暂时不可访问，使用轮询重试
+        const maxRetries = 3;
+        const retryDelay = 200; // 200ms初始延迟
+
+        const retryAccess = async (): Promise<boolean> => {
+          for (let i = 0; i < maxRetries; i++) {
+            try {
+              await new Promise((resolve) => setTimeout(resolve, retryDelay * Math.pow(2, i)));
+              await questionService.getQuestionById(questionId);
+              return true;
+            } catch {
+              if (i === maxRetries - 1) return false;
+            }
+          }
+          return false;
+        };
+
+        const accessible = await retryAccess();
+        if (accessible) {
+          toast.success('回答已提交');
+          navigate(ROUTES.question(questionId));
+        } else {
+          toast.success('回答已提交，但详情页暂时无法访问，请稍后查看');
+          navigate(ROUTES.home);
+        }
+      }
     } catch {
       toast.error('提交回答失败，请稍后重试');
     } finally {

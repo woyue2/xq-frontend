@@ -102,6 +102,12 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ code: 400, message: '手机号和密码为必填项', timestamp: Date.now() })
     }
 
+    // 验证密码长度 - 与前端保持一致，最少8位
+    if (password.length < 8) {
+      console.log(`[Auth Login:${requestId}] Password too short:`, { length: password.length })
+      return res.status(400).json({ code: 400, message: '密码长度至少8位', timestamp: Date.now() })
+    }
+
     console.log(`[Auth Login:${requestId}] Attempting login for phone:`, phone)
     const user = await prisma.user.findUnique({ where: { phone } })
     console.log(`[Auth Login:${requestId}] Database query completed:`, { userFound: !!user })
@@ -179,6 +185,11 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
         message: '手机号、密码、昵称和角色为必填项',
         timestamp: Date.now()
       })
+    }
+
+    // 验证密码长度 - 与前端保持一致，最少8位
+    if (password.length < 8) {
+      return res.status(400).json({ code: 400, message: '密码长度至少8位', timestamp: Date.now() })
     }
 
     // 验证手机号格式
@@ -299,9 +310,9 @@ async function handleSetPassword(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ code: 400, message: '新密码为必填项', timestamp: Date.now() })
     }
 
-    // 验证密码长度
-    if (newPassword.length < 6) {
-      return res.status(400).json({ code: 400, message: '密码长度至少6位', timestamp: Date.now() })
+    // 验证密码长度 - 与前端保持一致，最少8位
+    if (newPassword.length < 8) {
+      return res.status(400).json({ code: 400, message: '密码长度至少8位', timestamp: Date.now() })
     }
 
     // 从 JWT token 获取用户信息

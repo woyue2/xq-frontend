@@ -5,7 +5,7 @@
  * 用于快速测试所有 API 接口的功能
  */
 
-const BASE_URL = 'https://know-ans.vercel.app'
+const BASE_URL = 'http://localhost:5173'
 const TEST_USER = {
   phone: '11111111111',
   password: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5cWxtb3Z0Zmtmd21rbGZwdm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDk2MzcyMCwiZXhwIjoyMDkwNTM5NzIwfQ.k19b4NZr3Xuk2VD7411hCnBmP354YnPKYIbIvkLg17U'

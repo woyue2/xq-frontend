@@ -277,12 +277,52 @@ export function CreateQuestionPage() {
 
       if (isEditMode && editId) {
         await questionService.updateQuestion(editId, payload);
-        toast.success('问题已更新');
-        navigate(ROUTES.question(editId));
+        
+        // 验证更新后的问题是否可以访问（防止竞态条件）
+        try {
+          await questionService.getQuestionById(editId);
+          toast.success('问题已更新');
+          navigate(ROUTES.question(editId));
+        } catch (error) {
+          // 如果问题暂时不可访问，使用轮询重试
+          const maxRetries = 3;
+          const retryDelay = 200;
+
+          const retryAccess = async (): Promise<boolean> => {
+            for (let i = 0; i < maxRetries; i++) {
+              try {
+                await new Promise((resolve) => setTimeout(resolve, retryDelay * Math.pow(2, i)));
+                await questionService.getQuestionById(editId);
+                return true;
+              } catch {
+                if (i === maxRetries - 1) return false;
+              }
+            }
+            return false;
+          };
+
+          const accessible = await retryAccess();
+          if (accessible) {
+            toast.success('问题已更新');
+            navigate(ROUTES.question(editId));
+          } else {
+            toast.success('问题已更新，但详情页暂时无法访问，请稍后查看');
+            navigate(ROUTES.home);
+          }
+        }
         return;
       }
 
       const created = await questionService.createQuestion(payload);
+
+      // 验证响应包含有效的问题 ID
+      if (!created || !(created as Question).id) {
+        toast.error('创建问题失败：未返回有效的问题ID');
+        setSubmitting(false);
+        return;
+      }
+
+      const questionId = (created as Question).id;
 
       // 处理 AI 审核结果
       const aiAudit = (created as any)?.aiAudit;
@@ -299,13 +339,38 @@ export function CreateQuestionPage() {
         }
       }
 
-      toast.success('问题已提交，已跳转到详情页');
-      // 提交成功后跳转到该问题详情页，便于学生继续查看与分享
-      if (created && (created as Question).id) {
-        navigate(ROUTES.question((created as Question).id));
-      } else {
-        // 兜底：如果后端未返回有效 ID，则回首页
-        navigate(ROUTES.home);
+      // 验证问题是否可以访问（防止竞态条件）
+      try {
+        await questionService.getQuestionById(questionId);
+        toast.success('问题已提交，已跳转到详情页');
+        navigate(ROUTES.question(questionId));
+      } catch (error) {
+        // 如果问题暂时不可访问，使用轮询重试
+        let retryCount = 0;
+        const maxRetries = 3;
+        const retryDelay = 200; // 200ms初始延迟
+
+        const retryAccess = async (): Promise<boolean> => {
+          for (let i = 0; i < maxRetries; i++) {
+            try {
+              await new Promise((resolve) => setTimeout(resolve, retryDelay * Math.pow(2, i)));
+              await questionService.getQuestionById(questionId);
+              return true;
+            } catch {
+              if (i === maxRetries - 1) return false;
+            }
+          }
+          return false;
+        };
+
+        const accessible = await retryAccess();
+        if (accessible) {
+          toast.success('问题已提交，已跳转到详情页');
+          navigate(ROUTES.question(questionId));
+        } else {
+          toast.success('问题已提交，但详情页暂时无法访问，请稍后查看');
+          navigate(ROUTES.home);
+        }
       }
     } catch {
       // 具体错误提示由 axios 拦截器统一处理

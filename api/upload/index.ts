@@ -121,9 +121,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const contentType = req.headers['content-type'] || ''
     
-    // 判断是 multipart（音频）还是 JSON Base64（图片）
+    // 判断是 multipart（图片或音频）还是 JSON Base64（图片）
     if (contentType.includes('multipart/form-data')) {
-      // ========== 处理音频上传（到 Supabase）==========
+      // ========== 处理 multipart 上传（图片或音频）==========
       const parsed = await parseMultipart(req)
       
       if (!parsed) {
@@ -132,51 +132,99 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       
       const { file, fileName, fileType } = parsed
       
-      // 验证音频类型
+      // 检查是图片还是音频
+      const allowedImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
       const allowedAudio = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/ogg']
-      if (!allowedAudio.some(type => fileType.includes(type))) {
-        return res.status(400).json({ code: 400, message: '不支持的音频格式', timestamp: Date.now() })
+      
+      const isImage = allowedImage.some(type => fileType.includes(type))
+      const isAudio = allowedAudio.some(type => fileType.includes(type))
+      
+      if (!isImage && !isAudio) {
+        return res.status(400).json({ code: 400, message: '不支持的文件格式', timestamp: Date.now() })
       }
       
-      // 验证大小（50MB）
-      if (file.length > 50 * 1024 * 1024) {
-        return res.status(400).json({ code: 400, message: '音频文件超过50MB限制', timestamp: Date.now() })
+      // 处理图片上传到 OSS
+      if (isImage) {
+        // 验证大小（10MB）
+        if (file.length > 10 * 1024 * 1024) {
+          return res.status(400).json({ code: 400, message: '图片超过10MB限制', timestamp: Date.now() })
+        }
+        
+        // 转换为 base64
+        const base64Data = file.toString('base64')
+        
+        // 上传到 OSS
+        const formData = new URLSearchParams()
+        formData.append('file', base64Data)
+        
+        const uploadRes = await fetch(OSS_UPLOAD_BASE_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OSS_UPLOAD_TOKEN}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: formData.toString()
+        })
+        
+        if (!uploadRes.ok) {
+          const error = await uploadRes.text()
+          console.error('[OSS Upload Error]', error)
+          return res.status(500).json({ code: 500, message: '图片上传失败', timestamp: Date.now() })
+        }
+        
+        const result = await uploadRes.json()
+        const imageUrl = result.data?.url || result.url
+        
+        return res.status(201).json({
+          code: 201,
+          data: { imageUrl, url: imageUrl, size: file.length, type: fileType },
+          message: '图片上传成功',
+          timestamp: Date.now()
+        })
       }
       
-      // 检查 Supabase 配置
-      if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        return res.status(500).json({ code: 500, message: 'Supabase 未配置', timestamp: Date.now() })
+      // 处理音频上传到 Supabase
+      if (isAudio) {
+        // 验证大小（50MB）
+        if (file.length > 50 * 1024 * 1024) {
+          return res.status(400).json({ code: 400, message: '音频文件超过50MB限制', timestamp: Date.now() })
+        }
+        
+        // 检查 Supabase 配置
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+          return res.status(500).json({ code: 500, message: 'Supabase 未配置', timestamp: Date.now() })
+        }
+        
+        // 上传到 Supabase Storage
+        const timestamp = Date.now()
+        const ext = fileName.split('.').pop() || 'webm'
+        const uniqueName = `audio/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
+        
+        const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/uploads/${uniqueName}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': fileType,
+            'x-upsert': 'true'
+          },
+          body: new Uint8Array(file)
+        })
+        
+        if (!uploadRes.ok) {
+          const error = await uploadRes.text()
+          console.error('[Supabase Upload Error]', error)
+          return res.status(500).json({ code: 500, message: '音频上传失败', timestamp: Date.now() })
+        }
+        
+        const audioUrl = `${SUPABASE_URL}/storage/v1/object/public/uploads/${uniqueName}`
+        
+        return res.status(201).json({
+          code: 201,
+          data: { audioUrl, url: audioUrl, size: file.length, type: fileType },
+          message: '音频上传成功',
+          timestamp: Date.now()
+        })
       }
-      
-      // 上传到 Supabase Storage
-      const timestamp = Date.now()
-      const ext = fileName.split('.').pop() || 'webm'
-      const uniqueName = `audio/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
-      
-      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/uploads/${uniqueName}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Content-Type': fileType,
-          'x-upsert': 'true'
-        },
-        body: new Uint8Array(file)
-      })
-      
-      if (!uploadRes.ok) {
-        const error = await uploadRes.text()
-        console.error('[Supabase Upload Error]', error)
-        return res.status(500).json({ code: 500, message: '音频上传失败', timestamp: Date.now() })
-      }
-      
-      const audioUrl = `${SUPABASE_URL}/storage/v1/object/public/uploads/${uniqueName}`
-      
-      return res.status(201).json({
-        code: 201,
-        data: { audioUrl, url: audioUrl, size: file.length, type: fileType },
-        message: '音频上传成功',
-        timestamp: Date.now()
-      })
       
     } else {
       // ========== 处理图片上传（到 OSS）==========
