@@ -79,28 +79,47 @@ export default async function handler(
 }
 
 async function handleLogin(req: VercelRequest, res: VercelResponse) {
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
+  
   try {
+    console.log(`[Auth Login:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      url: req.url
+    })
+
     const { phone, password } = req.body
 
     if (!phone || !password) {
+      console.log(`[Auth Login:${requestId}] Missing credentials:`, { phone: !!phone, password: !!password })
       return res.status(400).json({ code: 400, message: '手机号和密码为必填项', timestamp: Date.now() })
     }
 
+    console.log(`[Auth Login:${requestId}] Attempting login for phone:`, phone)
     const user = await prisma.user.findUnique({ where: { phone } })
+    console.log(`[Auth Login:${requestId}] Database query completed:`, { userFound: !!user })
 
     if (!user || !user.passwordHash) {
+      console.log(`[Auth Login:${requestId}] User not found or no password:`, { userFound: !!user, hasPasswordHash: !!user?.passwordHash })
       return res.status(401).json({ code: 401, message: '手机号或密码错误', timestamp: Date.now() })
     }
 
+    console.log(`[Auth Login:${requestId}] User found, comparing passwords...`)
     const isValid = await bcrypt.compare(password, user.passwordHash)
     if (!isValid) {
+      console.log(`[Auth Login:${requestId}] Password comparison failed`)
       return res.status(401).json({ code: 401, message: '手机号或密码错误', timestamp: Date.now() })
     }
 
     if (!user.isActive) {
+      console.log(`[Auth Login:${requestId}] User is inactive:`, { isActive: user.isActive })
       return res.status(403).json({ code: 403, message: '账号已被禁用', timestamp: Date.now() })
     }
 
+    console.log(`[Auth Login:${requestId}] Login successful, generating token...`)
     const token = generateToken({
       id: user.id,
       phone: user.phone,
@@ -108,6 +127,9 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
       nickname: user.nickname
     })
 
+    const duration = Date.now() - startTime
+    console.log(`[Auth Login:${requestId}] Success:`, { userId: user.id, role: user.role, duration: `${duration}ms` })
+    
     return res.json({
       code: 200,
       data: {
@@ -126,8 +148,20 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
       timestamp: Date.now()
     })
   } catch (error: any) {
-    console.error('[Auth Login]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    const duration = Date.now() - startTime
+    console.error(`[Auth Login:${requestId}] ERROR:`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      duration: `${duration}ms`
+    })
+    return res.status(500).json({ 
+      code: 500, 
+      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
+      error: error.message, 
+      timestamp: Date.now() 
+    })
   }
 }
 

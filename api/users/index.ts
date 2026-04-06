@@ -73,42 +73,69 @@ function requireRole(roles: string[]) {
 }
 
 async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
+  
+  try {
+    console.log(`[Users:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      url: req.url
+    })
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
+
+    if (req.method === 'OPTIONS') {
+      console.log(`[Users:${requestId}] OPTIONS request handled`)
+      return res.status(200).end()
+    }
+
+    const { action } = req.query
+    console.log(`[Users:${requestId}] Processing action:`, { action, method: req.method })
+
+    // GET /users/me
+    if (action === 'me' && req.method === 'GET') {
+      return requireAuth(handleMe)(req, res)
+    }
+
+    // GET /users/profile
+    if (action === 'profile' && req.method === 'GET') {
+      return requireAuth(handleGetProfile)(req, res)
+    }
+
+    // GET /users/likes
+    if (action === 'likes' && req.method === 'GET') {
+      return requireAuth(handleLikes)(req, res)
+    }
+
+    // GET /users/list
+    if (action === 'list' && req.method === 'GET') {
+      return requireAuth(requireRole(['admin'])(handleList))(req, res)
+    }
+
+    const duration = Date.now() - startTime
+    console.log(`[Users:${requestId}] Invalid action:`, { action, method: req.method, duration: `${duration}ms` })
+    return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    console.error(`[Users:${requestId}] ERROR:`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      duration: `${duration}ms`
+    })
+    return res.status(500).json({ 
+      code: 500, 
+      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
+      error: error.message, 
+      timestamp: Date.now() 
+    })
   }
-
-  const { action } = req.query
-
-  // GET /users/me
-  if (action === 'me' && req.method === 'GET') {
-    return requireAuth(handleMe)(req, res)
-  }
-
-  // GET /users/profile
-  if (action === 'profile' && req.method === 'GET') {
-    return requireAuth(handleGetProfile)(req, res)
-  }
-
-  // PUT /users/profile
-  if (action === 'profile' && req.method === 'PUT') {
-    return requireAuth(handleUpdateProfile)(req, res)
-  }
-
-  // GET /users/likes
-  if (action === 'likes' && req.method === 'GET') {
-    return requireAuth(handleLikes)(req, res)
-  }
-
-  // GET /users/list
-  if (action === 'list' && req.method === 'GET') {
-    return requireAuth(requireRole(['admin'])(handleList))(req, res)
-  }
-
-  return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
 }
 
 // GET /users/me

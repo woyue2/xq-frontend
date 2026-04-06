@@ -70,23 +70,31 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  console.log('[DEBUG] API handler started', { method: req.method, url: req.url })
+  const requestId = Math.random().toString(36).substring(7)
+  const startTime = Date.now()
   
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-  if (req.method === 'OPTIONS') {
-    console.log('[DEBUG] OPTIONS request, returning 200')
-    return res.status(200).end()
-  }
-
   try {
-    console.log('[DEBUG] Checking prisma import:', typeof prisma)
-    
-    if (req.method === 'GET') {
-      console.log('[DEBUG] Handling GET request')
+    console.log(`[Questions:${requestId}] Request received:`, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      url: req.url
+    })
+  
+    // CORS
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
+
+    if (req.method === 'OPTIONS') {
+      console.log(`[Questions:${requestId}] OPTIONS request handled`)
+      return res.status(200).end()
+    }
+
+    // GET /questions - 获取问题列表
+    if (req.method === 'GET' && !req.query.action) {
+      console.log(`[Questions:${requestId}] Getting questions list...`)
       const { subject, status = 'approved', page = '1', limit = '20' } = req.query
 
       const where: any = { status: String(status) }
@@ -95,6 +103,9 @@ export default async function handler(
       }
 
       const skip = (Number(page) - 1) * Number(limit)
+      const take = Number(limit)
+
+      console.log(`[Questions:${requestId}] Query params:`, { page, limit, subject, skip, take })
 
       const [questions, total] = await Promise.all([
         prisma.question.findMany({
@@ -104,7 +115,7 @@ export default async function handler(
             { createdAt: 'desc' }
           ],
           skip,
-          take: Number(limit),
+          take,
           select: {
             id: true,
             title: true,
@@ -130,6 +141,14 @@ export default async function handler(
         prisma.question.count({ where })
       ])
 
+      const duration = Date.now() - startTime
+      console.log(`[Questions:${requestId}] Success:`, { 
+        count: questions.length, 
+        total, 
+        subject, 
+        duration: `${duration}ms` 
+      })
+
       return res.json({
         code: 200,
         data: {
@@ -145,50 +164,64 @@ export default async function handler(
       })
     }
 
-    if (req.method === 'POST') {
-      // 鉴权
-      const user = await getCurrentUser(req)
-      if (!user) {
-        return res.status(401).json({
-          code: 401,
-          message: '未登录',
-          timestamp: Date.now()
-        })
-      }
+    // POST /questions - 创建问题
+    if (req.method === 'POST' && !req.query.action) {
+      return requireAuth(async (req: AuthenticatedRequest, res: VercelResponse) => {
+        try {
+          const { title, content, subject, tags, images, difficulty } = req.body
+          const userId = req.user?.id as string
 
-      const { title, content, subject, tags, images, difficulty } = req.body
+          console.log(`[Questions:${requestId}] Creating question:`, { 
+            title, subject, difficulty, userId 
+          })
 
-      if (!title) {
-        return res.status(400).json({
-          code: 400,
-          message: '标题不能为空',
-          timestamp: Date.now()
-        })
-      }
+          if (!title) {
+            return res.status(400).json({ 
+              code: 400, 
+              message: '标题不能为空', 
+              timestamp: Date.now() 
+            })
+          }
 
-      const question = await prisma.question.create({
-        data: {
-          title,
-          content,
-          subject,
-          tags: tags || [],
-          images: images || [],
-          difficulty,
-          authorId: user.id,
-          authorName: user.nickname,
-          authorAvatar: null,
-          status: 'pending' // 默认待审核
+          const question = await prisma.question.create({
+            data: {
+              title,
+              content,
+              subject,
+              tags: tags || [],
+              images: images || [],
+              difficulty,
+              authorId: userId,
+              authorName: req.user?.nickname || '',
+              authorAvatar: null,
+              status: 'pending' // 默认待审核
+            }
+          })
+
+          const duration = Date.now() - startTime
+          console.log(`[Questions:${requestId}] Question created:`, { 
+            questionId: question.id, 
+            duration: `${duration}ms` 
+          })
+
+          return res.status(201).json({
+            code: 201,
+            data: question,
+            message: '问题创建成功，等待审核',
+            timestamp: Date.now()
+          })
+        } catch (createError: any) {
+          console.error(`[Questions:${requestId}] Create ERROR:`, {
+            message: createError.message,
+            stack: createError.stack
+          })
+          return res.status(500).json({
+            code: 500,
+            message: '创建问题失败: ' + (createError.message || 'Unknown'),
+            timestamp: Date.now()
+          })
         }
-      })
-
-      // TODO: 触发 AI 审核
-
-      return res.status(201).json({
-        code: 201,
-        data: question,
-        message: '问题创建成功，等待审核',
-        timestamp: Date.now()
-      })
+      })(req, res)
     }
 
     // 检查 action 参数
