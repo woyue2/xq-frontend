@@ -101,7 +101,8 @@ export const createRequireTeacher =
       return next(new AppError(401, 'UNAUTHORIZED', '未登录'));
     }
 
-    if (req.user.role !== 'teacher') {
+    // Allow both teacher and admin roles
+    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return next(
         new AppError(
           403,

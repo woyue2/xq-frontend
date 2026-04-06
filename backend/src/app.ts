@@ -47,7 +47,8 @@ export const createApp = () => {
   app.use(helmet());
   app.use(
     cors({
-      origin: '*'
+      origin: '*',
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Client-Version', 'X-Client-Mode']
     })
   );
   app.use(express.json());

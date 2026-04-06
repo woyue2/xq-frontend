@@ -25,7 +25,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
-import { questionService } from '@/services/api';
+import { questionService, interactionService } from '@/services/api';
 import { TOAST_MESSAGES, ROUTES } from '@/config/app-constants';
 import type { Question } from '@/types';
 import { QuestionList } from '@/components/QuestionList';
@@ -73,40 +73,65 @@ export function HomePage() {
     setShowLoginDialog(true);
   };
 
-  const handleLike = (questionId: string, e: React.MouseEvent) => {
+  const handleLike = async (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     // [IMPL] 原因：游客点击互动按钮时提示登录，而非静默操作
     if (!user) {
       requireLogin();
       return;
     }
+    const isCurrentlyLiked = likedQuestions.has(questionId);
     const newLikes = new Set(likedQuestions);
-    if (newLikes.has(questionId)) {
+    if (isCurrentlyLiked) {
       newLikes.delete(questionId);
-      toast.success(TOAST_MESSAGES.unliked);
     } else {
       newLikes.add(questionId);
-      toast.success(TOAST_MESSAGES.liked);
     }
     setLikedQuestions(newLikes);
+    
+    try {
+      await interactionService.like({
+        targetType: 'question',
+        targetId: questionId,
+        action: isCurrentlyLiked ? 'unlike' : 'like',
+      });
+      toast.success(isCurrentlyLiked ? TOAST_MESSAGES.unliked : TOAST_MESSAGES.liked);
+    } catch (error: any) {
+      // Revert on error
+      setLikedQuestions(likedQuestions);
+      console.error('[handleLike] Error:', error);
+      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
+    }
   };
 
-  const handleFavorite = (questionId: string, e: React.MouseEvent) => {
+  const handleFavorite = async (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     // [IMPL] 原因：游客点击互动按钮时提示登录
     if (!user) {
       requireLogin();
       return;
     }
+    const isCurrentlyFavorited = favoritedQuestions.has(questionId);
     const newFavorites = new Set(favoritedQuestions);
-    if (newFavorites.has(questionId)) {
+    if (isCurrentlyFavorited) {
       newFavorites.delete(questionId);
-      toast.success(TOAST_MESSAGES.unfavorited);
     } else {
       newFavorites.add(questionId);
-      toast.success(TOAST_MESSAGES.favorited);
     }
     setFavoritedQuestions(newFavorites);
+    
+    try {
+      await interactionService.favorite({
+        questionId,
+        action: isCurrentlyFavorited ? 'unfavorite' : 'favorite',
+      } as any);
+      toast.success(isCurrentlyFavorited ? TOAST_MESSAGES.unfavorited : TOAST_MESSAGES.favorited);
+    } catch (error: any) {
+      // Revert on error
+      setFavoritedQuestions(favoritedQuestions);
+      console.error('[handleFavorite] Error:', error);
+      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
+    }
   };
 
   const handleTogglePin = (question: Question, e: React.MouseEvent) => {

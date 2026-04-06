@@ -213,7 +213,7 @@ export class CommentService {
       throw new AppError(404, 'COMMENT_NOT_FOUND', '评论不存在');
     }
 
-    if (role !== 'teacher' && comment.authorId !== userId) {
+    if (role !== 'teacher' && role !== 'admin' && comment.authorId !== userId) {
       throw new AppError(
         403,
         'PERMISSION_DENIED',

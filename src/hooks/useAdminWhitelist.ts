@@ -172,7 +172,7 @@ export function useAdminWhitelist() {
       navigate(ROUTES.login);
       return;
     }
-    if (user.role !== 'teacher') {
+    if (user.role !== 'teacher' && user.role !== 'admin') {
       toast.error('只有老师可以访问管理后台');
       navigate(ROUTES.profile);
     }
@@ -181,7 +181,7 @@ export function useAdminWhitelist() {
   // ── 从 API 加载白名单
   useEffect(() => {
     let cancelled = false;
-    if (!user || user.role !== 'teacher') return;
+    if (!user || (user.role !== 'teacher' && user.role !== 'admin')) return;
 
     const load = async () => {
       try {

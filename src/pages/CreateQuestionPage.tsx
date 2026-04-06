@@ -329,19 +329,13 @@ export function CreateQuestionPage() {
 
       const questionId = (created as Question).id;
 
-      // 处理 AI 审核结果
+      // 处理 AI 审核结果（仅处理违规情况，质量问题已在后端拦截）
       const aiAudit = (created as any)?.aiAudit;
-      if (aiAudit) {
-        if (!aiAudit.safe) {
-          // 内容违规被拒绝
-          toast.error(`提交失败：${aiAudit.reason || '内容不符合规范'}`);
-          setSubmitting(false);
-          return;
-        }
-        if (aiAudit.qualitySuggestion) {
-          // 有改进建议，显示提示
-          toast.info(aiAudit.qualitySuggestion, { duration: 5000 });
-        }
+      if (aiAudit && !aiAudit.safe) {
+        // 内容违规被拒绝（理论上不会到这里，因为后端会抛错）
+        toast.error(`提交失败：${aiAudit.reason || '内容不符合规范'}`);
+        setSubmitting(false);
+        return;
       }
 
       // 验证问题是否可以访问（防止竞态条件）

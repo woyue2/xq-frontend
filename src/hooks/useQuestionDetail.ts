@@ -205,8 +205,10 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
         action: nextLiked ? 'like' : 'unlike',
       });
       toast.success(nextLiked ? '点赞成功' : '已取消点赞');
-    } catch {
+    } catch (error: any) {
       setLiked(!nextLiked);
+      console.error('[handleLike] Error:', error);
+      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
     }
   };
 
@@ -228,8 +230,10 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
         action: nextFavorited ? 'favorite' : 'unfavorite',
       });
       toast.success(nextFavorited ? '收藏成功' : '已取消收藏');
-    } catch {
+    } catch (error: any) {
       setFavorited(!nextFavorited);
+      console.error('[handleFavorite] Error:', error);
+      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
     }
   };
 

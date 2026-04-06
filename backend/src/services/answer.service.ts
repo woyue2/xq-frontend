@@ -44,9 +44,9 @@ export class AnswerService {
     }
 
     // 权限校验：学生只能回答教师提出的问题
-    if (authorRole !== 'teacher') {
+    if (authorRole !== 'teacher' && authorRole !== 'admin') {
       const questionAuthor = await prisma.user.findUnique({ where: { id: question.authorId } });
-      if (questionAuthor?.role !== 'teacher') {
+      if (questionAuthor?.role !== 'teacher' && questionAuthor?.role !== 'admin') {
         throw new AppError(403, 'PERMISSION_DENIED', '学生只能回答教师提出的问题', undefined, 3002);
       }
     }
@@ -84,7 +84,7 @@ export class AnswerService {
       safe: true,
       quality: { clear: true }
     };
-    let initialStatus = author.role === 'teacher' ? 'approved' : 'pending';
+    let initialStatus = (author.role === 'teacher' || author.role === 'admin') ? 'approved' : 'pending';
     let aiResultText = '无违规';
 
     // 1. 文本审核
@@ -105,7 +105,7 @@ export class AnswerService {
           category: result.category
         });
       } else {
-        if (author.role === 'teacher') {
+        if (author.role === 'teacher' || author.role === 'admin') {
           initialStatus = 'approved';
         }
         aiResultText = JSON.stringify({ safe: true });
@@ -338,7 +338,7 @@ export class AnswerService {
       throw new AppError(404, 'ANSWER_NOT_FOUND', '回答不存在');
     }
 
-    if (role !== 'teacher' && answer.authorId !== userId) {
+    if (role !== 'teacher' && role !== 'admin' && answer.authorId !== userId) {
       throw new AppError(
         403,
         'PERMISSION_DENIED',

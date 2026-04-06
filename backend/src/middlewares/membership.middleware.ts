@@ -29,8 +29,8 @@ export const requireActiveMembership = async (
     return next(new AppError(401, 'UNAUTHORIZED', '未登录'));
   }
 
-  // 教师与家长账号不受课时限制：教师始终可写，家长写操作由各业务路由的角色校验单独控制
-  if (req.user.role === 'teacher' || req.user.role === 'parent') {
+  // 教师、管理员与家长账号不受课时限制：教师/管理员始终可写，家长写操作由各业务路由的角色校验单独控制
+  if (req.user.role === 'teacher' || req.user.role === 'admin' || req.user.role === 'parent') {
     return next();
   }
 

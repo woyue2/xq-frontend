@@ -142,8 +142,17 @@ export class QuestionService {
         reason: auditResult.reason,
         category: auditResult.category
       });
+    } else if (auditResult.quality && !auditResult.quality.clear) {
+      // 内容不清晰，拒绝提交，要求用户完善
+      throw new AppError(
+        400,
+        'QUESTION_UNCLEAR',
+        auditResult.quality.suggestion || '问题描述不够清晰，请补充更多细节',
+        undefined,
+        2002
+      );
     } else {
-      // 内容安全，进 pending 待人工复核
+      // 内容安全且清晰，进 pending 待人工复核
       aiResultText = JSON.stringify({
         safe: true,
         quality: auditResult.quality
@@ -300,12 +309,25 @@ export class QuestionService {
     ]);
 
     let understandingMap = new Map<string, string>();
+    let likedSet = new Set<string>();
+    let favoritedSet = new Set<string>();
+    
     if (userId && list.length > 0) {
       const questionIds = list.map((q) => q.id);
-      const understandingList = await prisma.questionUnderstanding.findMany({
-        where: { questionId: { in: questionIds }, userId }
-      });
+      const [understandingList, likes, favorites] = await Promise.all([
+        prisma.questionUnderstanding.findMany({
+          where: { questionId: { in: questionIds }, userId }
+        }),
+        prisma.like.findMany({
+          where: { userId, targetType: 'question', targetId: { in: questionIds } }
+        }),
+        prisma.favorite.findMany({
+          where: { userId, questionId: { in: questionIds } }
+        })
+      ]);
       understandingMap = new Map(understandingList.map((u) => [u.questionId, u.status]));
+      likedSet = new Set(likes.map((l) => l.targetId));
+      favoritedSet = new Set(favorites.map((f) => f.questionId));
     }
 
     return {
@@ -330,7 +352,9 @@ export class QuestionService {
         answers: q.answers,
         status: q.status,
         createdAt: q.createdAt,
-        understandingStatus: understandingMap.get(q.id) ?? null
+        understandingStatus: understandingMap.get(q.id) ?? null,
+        isLiked: likedSet.has(q.id),
+        isFavorited: favoritedSet.has(q.id)
       })),
       pagination: {
         page: rawPage,
@@ -350,12 +374,13 @@ export class QuestionService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
 
-    // 隐私边界保护：如果问题未审核通过，则仅作者本人或教师可见
+    // 隐私边界保护：如果问题未审核通过，则仅作者本人或教师/管理员可见
     if (q.status !== 'approved') {
       const isAuthor = userContext?.userId === q.authorId;
       const isTeacher = userContext?.role === 'teacher';
+      const isAdmin = userContext?.role === 'admin';
 
-      if (!isAuthor && !isTeacher) {
+      if (!isAuthor && !isTeacher && !isAdmin) {
         throw new AppError(
           403,
           'PERMISSION_DENIED',
@@ -550,8 +575,8 @@ export class QuestionService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', '问题不存在');
     }
 
-    // 教师可以删除任何问题，普通用户只能删除自己的问题
-    if (role !== 'teacher' && question.authorId !== userId) {
+    // 教师/管理员可以删除任何问题，普通用户只能删除自己的问题
+    if (role !== 'teacher' && role !== 'admin' && question.authorId !== userId) {
       throw new AppError(
         403,
         'PERMISSION_DENIED',
@@ -561,8 +586,8 @@ export class QuestionService {
       );
     }
 
-    // 学生/普通用户只能删除尚无回答的问题；已有回答的问题只能由教师处理
-    if (role !== 'teacher' && question.answers > 0) {
+    // 学生/普通用户只能删除尚无回答的问题；已有回答的问题只能由教师/管理员处理
+    if (role !== 'teacher' && role !== 'admin' && question.answers > 0) {
       throw new AppError(
         403,
         'PERMISSION_DENIED',

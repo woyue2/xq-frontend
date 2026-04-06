@@ -190,7 +190,7 @@ uploadRouter.get(
         );
       }
 
-      if (typeRaw === 'audio' && req.user.role !== 'teacher') {
+      if (typeRaw === 'audio' && req.user.role !== 'teacher' && req.user.role !== 'admin') {
         throw new AppError(
           403,
           'PERMISSION_DENIED',
@@ -242,7 +242,7 @@ uploadRouter.post(
         throw new AppError(401, 'UNAUTHORIZED', '未登录');
       }
 
-      if (req.user.role !== 'teacher') {
+      if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
         throw new AppError(
           403,
           'PERMISSION_DENIED',
