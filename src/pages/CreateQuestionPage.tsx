@@ -48,6 +48,7 @@ import { isMemberActive } from '@/lib/permissions';
 import { useDebounce } from '@/hooks/useDebounce';
 import { questionService, configService } from '@/services/api';
 import { subjectConfigService } from '@/services/subjectConfig.service';
+import { safeCreate } from '@/lib/race-condition-fix';
 import type { Question } from '@/types';
 import type { QuestionDimensionDto } from '@/types/api';
 
@@ -234,7 +235,11 @@ export function CreateQuestionPage() {
     }
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async () => {
+    if (isSubmitting) return; // 防重复提交
+    
     // Double check permission on submit
     if (user && !isMemberActive(user)) {
       toast.error('您的会员已过期，无法提问');
