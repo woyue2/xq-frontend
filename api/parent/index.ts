@@ -1,15 +1,17 @@
-/**
+﻿/**
  * [POS] api/parent/index.ts
- *   所属：API 路由�?| 角色：家长管�? *
+ *   所属：API 路由层 | 角色：家长管理
+ *
  * [METHODS]
- *   - POST /parent/bind �?绑定孩子
- *   - GET /parent/children �?获取已绑定孩子列�? *   - POST /parent/unbind �?解绑孩子
+ *   - POST /parent/bind → 绑定孩子
+ *   - GET /parent/children → 获取已绑定孩子列表
+ *   - POST /parent/unbind → 解绑孩子
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户�?===
+// === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -44,7 +46,7 @@ function requireAuth(handler: Function) {
   return async (req: any, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
     }
     return handler(req, res)
   }
@@ -79,14 +81,14 @@ export default async function handler(
     return requireAuth(handleUnbind)(req, res)
   }
 
-  return res.status(400).json({ code: 400, message: '无效的操作类�?, timestamp: Date.now() })
+  return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
 }
 
 async function handleBind(req: VercelRequest, res: VercelResponse) {
   try {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录', timestamp: Date.now() })
     }
 
     const { childId } = req.body
@@ -95,7 +97,8 @@ async function handleBind(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ code: 400, message: '孩子ID为必填项', timestamp: Date.now() })
     }
 
-    // 检查孩子是否存�?    const child = await prisma.user.findUnique({
+    // 检查孩子是否存在
+    const child = await prisma.user.findUnique({
       where: { id: childId, role: 'student' }
     })
 
@@ -142,7 +145,7 @@ async function handleBind(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Parent Bind]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
   }
 }
 
@@ -150,7 +153,7 @@ async function handleGetChildren(req: VercelRequest, res: VercelResponse) {
   try {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录', timestamp: Date.now() })
     }
 
     const bindings = await prisma.parentChild.findMany({
@@ -179,7 +182,7 @@ async function handleGetChildren(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Parent GetChildren]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
   }
 }
 
@@ -187,7 +190,7 @@ async function handleUnbind(req: VercelRequest, res: VercelResponse) {
   try {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录', timestamp: Date.now() })
     }
 
     const { childId } = req.body
@@ -205,7 +208,7 @@ async function handleUnbind(req: VercelRequest, res: VercelResponse) {
     })
 
     if (deleted.count === 0) {
-      return res.status(404).json({ code: 404, message: '未找到绑定关�?, timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '未找到绑定关系', timestamp: Date.now() })
     }
 
     return res.json({
@@ -216,6 +219,6 @@ async function handleUnbind(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Parent Unbind]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
   }
 }

@@ -1,21 +1,21 @@
-/**
+﻿/**
  * [POS] api/interactions/index.ts
- *   所属：API 路由�?| 角色：交互操作入�?
- *   [PROTOCOL]: 变更时更新此头部，然后检�?CLAUDE.md
+ *   所属：API 路由层 | 角色：交互操作入口
+ *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  *
  * [METHODS]
- *   - POST /interactions/like          �?点赞/取消点赞
- *   - GET  /interactions/favorite      �?获取收藏列表
- *   - POST /interactions/favorite      �?添加收藏
- *   - DELETE /interactions/favorite    �?取消收藏
- *   - GET  /interactions/understanding �?获取理解状�?
- *   - POST /interactions/understanding �?标记理解状�?
+ *   - POST /interactions/like          → 点赞/取消点赞
+ *   - GET  /interactions/favorite      → 获取收藏列表
+ *   - POST /interactions/favorite      → 添加收藏
+ *   - DELETE /interactions/favorite    → 取消收藏
+ *   - GET  /interactions/understanding → 获取理解状态
+ *   - POST /interactions/understanding → 标记理解状态
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户�?===
+// === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -50,7 +50,7 @@ function requireAuth(handler: Function) {
   return async (req: VercelRequest, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
     }
     ;(req as any).user = user
     return handler(req, res)
@@ -125,7 +125,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
     const duration = Date.now() - startTime
     console.log(`[Interactions:${requestId}] Invalid action:`, { action, method: req.method, duration: `${duration}ms` })
-    return res.status(400).json({ code: 400, message: '无效的操作类�?, timestamp: Date.now() })
+    return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
   } catch (error: any) {
     const duration = Date.now() - startTime
     console.error(`[Interactions:${requestId}] ERROR:`, {
@@ -137,7 +137,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     })
     return res.status(500).json({ 
       code: 500, 
-      message: '服务器内部错�? ' + (error.message || 'Unknown'), 
+      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
       error: error.message, 
       timestamp: Date.now() 
     })
@@ -151,7 +151,7 @@ async function handleLike(req: VercelRequest, res: VercelResponse) {
     const userId = (req as any).user?.id
 
     if (!targetType || !targetId || !['question', 'answer'].includes(targetType)) {
-      return res.status(400).json({ code: 400, message: '无效的目标类�?, timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '无效的目标类型', timestamp: Date.now() })
     }
 
     const existing = await prisma.like.findUnique({
@@ -159,7 +159,7 @@ async function handleLike(req: VercelRequest, res: VercelResponse) {
     })
 
     if (existing) {
-      return res.status(409).json({ code: 409, message: '已点�?, timestamp: Date.now() })
+      return res.status(409).json({ code: 409, message: '已点赞', timestamp: Date.now() })
     }
 
     await prisma.$transaction(async (tx: any) => {
@@ -174,7 +174,7 @@ async function handleLike(req: VercelRequest, res: VercelResponse) {
     return res.status(201).json({ code: 201, message: '点赞成功', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Interactions Like]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -185,7 +185,7 @@ async function handleUnlike(req: VercelRequest, res: VercelResponse) {
     const userId = (req as any).user?.id
 
     if (!targetType || !targetId) {
-      return res.status(400).json({ code: 400, message: '参数不完�?, timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '参数不完整', timestamp: Date.now() })
     }
 
     await prisma.$transaction(async (tx: any) => {
@@ -200,7 +200,7 @@ async function handleUnlike(req: VercelRequest, res: VercelResponse) {
     return res.json({ code: 200, message: '取消点赞成功', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Interactions Unlike]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -218,7 +218,7 @@ async function handleGetFavorites(req: VercelRequest, res: VercelResponse) {
       prisma.favorite.count({ where: { userId } })
     ])
 
-    // 手动查询关联的问�?
+    // 手动查询关联的问题
     const questionIds = favorites.map((f: any) => f.questionId)
     const questions = await prisma.question.findMany({
       where: { id: { in: questionIds } }
@@ -238,7 +238,7 @@ async function handleGetFavorites(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Interactions Favorites GET]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -268,7 +268,7 @@ async function handleAddFavorite(req: VercelRequest, res: VercelResponse) {
     return res.status(201).json({ code: 201, message: '收藏成功', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Interactions Favorite POST]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -290,7 +290,7 @@ async function handleRemoveFavorite(req: VercelRequest, res: VercelResponse) {
     return res.json({ code: 200, message: '取消收藏成功', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Interactions Favorite DELETE]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -321,7 +321,7 @@ async function handleGetUnderstanding(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Interactions Understanding GET]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -337,7 +337,7 @@ async function handleSetUnderstanding(req: VercelRequest, res: VercelResponse) {
 
     const question = await prisma.question.findUnique({ where: { id: questionId } })
     if (!question) {
-      return res.status(404).json({ code: 404, message: '题目不存�?, timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '题目不存在', timestamp: Date.now() })
     }
 
     const existing = await prisma.questionUnderstanding.findUnique({
@@ -375,7 +375,7 @@ async function handleSetUnderstanding(req: VercelRequest, res: VercelResponse) {
     return res.json({ code: 200, message: status === 'understood' ? '已标记为懂了' : '已标记为没懂', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Interactions Understanding POST]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 

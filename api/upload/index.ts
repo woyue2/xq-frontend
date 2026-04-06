@@ -1,9 +1,9 @@
-/**
+﻿/**
  * [POS] api/upload/index.ts
- *   所属：API 路由�?| 角色：文件上�?
+ *   所属：API 路由层 | 角色：文件上传
  *
  * [METHODS]
- *   - POST �?上传文件�?imgurl.org OSS
+ *   - POST → 上传文件到 imgurl.org OSS
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import jwt from 'jsonwebtoken'
@@ -37,7 +37,7 @@ function requireAuth(handler: Function) {
   return async (req: any, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
     }
     return handler(req, res)
   }
@@ -109,21 +109,21 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ code: 405, message: '方法不允�?, timestamp: Date.now() })
+    return res.status(405).json({ code: 405, message: '方法不允许', timestamp: Date.now() })
   }
 
-  // 鉴权检查（POST 请求必须�?
+  // 鉴权检查（POST 请求必须）
   const user = await getCurrentUser(req)
   if (!user) {
-    return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+    return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
   }
 
   try {
     const contentType = req.headers['content-type'] || ''
     
-    // 判断�?multipart（音频）还是 JSON Base64（图片）
+    // 判断是 multipart（音频）还是 JSON Base64（图片）
     if (contentType.includes('multipart/form-data')) {
-      // ========== 处理音频上传（到 Supabase�?=========
+      // ========== 处理音频上传（到 Supabase）==========
       const parsed = await parseMultipart(req)
       
       if (!parsed) {
@@ -138,17 +138,17 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ code: 400, message: '不支持的音频格式', timestamp: Date.now() })
       }
       
-      // 验证大小�?0MB�?
+      // 验证大小（50MB）
       if (file.length > 50 * 1024 * 1024) {
         return res.status(400).json({ code: 400, message: '音频文件超过50MB限制', timestamp: Date.now() })
       }
       
-      // 检�?Supabase 配置
+      // 检查 Supabase 配置
       if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        return res.status(500).json({ code: 500, message: 'Supabase 未配�?, timestamp: Date.now() })
+        return res.status(500).json({ code: 500, message: 'Supabase 未配置', timestamp: Date.now() })
       }
       
-      // 上传�?Supabase Storage
+      // 上传到 Supabase Storage
       const timestamp = Date.now()
       const ext = fileName.split('.').pop() || 'webm'
       const uniqueName = `audio/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
@@ -179,7 +179,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       })
       
     } else {
-      // ========== 处理图片上传（到 OSS�?=========
+      // ========== 处理图片上传（到 OSS）==========
       const { file, fileName, fileType } = req.body
       
       if (!file || !fileName) {
@@ -188,7 +188,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       
       const allowedImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
       if (!allowedImage.includes(fileType)) {
-        return res.status(400).json({ code: 400, message: '只支持图片格�?, timestamp: Date.now() })
+        return res.status(400).json({ code: 400, message: '只支持图片格式', timestamp: Date.now() })
       }
       
       // Base64 处理
@@ -199,7 +199,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ code: 400, message: '图片超过10MB限制', timestamp: Date.now() })
       }
       
-      // 上传�?OSS
+      // 上传到 OSS
       const formData = new URLSearchParams()
       formData.append('file', base64Data)
       

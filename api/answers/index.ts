@@ -1,16 +1,16 @@
-/**
+﻿/**
  * [POS] api/answers/index.ts
- *   所属：API 路由�?| 角色：回答列�?创建/详情
+ *   所属：API 路由层 | 角色：回答列表/创建/详情
  *
  * [METHODS]
- *   - GET  �?获取问题回答列表 (questionId) �?回答详情 (id)
- *   - POST �?创建回答（教师）
+ *   - GET  → 获取问题回答列表 (questionId) 或 回答详情 (id)
+ *   - POST → 创建回答（教师）
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户�?===
+// === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -45,7 +45,7 @@ function requireAuth(handler: Function) {
   return async (req: VercelRequest, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
     }
     ;(req as any).user = user
     return handler(req, res)
@@ -93,7 +93,7 @@ export default async function handler(
       const { id, questionId, page = '1', limit = '20' } = req.query
       console.log(`[Answers:${requestId}] Getting answers:`, { id, questionId, page, limit })
 
-      // 如果�?id 参数，返回回答详�?
+      // 如果有 id 参数，返回回答详情
       if (id) {
         console.log(`[Answers:${requestId}] Getting answer detail for id:`, id)
         const answer = await prisma.answer.findUnique({
@@ -115,7 +115,7 @@ export default async function handler(
           console.log(`[Answers:${requestId}] Answer not found:`, { id })
           return res.status(404).json({
             code: 404,
-            message: '回答不存�?,
+            message: '回答不存在',
             timestamp: Date.now()
           })
         }
@@ -195,7 +195,7 @@ export default async function handler(
       if (!user) {
         return res.status(401).json({
           code: 401,
-          message: '未登�?,
+          message: '未登录',
           timestamp: Date.now()
         })
       }
@@ -214,12 +214,12 @@ export default async function handler(
       if (!questionId || !content) {
         return res.status(400).json({
           code: 400,
-          message: '问题ID和内容不能为�?,
+          message: '问题ID和内容不能为空',
           timestamp: Date.now()
         })
       }
 
-      // 检查问题是否存�?
+      // 检查问题是否存在
       const question = await prisma.question.findUnique({
         where: { id: questionId }
       })
@@ -227,7 +227,7 @@ export default async function handler(
       if (!question) {
         return res.status(404).json({
           code: 404,
-          message: '问题不存�?,
+          message: '问题不存在',
           timestamp: Date.now()
         })
       }
@@ -242,11 +242,11 @@ export default async function handler(
           authorId: user.id,
           authorName: user.nickname,
           authorAvatar: null,
-          status: 'pending' // 默认待审�?
+          status: 'pending' // 默认待审核
         }
       })
 
-      // 更新问题回答�?
+      // 更新问题回答数
       await prisma.question.update({
         where: { id: questionId },
         data: { answers: { increment: 1 } }
@@ -255,14 +255,14 @@ export default async function handler(
       return res.status(201).json({
         code: 201,
         data: answer,
-        message: '回答创建成功，等待审�?,
+        message: '回答创建成功，等待审核',
         timestamp: Date.now()
       })
     }
 
     return res.status(405).json({
       code: 405,
-      message: '方法不允�?,
+      message: '方法不允许',
       timestamp: Date.now()
     })
 
@@ -270,7 +270,7 @@ export default async function handler(
     console.error('[API /answers]', error)
     return res.status(500).json({
       code: 500,
-      message: '服务器内部错�? ' + (error.message || 'Unknown'),
+      message: '服务器内部错误: ' + (error.message || 'Unknown'),
       error: error.message,
       timestamp: Date.now()
     })

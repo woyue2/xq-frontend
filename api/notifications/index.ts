@@ -1,16 +1,16 @@
-/**
+﻿/**
  * [POS] api/notifications/index.ts
- *   所属：API 路由�?| 角色：通知管理
+ *   所属：API 路由层 | 角色：通知管理
  *
  * [METHODS]
- *   - GET  �?获取用户通知列表
- *   - POST �?标记通知为已�?
+ *   - GET  → 获取用户通知列表
+ *   - POST → 标记通知为已读
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户�?===
+// === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -45,7 +45,7 @@ function requireAuth(handler: Function) {
   return async (req: any, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
     }
     req.user = user
     return handler(req, res)
@@ -117,20 +117,20 @@ async function handler(req: any, res: VercelResponse) {
       console.error('[API /notifications GET]', error)
       return res.status(500).json({
         code: 500,
-        message: '服务器内部错�? ' + (error.message || 'Unknown'),
+        message: '服务器内部错误: ' + (error.message || 'Unknown'),
         error: error.message,
         timestamp: Date.now()
       })
     }
   }
 
-  // POST - 标记通知为已�?
+  // POST - 标记通知为已读
   if (req.method === 'POST') {
     try {
       const { id, readAll = false } = req.body
 
       if (readAll) {
-        // 标记所有通知为已�?
+        // 标记所有通知为已读
         await prisma.notification.updateMany({
           where: { userId, isRead: false },
           data: { isRead: true }
@@ -159,7 +159,7 @@ async function handler(req: any, res: VercelResponse) {
       if (!notification) {
         return res.status(404).json({
           code: 404,
-          message: '通知不存�?,
+          message: '通知不存在',
           timestamp: Date.now()
         })
       }
@@ -179,7 +179,7 @@ async function handler(req: any, res: VercelResponse) {
       console.error('[API /notifications POST]', error)
       return res.status(500).json({
         code: 500,
-        message: '服务器内部错�? ' + (error.message || 'Unknown'),
+        message: '服务器内部错误: ' + (error.message || 'Unknown'),
         error: error.message,
         timestamp: Date.now()
       })
@@ -188,7 +188,7 @@ async function handler(req: any, res: VercelResponse) {
 
   return res.status(405).json({
     code: 405,
-    message: '方法不允�?,
+    message: '方法不允许',
     timestamp: Date.now()
   })
 }

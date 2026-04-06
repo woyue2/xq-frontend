@@ -1,23 +1,23 @@
-/**
+﻿/**
  * [POS] api/admin/index.ts
- *   所属：API 路由�?| 角色：管理员入口
- *   [PROTOCOL]: 变更时更新此头部，然后检�?CLAUDE.md
+ *   所属：API 路由层 | 角色：管理员入口
+ *   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  *
  * [METHODS]
- *   - GET  /admin/audit/pending   �?获取待审核列�?
- *   - POST /admin/audit/approve   �?审核通过
- *   - POST /admin/audit/reject    �?审核拒绝
- *   - POST /admin/audit/ban       �?封禁内容
- *   - GET  /admin/stats           �?获取统计数据
- *   - GET  /admin/whitelist       �?获取白名�?
- *   - POST /admin/whitelist       �?添加白名�?
- *   - POST /admin/whitelist/delete�?删除白名�?
+ *   - GET  /admin/audit/pending   → 获取待审核列表
+ *   - POST /admin/audit/approve   → 审核通过
+ *   - POST /admin/audit/reject    → 审核拒绝
+ *   - POST /admin/audit/ban       → 封禁内容
+ *   - GET  /admin/stats           → 获取统计数据
+ *   - GET  /admin/whitelist       → 获取白名单
+ *   - POST /admin/whitelist       → 添加白名单
+ *   - POST /admin/whitelist/delete→ 删除白名单
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 
-// === 内联 Prisma 客户�?===
+// === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -52,7 +52,7 @@ function requireAuth(handler: Function) {
   return async (req: VercelRequest, res: any) => {
     const user = await getCurrentUser(req)
     if (!user) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过�?, timestamp: Date.now() })
+      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
     }
     ;(req as any).user = user
     return handler(req, res)
@@ -140,7 +140,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
     const duration = Date.now() - startTime
     console.log(`[Admin:${requestId}] Invalid action:`, { action, method: req.method, duration: `${duration}ms` })
-    return res.status(400).json({ code: 400, message: '无效的操作类�?, timestamp: Date.now() })
+    return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
   } catch (error: any) {
     const duration = Date.now() - startTime
     console.error(`[Admin:${requestId}] ERROR:`, {
@@ -152,7 +152,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     })
     return res.status(500).json({ 
       code: 500, 
-      message: '服务器内部错�? ' + (error.message || 'Unknown'), 
+      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
       error: error.message, 
       timestamp: Date.now() 
     })
@@ -190,7 +190,7 @@ async function handleAuditPending(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Admin Audit Pending]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -201,7 +201,7 @@ async function handleAuditApprove(req: any, res: VercelResponse) {
     const auditorId = (req as any).user?.id as string
 
     if (!id || !type) {
-      return res.status(400).json({ code: 400, message: '内容ID和类型为必填�?, timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
     }
 
     if (type === 'question') {
@@ -220,7 +220,7 @@ async function handleAuditApprove(req: any, res: VercelResponse) {
     return res.json({ code: 200, data: { id, type, status: 'approved' }, message: '审核通过', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Admin Audit Approve]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -231,7 +231,7 @@ async function handleAuditReject(req: any, res: VercelResponse) {
     const auditorId = (req as any).user?.id as string
 
     if (!id || !type) {
-      return res.status(400).json({ code: 400, message: '内容ID和类型为必填�?, timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
     }
 
     if (type === 'question') {
@@ -244,10 +244,10 @@ async function handleAuditReject(req: any, res: VercelResponse) {
 
     await prisma.auditLog.create({ data: { auditorId, targetType: type, targetId: id, action: 'reject', reason } })
 
-    return res.json({ code: 200, data: { id, type, status: 'rejected' }, message: '已拒�?, timestamp: Date.now() })
+    return res.json({ code: 200, data: { id, type, status: 'rejected' }, message: '已拒绝', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Admin Audit Reject]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -259,7 +259,7 @@ async function handleAuditBan(req: any, res: VercelResponse) {
     const now = new Date()
 
     if (!id || !type) {
-      return res.status(400).json({ code: 400, message: '内容ID和类型为必填�?, timestamp: Date.now() })
+      return res.status(400).json({ code: 400, message: '内容ID和类型为必填项', timestamp: Date.now() })
     }
 
     if (type === 'question') {
@@ -276,10 +276,10 @@ async function handleAuditBan(req: any, res: VercelResponse) {
 
     await prisma.auditLog.create({ data: { auditorId, targetType: type, targetId: id, action: 'ban', reason } })
 
-    return res.json({ code: 200, data: { id, type, status: 'banned' }, message: '已封�?, timestamp: Date.now() })
+    return res.json({ code: 200, data: { id, type, status: 'banned' }, message: '已封禁', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Admin Audit Ban]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -318,7 +318,7 @@ async function handleStats(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Admin Stats]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -347,7 +347,7 @@ async function handleWhitelistList(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error: any) {
     console.error('[Admin Whitelist List]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -375,17 +375,17 @@ async function handleWhitelistAdd(req: VercelRequest, res: VercelResponse) {
         where: { id: existing.id },
         data: { name, role, grade, validUntil: validUntil ? new Date(validUntil) : null, notes, deletedAt: null, deletedBy: null, updatedAt: new Date() }
       })
-      return res.status(200).json({ code: 200, data: updated, message: '白名单用户已恢复并更�?, timestamp: Date.now() })
+      return res.status(200).json({ code: 200, data: updated, message: '白名单用户已恢复并更新', timestamp: Date.now() })
     }
 
     const whitelist = await prisma.userWhitelist.create({
       data: { phone, name, role, grade, validUntil: validUntil ? new Date(validUntil) : null, notes, isRegistered: false }
     })
 
-    return res.status(201).json({ code: 201, data: whitelist, message: '白名单用户添加成�?, timestamp: Date.now() })
+    return res.status(201).json({ code: 201, data: whitelist, message: '白名单用户添加成功', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Admin Whitelist Add]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 
@@ -401,7 +401,7 @@ async function handleWhitelistDelete(req: any, res: VercelResponse) {
 
     const whitelist = await prisma.userWhitelist.findUnique({ where: { id } })
     if (!whitelist || whitelist.deletedAt) {
-      return res.status(404).json({ code: 404, message: '白名单用户不存在或已被删�?, timestamp: Date.now() })
+      return res.status(404).json({ code: 404, message: '白名单用户不存在或已被删除', timestamp: Date.now() })
     }
 
     await prisma.userWhitelist.update({ where: { id }, data: { deletedAt: new Date(), deletedBy: adminId } })
@@ -409,7 +409,7 @@ async function handleWhitelistDelete(req: any, res: VercelResponse) {
     return res.json({ code: 200, message: '白名单用户已删除', timestamp: Date.now() })
   } catch (error: any) {
     console.error('[Admin Whitelist Delete]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错�? ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
+    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
   }
 }
 

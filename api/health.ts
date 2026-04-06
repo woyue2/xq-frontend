@@ -1,15 +1,15 @@
 /**
  * [POS] api/health.ts
- *   所属：API 路由�?| 角色：健康检�?
+ *   所属：API 路由层 | 角色：健康检查
  *   [PROTOCOL]: 变更时更新此头部
  *
  * [METHODS]
- *   - GET /health �?检查数据库连接状�?
+ *   - GET /health → 检查数据库连接状态
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { PrismaClient } from '@prisma/client'
 
-// === 内联 Prisma 客户�?===
+// === 内联 Prisma 客户端 ===
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
@@ -40,7 +40,7 @@ export default async function handler(
     }
 
     console.log(`[Health:${requestId}] Testing database connection...`)
-    // 测试数据库连�?
+    // 测试数据库连接
     const result = await prisma.$queryRaw`SELECT 1 as connected`
     
     const duration = Date.now() - startTime
