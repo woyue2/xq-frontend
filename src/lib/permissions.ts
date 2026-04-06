@@ -45,7 +45,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
  */
 export function isMemberActive(user?: User | null): boolean {
   if (!user) return false;
-  if (user.role === 'teacher') return true;
+  if (user.role === 'teacher' || user.role === 'admin') return true;
   if (user.role === 'parent') return false;
   if (!user.expiresAt) return false; // 如果没设置有效期，视为无效（严格模式）
 
@@ -63,8 +63,8 @@ export function getUserPermissions(user?: User | null): Permission[] {
   const isActive = isMemberActive(user);
   const perms: Permission[] = [];
 
-  // 1. 老师权限 (上帝模式)
-  if (user.role === 'teacher') {
+  // 1. 老师/管理员权限 (上帝模式)
+  if (user.role === 'teacher' || user.role === 'admin') {
     return Object.values(PERMISSIONS);
   }
 

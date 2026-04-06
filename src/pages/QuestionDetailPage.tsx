@@ -182,7 +182,7 @@ export function QuestionDetailPage() {
   };
 
   const handleAnswer = () => {
-    if (currentUser?.role === 'teacher') {
+    if (currentUser?.role === 'teacher' || currentUser?.role === 'admin') {
       navigate(ROUTES.answer(question.id));
     } else {
       toast.error('暂无回答权限');
@@ -195,7 +195,7 @@ export function QuestionDetailPage() {
       return;
     }
 
-    if (currentUser.role === 'teacher') {
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
       navigate(ROUTES.studentHistory(question.authorId));
       return;
     }
@@ -226,7 +226,7 @@ export function QuestionDetailPage() {
   };
 
   const isQuestionAuthor = currentUser?.id === question.authorId;
-  const isTeacher = currentUser?.role === 'teacher';
+  const isTeacher = currentUser?.role === 'teacher' || currentUser?.role === 'admin';
   const hasAnyAnswer = (question.stats.answers ?? 0) > 0;
   const canDelete = isTeacher || (isQuestionAuthor && !hasAnyAnswer);
   // 仅老师可以看到并使用“去回答”入口，防止前端 UI 与后端权限语义出现不一致
@@ -636,7 +636,7 @@ export function QuestionDetailPage() {
             </div>
 
             {/* 评论输入框（提问者和教师可见） */}
-            {(isQuestionAuthor || currentUser?.role === 'teacher') && (
+            {(isQuestionAuthor || currentUser?.role === 'teacher' || currentUser?.role === 'admin') && (
               <div className="space-y-2 pt-2 border-t border-gray-50">
                 {commentImage && (
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-morandi-5">

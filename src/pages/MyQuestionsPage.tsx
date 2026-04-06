@@ -62,7 +62,7 @@ export function MyQuestionsPage() {
   };
 
   const canDeleteQuestion = (question: any) => {
-    const isTeacher = user?.role === 'teacher';
+    const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
     const isAuthor = user?.id === question.authorId;
     const answers =
       question.answerCount ??

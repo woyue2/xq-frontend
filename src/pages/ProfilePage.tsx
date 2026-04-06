@@ -134,6 +134,7 @@ export function ProfilePage() {
       student: { label: '学生', className: UI_CONFIG.colors.roles.student },
       teacher: { label: '老师（有权限）', className: UI_CONFIG.colors.roles.teacher },
       parent: { label: '家长', className: UI_CONFIG.colors.roles.parent },
+      admin: { label: '管理员', className: UI_CONFIG.colors.roles.teacher },
     };
     return roleMap[role] || { label: '未知', className: 'bg-morandi-gray1' };
   };
@@ -145,21 +146,21 @@ export function ProfilePage() {
       icon: ShieldCheck,
       label: '审核管理',
       color: 'text-teal-600',
-      visible: currentUser.role === 'teacher',
+      visible: currentUser.role === 'teacher' || currentUser.role === 'admin',
       onClick: () => navigate(ROUTES.audit),
     },
     {
       icon: Users,
       label: '用户白名单',
       color: 'text-cyan-600',
-      visible: currentUser.role === 'teacher',
+      visible: currentUser.role === 'teacher' || currentUser.role === 'admin',
       onClick: () => navigate(ROUTES.admin),
     },
     {
       icon: Phone,
       label: '系统配置中心',
       color: 'text-purple-500',
-      visible: currentUser.role === 'teacher',
+      visible: currentUser.role === 'teacher' || currentUser.role === 'admin',
       onClick: () => navigate('/test') /* dev only */,
     },
     {
@@ -180,14 +181,14 @@ export function ProfilePage() {
       icon: MessageSquare,
       label: '我的提问',
       color: 'text-blue-500',
-      visible: currentUser.role === 'student' || currentUser.role === 'teacher',
+      visible: currentUser.role === 'student' || currentUser.role === 'teacher' || currentUser.role === 'admin',
       onClick: () => navigate(ROUTES.myQuestions),
     },
     {
       icon: Edit3,
       label: '我的回答',
       color: 'text-green-500',
-      visible: currentUser.role === 'teacher',
+      visible: currentUser.role === 'teacher' || currentUser.role === 'admin',
       onClick: () => navigate(ROUTES.myAnswers),
     },
   ];

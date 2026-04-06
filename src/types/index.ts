@@ -15,7 +15,7 @@
  *   2. src/types/CLAUDE.md 的文件清单
  */
 // 用户角色类型
-export type UserRole = 'student' | 'parent' | 'teacher';
+export type UserRole = 'student' | 'parent' | 'teacher' | 'admin';
 
 // 审核状态
 export type AuditStatus = 'pending' | 'approved' | 'rejected' | 'banned';

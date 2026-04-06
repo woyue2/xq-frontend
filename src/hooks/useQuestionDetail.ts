@@ -321,7 +321,7 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
       toast.error('请输入评论内容或上传图片');
       return;
     }
-    const canComment = currentUser.id === question.authorId || currentUser.role === 'teacher';
+    const canComment = currentUser.id === question.authorId || currentUser.role === 'teacher' || currentUser.role === 'admin';
     if (!canComment) {
       toast.error('仅提问者和回答者可评论');
       return;

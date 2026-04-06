@@ -169,7 +169,7 @@ export function HomePage() {
       return;
     }
 
-    if (user.role === 'teacher') {
+    if (user.role === 'teacher' || user.role === 'admin') {
       navigate(ROUTES.studentHistory(question.authorId));
       return;
     }
@@ -199,7 +199,7 @@ export function HomePage() {
         fetchNextPage={fetchNextPage}
         onLike={handleLike}
         onFavorite={handleFavorite}
-        onPin={user?.role === 'teacher' ? handleTogglePin : undefined}
+        onPin={user?.role === 'teacher' || user?.role === 'admin' ? handleTogglePin : undefined}
         pinnedStates={pinnedStates}
         likedQuestions={likedQuestions}
         favoritedQuestions={favoritedQuestions}
