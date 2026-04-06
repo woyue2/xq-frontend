@@ -283,8 +283,21 @@ export function useLogin() {
 
       toast.success('注册并登录成功');
       navigate(ROUTES.home);
-    } catch {
-      // 具体错误提示由 axios 拦截器处理
+    } catch (error: unknown) {
+      // 密码登录：根据错误类型展示专项 toast
+      if (isLogin && loginMode === 'password') {
+        const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+        const status = axiosError?.response?.status;
+        const message = axiosError?.response?.data?.message;
+
+        if (status === 401) {
+          toast.error('密码错误，请重新输入', { duration: 4000 });
+        } else if (message) {
+          toast.error(message, { duration: 4000 });
+        }
+        // 其他错误（500、网络超时）由拦截器兜底，此处不重复弹 toast
+      }
+      // 非密码登录的具体错误提示由 axios 拦截器处理
     }
   };
 
