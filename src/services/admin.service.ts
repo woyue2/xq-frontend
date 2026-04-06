@@ -57,7 +57,7 @@ import type { Answer, Comment } from '@/types';
 // ─── Admin: 白名单 + 题目维度 ────────────────────────────────────────────────
 export const adminService = {
   getWhitelist: async (params: WhitelistParams) => {
-    const { data } = await api.get<ApiResponse<any>>('/admin/whitelist', { params });
+    const { data } = await api.get<ApiResponse<any>>('/admin', { params: { action: 'whitelist', ...params } });
     const { list, pagination } = data.data || {};
     if (!list || !pagination) throw new Error('白名单数据格式异常');
     return {
@@ -68,12 +68,11 @@ export const adminService = {
     };
   },
   addToWhitelist: async (payload: AddWhitelistPayload) => {
-    const { data } = await api.post<ApiResponse<WhitelistUser>>('/admin/whitelist', payload);
+    const { data } = await api.post<ApiResponse<WhitelistUser>>('/admin', payload, { params: { action: 'whitelist' } });
     return data.data;
   },
   removeFromWhitelist: async (id: string) => {
-    // 新 API: POST /admin/whitelist/delete (软删除)
-    const { data } = await api.post<ApiResponse<null>>('/admin/whitelist/delete', { id });
+    const { data } = await api.post<ApiResponse<null>>('/admin', { id }, { params: { action: 'whitelist', subaction: 'delete' } });
     return data.data;
   },
   updateValidity: async (id: string, validUntil: string) => {
@@ -170,7 +169,7 @@ export const auditService = {
         pagination: { page: number; pageSize: number; total: number; totalPages: number };
         statistics: AuditStatistics;
       }>
-    >('/admin/audit/pending', { params: { ...(params || {}), type: 'question' } });
+    >('/admin', { params: { action: 'audit', subaction: 'pending', ...(params || {}), type: 'question' } });
     return data.data;
   },
   getPendingComments: async (params?: { page?: number; pageSize?: number }) => {
@@ -180,46 +179,49 @@ export const auditService = {
         list: PendingComment[];
         pagination?: { page: number; pageSize: number; total: number; totalPages: number };
       }>
-    >('/admin/audit/pending', { params: { ...(params || {}), type: 'comment' } });
+    >('/admin', { params: { action: 'audit', subaction: 'pending', ...(params || {}), type: 'comment' } });
     return data.data;
   },
   approveQuestion: async (
     contentId: string,
     payload: { isGoodQuestion?: boolean; score?: number; tags?: string[]; difficulty?: string },
   ): Promise<ApproveQuestionResponse> => {
-    // 新 API: POST /admin/audit/approve
     const { data } = await api.post<ApiResponse<ApproveQuestionResponse>>(
-      '/admin/audit/approve',
+      '/admin',
       { id: contentId, type: 'question', ...payload },
+      { params: { action: 'audit', subaction: 'approve' } }
     );
     return data.data;
   },
   rejectQuestion: async (contentId: string, reason: string): Promise<RejectQuestionResponse> => {
-    // TODO: 需要实现 reject API
     const { data } = await api.post<ApiResponse<RejectQuestionResponse>>(
-      '/admin/audit/reject',
+      '/admin',
       { id: contentId, type: 'question', reason },
+      { params: { action: 'audit', subaction: 'reject' } }
     );
     return data.data;
   },
   approveComment: async (contentId: string): Promise<ApproveCommentResponse> => {
     const { data } = await api.post<ApiResponse<ApproveCommentResponse>>(
-      '/admin/audit/approve',
+      '/admin',
       { id: contentId, type: 'comment' },
+      { params: { action: 'audit', subaction: 'approve' } }
     );
     return data.data;
   },
   banComment: async (contentId: string, reason: string): Promise<BanCommentResponse> => {
-    // TODO: 需要实现 ban API
     const { data } = await api.post<ApiResponse<BanCommentResponse>>(
-      '/admin/audit/ban',
+      '/admin',
       { id: contentId, type: 'comment', reason },
+      { params: { action: 'audit', subaction: 'ban' } }
     );
     return data.data;
   },
   togglePinQuestion: async (questionId: string): Promise<TogglePinQuestionResponse> => {
     const { data } = await api.post<ApiResponse<TogglePinQuestionResponse>>(
-      `/admin/audit/questions/${encodeURIComponent(questionId)}/pin`,
+      '/admin',
+      { id: questionId, type: 'question' },
+      { params: { action: 'audit', subaction: 'pin' } }
     );
     return data.data;
   },
