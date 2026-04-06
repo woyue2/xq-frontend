@@ -224,8 +224,10 @@ export default async function handler(
       })(req, res)
     }
 
-    // 检查 action 参数
-    const { action } = req.query
+    // 检查 action 参数（支持 /questions/detail 路径风格）
+    const urlPath2 = req.url?.split('?')[0].split('/api/questions/')[1] || ''
+    const { action: queryAction } = req.query
+    const action = queryAction || urlPath2.split('/')[0]
     
     if (action === 'detail' && req.method === 'GET') {
       return handleDetail(req, res)
