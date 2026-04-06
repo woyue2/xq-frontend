@@ -33,11 +33,23 @@ async function healthHandler(req: VercelRequest, res: VercelResponse) {
 // Subjects Handler
 async function subjectsHandler(req: VercelRequest, res: VercelResponse) {
   try {
-    // TODO: 实现科目管理逻辑
+    // 返回科目配置
+    const subjects = [
+      { id: 'math', name: '数学', icon: '📐' },
+      { id: 'chinese', name: '语文', icon: '📚' },
+      { id: 'english', name: '英语', icon: '🔤' },
+      { id: 'physics', name: '物理', icon: '⚡' },
+      { id: 'chemistry', name: '化学', icon: '🧪' },
+      { id: 'biology', name: '生物', icon: '🧬' },
+      { id: 'history', name: '历史', icon: '📜' },
+      { id: 'geography', name: '地理', icon: '🌍' },
+      { id: 'politics', name: '政治', icon: '🏛️' }
+    ];
+
     return res.json({
       code: 200,
-      data: [],
-      message: 'Subjects API - TODO',
+      data: subjects,
+      message: 'Subjects loaded successfully',
       timestamp: Date.now()
     });
   } catch (error) {

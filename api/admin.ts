@@ -24,6 +24,28 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Admin Handler
 async function adminHandler(req: VercelRequest, res: VercelResponse) {
   try {
+    const { action, subaction, page = 1, pageSize = 50, type } = req.query;
+
+    // 处理审核相关请求
+    if (action === 'audit') {
+      if (subaction === 'pending') {
+        // 返回待审核数据
+        const mockData = {
+          code: 200,
+          data: {
+            items: [],
+            total: 0,
+            page: Number(page),
+            pageSize: Number(pageSize)
+          },
+          message: `${type} audit data loaded successfully`,
+          timestamp: Date.now()
+        };
+        return res.json(mockData);
+      }
+    }
+
+    // 默认响应
     return res.json({
       code: 200,
       message: 'Admin API - TODO',

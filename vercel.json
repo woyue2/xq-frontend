@@ -18,6 +18,14 @@
       "destination": "/api/content?module=questions"
     },
     {
+      "source": "/api/admin",
+      "destination": "/api/admin?module=admin"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "/api/admin?module=admin&path=:path*"
+    },
+    {
       "source": "/api/core/:path*",
       "destination": "/api/core?module=:path*"
     },
@@ -48,10 +56,6 @@
     {
       "source": "/api/notifications/:path*",
       "destination": "/api/social?module=notifications&path=:path*"
-    },
-    {
-      "source": "/api/admin/:path*",
-      "destination": "/api/admin?module=admin&path=:path*"
     },
     {
       "source": "/api/behavior/:path*",
