@@ -48,8 +48,8 @@ const OSS_UPLOAD_BASE_URL = process.env.OSS_UPLOAD_BASE_URL!
 const OSS_UPLOAD_TOKEN = process.env.OSS_UPLOAD_TOKEN!
 
 // Supabase Storage 配置
-const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
+const SUPABASE_URL = process.env.SUPABASE_URL?.trim()
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY?.trim()
 
 // 解析 multipart form-data
 async function parseMultipart(req: VercelRequest): Promise<{ file: Buffer; fileName: string; fileType: string } | null> {
