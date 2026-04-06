@@ -18,6 +18,9 @@
 | `permissions.ts` | 权限标识常量 + 角色权限判断工具函数 |
 | `permissions.test.ts` | permissions.ts 的单元测试 |
 | `test-runner.ts` | 诊断用 API 测试执行器（dev 模式） |
+| `race-condition-fix.ts` | 竞态条件统一修复工具（safeCreate/safeUpdate等） |
+| `quick-fix.ts` | 快速修复工具（哥的救心丸，createSafeHandler等） |
+| `useSafeSubmit.ts` | 防重复提交Hook（useAntiSpam等） |
 
 ## 质量红线
 

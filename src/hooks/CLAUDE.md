@@ -19,6 +19,7 @@
 | `useProfile.ts` | 个人主页 state、头像/昵称/密码更新、家长绑定逻辑 |
 | `useAudit.ts` | 审核页全量 state + API 交互逻辑（问题/评论审核、打分、驳回） |
 | `useAdminSubject.ts` | 科目/考点配置全量 state + CRUD handler |
+| `useSafeSubmit.ts` | 防重复提交Hook（useAntiSpam/safeSubmit等） |
 
 ## 质量红线
 
