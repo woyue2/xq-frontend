@@ -1,16 +1,16 @@
 /**
  * [POS] src/components/ImageGallery.tsx
- *   所属：components 层 | 角色：图片画廊组件（显示多张图片，支持点击放大）
+ *   所属：components 层 | 角色：图片画廊组件（显示多张图片，支持点击放大、缩放、拖拽）
  *   兄弟：QuestionCard.tsx / QuestionFilter.tsx / QuestionList.tsx
  *
  * [INPUT]
  *   - react                          → useState
- *   - lucide-react                   → X / ChevronLeft / ChevronRight
+ *   - lucide-react                   → X / ChevronLeft / ChevronRight / ZoomIn / ZoomOut / Maximize2
  *   - @/components/ui/dialog         → Dialog / DialogContent
  *   - @/lib/utils                    → cn
  *
  * [OUTPUT]
- *   - ImageGallery（图片画廊组件）
+ *   - ImageGallery（图片画廊组件，支持响应式设计）
  *
  * [PROTOCOL] 变更此文件时同步更新：
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
