@@ -196,11 +196,7 @@ export function QuestionDetail({
                   </p>
                   {comment.image && (
                     <div className="mt-2">
-                      <img
-                        src={comment.image}
-                        alt="评论图片"
-                        className="max-w-xs rounded-lg"
-                      />
+                      <ImageGallery images={[comment.image]} />
                     </div>
                   )}
                 </div>

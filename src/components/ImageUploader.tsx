@@ -40,7 +40,8 @@ interface UploadingFile {
 }
 
 const ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB - allow larger files for compression
+const MAX_COMPRESSED_SIZE = 2.8 * 1024 * 1024; // 2.8MB target (留出余量给 OSS)
 
 export function ImageUploader({
   maxCount = 3,
@@ -70,10 +71,116 @@ export function ImageUploader({
     return (bytes / (1024 * 1024)).toFixed(2) + 'MB';
   };
 
+  // 压缩图片
+  const compressImage = async (file: File): Promise<File> => {
+    // GIF 不压缩（会丢失动画）
+    if (file.type === 'image/gif') {
+      return file;
+    }
+
+    // 如果文件已经小于目标大小，不压缩
+    if (file.size <= MAX_COMPRESSED_SIZE) {
+      return file;
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // 根据文件大小动态调整目标尺寸
+          let maxDimension = 2560; // 提高默认分辨率以保持清晰度
+          if (file.size > 8 * 1024 * 1024) {
+            maxDimension = 2048; // 8MB+ → 2048px
+          } else if (file.size > 5 * 1024 * 1024) {
+            maxDimension = 2304; // 5-8MB → 2304px
+          }
+
+          // 如果图片太大，先缩小尺寸
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height / width) * maxDimension;
+              width = maxDimension;
+            } else {
+              width = (width / height) * maxDimension;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('无法创建 canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 尝试不同的质量级别，直到文件大小合适
+          let quality = 0.90; // 提高初始质量
+          const tryCompress = () => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error('压缩失败'));
+                  return;
+                }
+
+                // 如果压缩后仍然太大，降低质量再试
+                if (blob.size > MAX_COMPRESSED_SIZE && quality > 0.5) {
+                  quality -= 0.05; // 更小的质量步进以保持更好的质量
+                  tryCompress();
+                  return;
+                }
+
+                // 如果质量已经很低但仍然太大，进一步缩小尺寸
+                if (blob.size > MAX_COMPRESSED_SIZE && quality <= 0.5) {
+                  canvas.width = Math.floor(canvas.width * 0.85); // 更温和的缩小比例
+                  canvas.height = Math.floor(canvas.height * 0.85);
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  quality = 0.8; // 重置质量
+                  tryCompress();
+                  return;
+                }
+
+                // 创建新的 File 对象
+                const compressedFile = new File([blob], file.name, {
+                  type: file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+                  lastModified: Date.now()
+                });
+
+                resolve(compressedFile);
+              },
+              file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+              quality
+            );
+          };
+
+          tryCompress();
+        };
+
+        img.onerror = () => reject(new Error('图片加载失败'));
+        img.src = e.target?.result as string;
+      };
+
+      reader.onerror = () => reject(new Error('文件读取失败'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   // 上传单个文件
   const uploadFile = async (file: File): Promise<string> => {
+    // 先压缩图片
+    const fileToUpload = await compressImage(file);
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileToUpload);
 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -113,7 +220,7 @@ export function ImageUploader({
         continue;
       }
       if (!validateFileSize(file)) {
-        alert(`文件 "${file.name}" 大小超过限制（${formatFileSize(file.size)}），单张图片不能超过 5MB`);
+        alert(`文件 "${file.name}" 大小超过限制（${formatFileSize(file.size)}），单张图片不能超过 10MB`);
         continue;
       }
       validFiles.push(file);
@@ -310,7 +417,7 @@ export function ImageUploader({
             </span>
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            支持 {ALLOWED_FORMATS.join(', ')} 格式，单张不超过 5MB，最多 {maxCount} 张
+            支持 {ALLOWED_FORMATS.join(', ')} 格式，单张不超过 10MB（自动压缩），最多 {maxCount} 张
           </p>
         </div>
       )}

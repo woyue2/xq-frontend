@@ -17,7 +17,7 @@
  *   2. src/components/CLAUDE.md 的文件清单
  */
 import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,10 @@ export interface ImageGalleryProps {
 export function ImageGallery({ images, maxVisible, className }: ImageGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   if (!images || images.length === 0) return null;
 
@@ -38,15 +42,63 @@ export function ImageGallery({ images, maxVisible, className }: ImageGalleryProp
 
   const handleImageClick = (index: number) => {
     setCurrentIndex(index);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
     setIsOpen(true);
   };
 
   const goToPrev = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
   };
 
   const goToNext = () => {
     setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleZoomIn = () => {
+    setScale((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setScale((prev) => Math.max(prev - 0.25, 0.5));
+  };
+
+  const handleResetZoom = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && scale > 1) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      handleZoomIn();
+    } else {
+      handleZoomOut();
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -125,52 +177,99 @@ export function ImageGallery({ images, maxVisible, className }: ImageGalleryProp
       {/* Lightbox Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
-          className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-none bg-transparent shadow-none"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[98vw] max-h-[98vh] w-auto h-auto p-0 border-none bg-transparent shadow-none flex items-center justify-center"
           onKeyDown={handleKeyDown}
         >
           <div className="relative flex items-center justify-center">
-            {/* Close Button */}
+            {/* Close Button - Responsive */}
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/90 transition-colors"
               aria-label="关闭"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            {/* Previous Button */}
+            {/* Zoom Controls - Responsive */}
+            <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-50 flex gap-1 sm:gap-2">
+              <button
+                onClick={handleZoomIn}
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/90 transition-colors"
+                aria-label="放大"
+              >
+                <ZoomIn className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/90 transition-colors"
+                aria-label="缩小"
+              >
+                <ZoomOut className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <button
+                onClick={handleResetZoom}
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/90 transition-colors"
+                aria-label="重置"
+              >
+                <Maximize2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            </div>
+
+            {/* Previous Button - Responsive */}
             {images.length > 1 && (
               <button
                 onClick={goToPrev}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-50 w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                className="absolute left-2 sm:left-20 top-1/2 -translate-y-1/2 z-50 w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/90 transition-colors"
                 aria-label="上一张"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             )}
 
-            {/* Next Button */}
+            {/* Next Button - Responsive */}
             {images.length > 1 && (
               <button
                 onClick={goToNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-50 w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                className="absolute right-2 sm:right-20 top-1/2 -translate-y-1/2 z-50 w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/90 transition-colors"
                 aria-label="下一张"
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             )}
 
-            {/* Image */}
-            <img
-              src={images[currentIndex]}
-              alt={`图片 ${currentIndex + 1}`}
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-            />
+            {/* Image Container */}
+            <div
+              className="flex items-center justify-center"
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+            >
+              <img
+                src={images[currentIndex]}
+                alt={`图片 ${currentIndex + 1}`}
+                className="max-w-[92vw] max-h-[85vh] sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg transition-transform select-none"
+                style={{
+                  transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+                  transformOrigin: 'center center'
+                }}
+                draggable={false}
+              />
+            </div>
 
-            {/* Image Counter */}
+            {/* Image Counter - Responsive */}
             {images.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full font-medium">
+              <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm text-white text-sm sm:text-base px-3 py-1 sm:px-5 sm:py-2 rounded-full font-medium">
                 {currentIndex + 1} / {images.length}
+              </div>
+            )}
+
+            {/* Zoom Level Indicator - Responsive */}
+            {scale !== 1 && (
+              <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 bg-black/70 backdrop-blur-sm text-white text-sm sm:text-base px-3 py-1 sm:px-4 sm:py-2 rounded-full font-medium">
+                {Math.round(scale * 100)}%
               </div>
             )}
           </div>

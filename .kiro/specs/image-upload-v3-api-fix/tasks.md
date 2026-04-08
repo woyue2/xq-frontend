@@ -31,7 +31,7 @@
   - Mark task complete when tests are written, run, and passing on unfixed code
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 3. Fix V3 API response parsing in uploadToOSS
+- [x] 3. Fix V3 API response parsing in uploadToOSS
 
   - [x] 3.1 Update response parsing logic
     - Change line 91 from `if (result.status === 200 && result.data?.url)` to `if (result.code === 200 && result.data?.url)`

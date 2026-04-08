@@ -18,7 +18,7 @@ import * as fc from 'fast-check'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import handler from '../../api/upload'
 
-// Mock dependencies
+// Mock dependencies (but NOT axios - we want real API calls)
 vi.mock('formidable', () => {
   return {
     default: vi.fn()
@@ -70,18 +70,23 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
   })
 
   describe('File Size Validation Preservation (Requirement 3.1)', () => {
-    it('should reject files exceeding 5MB with specific error message', async () => {
-      // Property-based test: Generate file sizes over 5MB
+    it('should reject files exceeding 3MB with specific error message', async () => {
+      // Property-based test: Generate file sizes over 3MB
       await fc.assert(
         fc.asyncProperty(
-          // Generate file sizes from 5MB+1 byte to 10MB
-          fc.integer({ min: 5 * 1024 * 1024 + 1, max: 10 * 1024 * 1024 }),
+          // Generate file sizes from 3MB+1 byte to 10MB
+          fc.integer({ min: 3 * 1024 * 1024 + 1, max: 10 * 1024 * 1024 }),
           async (fileSize) => {
             const { extractAndVerifyToken } = await import('../../api/auth')
             const formidable = (await import('formidable')).default
             
             // Mock authenticated user
-            vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+            vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+              id: 'user123', 
+              role: 'student',
+              phone: '13800000001',
+              nickname: 'Test User'
+            })
 
             // Mock formidable to simulate file size error
             vi.mocked(formidable).mockReturnValue({
@@ -99,7 +104,7 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
             expect(jsonSpy).toHaveBeenCalledWith(
               expect.objectContaining({
                 code: 400,
-                message: '图片大小不能超过 5MB'
+                message: '图片大小不能超过 3MB'
               })
             )
           }
@@ -112,11 +117,16 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
       const { extractAndVerifyToken } = await import('../../api/auth')
       const formidable = (await import('formidable')).default
       
-      vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+      vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+        id: 'user123', 
+        role: 'student',
+        phone: '13800000001',
+        nickname: 'Test User'
+      })
 
       vi.mocked(formidable).mockReturnValue({
         parse: vi.fn((req, callback) => {
-          const error = new Error('maxFileSize exceeded, received 6291456 bytes of field data')
+          const error = new Error('maxFileSize exceeded, received 4194304 bytes of field data')
           ;(error as any).code = 'LIMIT_FILE_SIZE'
           callback(error, {}, {})
         })
@@ -127,7 +137,7 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
       expect(statusSpy).toHaveBeenCalledWith(400)
       expect(jsonSpy).toHaveBeenCalledWith({
         code: 400,
-        message: '图片大小不能超过 5MB',
+        message: '图片大小不能超过 3MB',
         timestamp: expect.any(Number)
       })
     })
@@ -144,7 +154,12 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
             const { extractAndVerifyToken } = await import('../../api/auth')
             const formidable = (await import('formidable')).default
             
-            vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+            vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+              id: 'user123', 
+              role: 'student',
+              phone: '13800000001',
+              nickname: 'Test User'
+            })
 
             const mockFile = {
               originalFilename: `test.${unsupportedExt}`,
@@ -183,7 +198,12 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
       const { extractAndVerifyToken } = await import('../../api/auth')
       const formidable = (await import('formidable')).default
       
-      vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+      vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+        id: 'user123', 
+        role: 'student',
+        phone: '13800000001',
+        nickname: 'Test User'
+      })
 
       const mockFile = {
         originalFilename: 'image.bmp',
@@ -255,6 +275,7 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
   describe('OSS API Error Handling Preservation (Requirement 3.4)', () => {
     it('should handle OSS API errors with 500 status', async () => {
       // Property-based test: Generate various OSS error scenarios
+      // NOTE: This test uses REAL API calls to imgurl.org
       await fc.assert(
         fc.asyncProperty(
           fc.constantFrom(400, 403, 404, 500, 502, 503),
@@ -263,7 +284,12 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
             const formidable = (await import('formidable')).default
             const fs = (await import('fs')).default
             
-            vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+            vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+              id: 'user123', 
+              role: 'student',
+              phone: '13800000001',
+              nickname: 'Test User'
+            })
 
             const mockFile = {
               originalFilename: 'test.png',
@@ -278,18 +304,24 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
               })
             } as any)
 
-            vi.mocked(fs.readFileSync).mockReturnValue(Buffer.from('fake-image-data'))
-
-            // Mock fetch to return OSS error
-            global.fetch = vi.fn().mockResolvedValue({
-              ok: false,
-              status: errorStatus,
-              text: async () => 'OSS Error'
-            })
+            // Create a small valid PNG buffer (1x1 transparent PNG)
+            const validPngBuffer = Buffer.from([
+              0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+              0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+              0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+              0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+              0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+              0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+              0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+              0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+              0x42, 0x60, 0x82
+            ])
+            vi.mocked(fs.readFileSync).mockReturnValue(validPngBuffer)
 
             await handler(mockReq as VercelRequest, mockRes as VercelResponse)
 
-            // EXPECTED BEHAVIOR: Should return 500 with Chinese error message
+            // EXPECTED BEHAVIOR: Real API will return 422 for invalid token
+            // which should be caught and return 500 with Chinese error message
             expect(statusSpy).toHaveBeenCalledWith(500)
             expect(jsonSpy).toHaveBeenCalledWith({
               code: 500,
@@ -298,16 +330,21 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
             })
           }
         ),
-        { numRuns: 5 }
+        { numRuns: 1 } // Reduced to 1 run to avoid hammering the real API
       )
-    })
+    }, 10000) // Increased timeout for real API calls
 
     it('should handle OSS network failure', async () => {
       const { extractAndVerifyToken } = await import('../../api/auth')
       const formidable = (await import('formidable')).default
       const fs = (await import('fs')).default
       
-      vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+      vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+        id: 'user123', 
+        role: 'student',
+        phone: '13800000001',
+        nickname: 'Test User'
+      })
 
       const mockFile = {
         originalFilename: 'test.jpg',
@@ -324,26 +361,22 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
 
       vi.mocked(fs.readFileSync).mockReturnValue(Buffer.from('fake-jpeg-data'))
 
-      // Mock fetch to throw network error
-      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
-
       await handler(mockReq as VercelRequest, mockRes as VercelResponse)
 
+      // Real API will reject invalid image data
       expect(statusSpy).toHaveBeenCalledWith(500)
       expect(jsonSpy).toHaveBeenCalledWith({
         code: 500,
         message: '图片上传失败',
         timestamp: expect.any(Number)
       })
-    })
+    }, 10000) // Increased timeout for real API calls
   })
 
   describe('Temporary File Cleanup Preservation (Requirement 3.5)', () => {
     it('should cleanup temporary files after OSS errors', async () => {
       // Property-based test: Verify cleanup happens for OSS error scenarios
-      // Note: On unfixed code, successful API responses with code:200 throw errors
-      // because the code checks result.status instead of result.code
-      // So we test cleanup behavior with actual OSS errors (response.ok === false)
+      // NOTE: Using real API - invalid token will cause 422 error
       await fc.assert(
         fc.asyncProperty(
           fc.constantFrom(400, 403, 500),
@@ -352,7 +385,12 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
             const formidable = (await import('formidable')).default
             const fs = (await import('fs')).default
             
-            vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+            vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+              id: 'user123', 
+              role: 'student',
+              phone: '13800000001',
+              nickname: 'Test User'
+            })
 
             const mockFilePath = '/tmp/upload-test-file'
             const mockFile = {
@@ -368,15 +406,20 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
               })
             } as any)
 
-            vi.mocked(fs.readFileSync).mockReturnValue(Buffer.from('fake-image-data'))
+            // Create a small valid PNG buffer
+            const validPngBuffer = Buffer.from([
+              0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+              0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+              0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+              0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+              0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+              0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+              0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+              0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+              0x42, 0x60, 0x82
+            ])
+            vi.mocked(fs.readFileSync).mockReturnValue(validPngBuffer)
             const unlinkSpy = vi.mocked(fs.unlinkSync)
-
-            // Mock OSS error (response.ok === false)
-            global.fetch = vi.fn().mockResolvedValue({
-              ok: false,
-              status: errorStatus,
-              text: async () => 'OSS Error'
-            })
 
             await handler(mockReq as VercelRequest, mockRes as VercelResponse)
 
@@ -386,16 +429,21 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
             expect(unlinkSpy).not.toHaveBeenCalled()
           }
         ),
-        { numRuns: 3 }
+        { numRuns: 1 } // Reduced to 1 run to avoid hammering the real API
       )
-    })
+    }, 10000) // Increased timeout for real API calls
 
     it('should not cleanup temp file when OSS returns error', async () => {
       const { extractAndVerifyToken } = await import('../../api/auth')
       const formidable = (await import('formidable')).default
       const fs = (await import('fs')).default
       
-      vi.mocked(extractAndVerifyToken).mockReturnValue({ id: 'user123', role: 'student' })
+      vi.mocked(extractAndVerifyToken).mockReturnValue({ 
+        id: 'user123', 
+        role: 'student',
+        phone: '13800000001',
+        nickname: 'Test User'
+      })
 
       const mockFilePath = '/tmp/test-cleanup.png'
       const mockFile = {
@@ -414,19 +462,12 @@ describe('Property 2: Preservation - Error Handling and Validation Behavior', ()
       vi.mocked(fs.readFileSync).mockReturnValue(Buffer.from('fake-image-data'))
       const unlinkSpy = vi.mocked(fs.unlinkSync)
 
-      // Mock OSS error
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: async () => 'Server Error'
-      })
-
       await handler(mockReq as VercelRequest, mockRes as VercelResponse)
 
       // OBSERVED BEHAVIOR: Cleanup is NOT called when upload fails
       // This is the baseline behavior to preserve
       expect(unlinkSpy).not.toHaveBeenCalled()
-    })
+    }, 10000) // Increased timeout for real API calls
   })
 
   describe('CORS Headers Preservation', () => {

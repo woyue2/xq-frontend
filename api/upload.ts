@@ -18,6 +18,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import formidable from 'formidable'
 import fs from 'fs'
 import { extractAndVerifyToken } from './auth'
+import FormData from 'form-data'
+import axios from 'axios'
 
 // imgurl.org OSS 配置
 const OSS_UPLOAD_BASE_URL = process.env.OSS_UPLOAD_BASE_URL || 'https://www.imgurl.org/api/v3/upload'
@@ -25,7 +27,7 @@ const OSS_UPLOAD_TOKEN = process.env.OSS_UPLOAD_TOKEN || 'sk-GZqa0eF4eTDzZiuze19
 
 // 支持的图片格式
 const ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_FILE_SIZE = 3 * 1024 * 1024 // 3MB (imgurl.org API limit)
 
 // 禁用 Vercel 的默认 body parser
 export const config = {
@@ -63,36 +65,40 @@ function getFileExtension(filename: string): string {
  * 上传图片到 imgurl.org OSS
  */
 async function uploadToOSS(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
-  const FormData = (await import('form-data')).default
+  // 使用 form-data 库构建 multipart/form-data
   const formData = new FormData()
   
+  // 添加文件字段
   formData.append('file', fileBuffer, {
     filename: fileName,
     contentType: mimeType
   })
 
-  const response = await fetch(OSS_UPLOAD_BASE_URL, {
-    method: 'POST',
+  // 添加 params 参数：启用压缩以适应 imgurl.org 3MB 限制
+  const params = {
+    compress: true,  // 启用压缩
+    dedup: true      // 启用去重
+  }
+  formData.append('params', JSON.stringify(params))
+
+  // 使用 axios 发送请求（axios 正确处理 form-data）
+  const response = await axios.post(OSS_UPLOAD_BASE_URL, formData, {
     headers: {
       'Authorization': `Bearer ${OSS_UPLOAD_TOKEN}`,
       ...formData.getHeaders()
     },
-    body: formData as any
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity
   })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`OSS upload failed: ${response.status} ${errorText}`)
-  }
-
-  const result = await response.json()
+  const result = response.data
   
   // imgurl.org V3 API 返回格式: { code: 200, data: { url: "..." } }
   if (result.code === 200 && result.data?.url) {
     return result.data.url
   }
   
-  throw new Error('OSS upload failed: Invalid response format')
+  throw new Error(`OSS upload failed: Invalid response format - ${JSON.stringify(result)}`)
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -149,7 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (errorCode === 'LIMIT_FILE_SIZE' || errorMessage.includes('maxFileSize')) {
         return res.status(400).json({
           code: 400,
-          message: '图片大小不能超过 5MB',
+          message: '图片大小不能超过 3MB',
           timestamp: Date.now()
         })
       }
@@ -195,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (file.size > MAX_FILE_SIZE) {
       return res.status(400).json({
         code: 400,
-        message: '图片大小不能超过 5MB',
+        message: '图片大小不能超过 3MB',
         timestamp: Date.now()
       })
     }
