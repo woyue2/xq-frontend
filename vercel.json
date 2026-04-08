@@ -7,43 +7,27 @@
   "rewrites": [
     {
       "source": "/api/auth/:path*",
-      "destination": "/api/auth.ts?module=auth"
-    },
-    {
-      "source": "/api/social/:path*",
-      "destination": "/api/social.ts?module=interactions"
-    },
-    {
-      "source": "/api/notifications/:path*",
-      "destination": "/api/social.ts?module=notifications"
-    },
-    {
-      "source": "/api/core/:path*",
-      "destination": "/api/core.ts?module=health"
-    },
-    {
-      "source": "/api/family/:path*",
-      "destination": "/api/family.ts?module=parent"
-    },
-    {
-      "source": "/api/upload/:path*",
-      "destination": "/api/upload.ts?module=upload"
-    },
-    {
-      "source": "/api/config/:path*",
-      "destination": "/api/config/subjects.ts"
+      "destination": "/api/auth.ts"
     },
     {
       "source": "/api/questions/:path*",
       "destination": "/api/questions.ts"
     },
     {
-      "source": "/api/content/:path*",
-      "destination": "/api/content.ts"
+      "source": "/api/answers/:path*",
+      "destination": "/api/answers.ts"
     },
     {
-      "source": "/api/admin/:path*",
-      "destination": "/api/admin.ts"
+      "source": "/api/comments/:path*",
+      "destination": "/api/comments.ts"
+    },
+    {
+      "source": "/api/subjects/:path*",
+      "destination": "/api/subjects.ts"
+    },
+    {
+      "source": "/api/upload/:path*",
+      "destination": "/api/upload.ts"
     },
     {
       "source": "/((?!api/|@|src/|node_modules/|static/).*)",
@@ -65,6 +49,19 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/subjects",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, s-maxage=300"
         }
       ]
     },

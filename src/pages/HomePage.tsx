@@ -1,17 +1,17 @@
 /**
  * [POS] src/pages/HomePage.tsx
- *   所属：pages 层 | 角色：首页（问题列表 + 筛选 + 发布入口），路由 `/`
+ *   所属：pages 层 | 角色：首页（问题列表 + 筛选），路由 `/`
  *   兄弟：所有其他 pages
  *
  * [INPUT]
- *   - react                  → useState / useRef / useCallback
- *   - react-router-dom       → useSearchParams / useNavigate
- *   - sonner                 → toast
- *   - @/stores/useAuthStore  → useAuthStore
- *   - @/hooks/useQuestions   → useQuestions
- *   - @/services/api         → questionService
- *   - @/config/app-constants → TOAST_MESSAGES / ROUTES
- *   - @/components/ui/alert-dialog → AlertDialog（游客登录引导）
+ *   - react                  → useState / useRef / useEffect
+ *   - react-router-dom       → useNavigate
+ *   - @/components/QuestionFilter → QuestionFilter
+ *   - @/components/QuestionCard → QuestionCard
+ *   - @/components/ui/button → Button
+ *   - @/lib/utils            → cn
+ *   - lucide-react           → Loader2
+ *   - @/types/dto            → QuestionDTO
  *
  * [OUTPUT]
  *   - HomePage（页面组件）
@@ -20,234 +20,184 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { useState, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { useQuestions } from '@/hooks/useQuestions';
-import { questionService, interactionService } from '@/services/api';
-import { TOAST_MESSAGES, ROUTES } from '@/config/app-constants';
-import type { Question } from '@/types';
-import { QuestionList } from '@/components/QuestionList';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { QuestionFilter } from '@/components/QuestionFilter';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { QuestionCard } from '@/components/QuestionCard';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { QuestionDTO } from '@/types/dto';
+
+interface QuestionsResponse {
+  items: QuestionDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
 
 export function HomePage() {
-  const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const searchKeyword = searchParams.get('search') || undefined;
+  
+  // Filter states
+  const [filters, setFilters] = useState<{
+    subject?: string;
+    topic?: string;
+    search?: string;
+  }>({});
 
-  // Filter States
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  // Data Fetching
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useQuestions({
-    subject: selectedSubject,
-    topic: selectedTopic,
-    search: searchKeyword,
-  });
+  // Data states
+  const [questions, setQuestions] = useState<QuestionDTO[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Local Interaction States (Optimistic UI handled locally for demo)
-  const [likedQuestions, setLikedQuestions] = useState(new Set<string>());
-  const [favoritedQuestions, setFavoritedQuestions] = useState(new Set<string>());
-  const [pinnedStates, setPinnedStates] = useState<Record<string, boolean>>({});
-  const [understandingStates, setUnderstandingStates] = useState<
-    Record<string, 'understood' | 'not_understood' | null>
-  >({});
+  // Intersection observer for infinite scroll
+  const observerTarget = useRef<HTMLDivElement>(null);
 
-  // 游客登录引导 dialog
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
-
-  const requireLogin = () => {
-    setShowLoginDialog(true);
-  };
-
-  const handleLike = async (questionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    // [IMPL] 原因：游客点击互动按钮时提示登录，而非静默操作
-    if (!user) {
-      requireLogin();
-      return;
-    }
-    const isCurrentlyLiked = likedQuestions.has(questionId);
-    const newLikes = new Set(likedQuestions);
-    if (isCurrentlyLiked) {
-      newLikes.delete(questionId);
+  // Fetch questions
+  const fetchQuestions = async (currentPage: number, append: boolean = false) => {
+    if (append) {
+      setIsLoadingMore(true);
     } else {
-      newLikes.add(questionId);
+      setIsLoading(true);
     }
-    setLikedQuestions(newLikes);
-    
+
     try {
-      await interactionService.like({
-        targetType: 'question',
-        targetId: questionId,
-        action: isCurrentlyLiked ? 'unlike' : 'like',
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString(),
       });
-      toast.success(isCurrentlyLiked ? TOAST_MESSAGES.unliked : TOAST_MESSAGES.liked);
-    } catch (error: any) {
-      // Revert on error
-      setLikedQuestions(likedQuestions);
-      console.error('[handleLike] Error:', error);
-      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
+
+      if (filters.subject) params.append('subject', filters.subject);
+      if (filters.topic) params.append('topic', filters.topic);
+      if (filters.search) params.append('search', filters.search);
+
+      const response = await fetch(`/api/questions?${params.toString()}`);
+      const result = await response.json();
+
+      if (result.code === 200) {
+        const data: QuestionsResponse = result.data;
+        if (append) {
+          setQuestions((prev) => [...prev, ...data.items]);
+        } else {
+          setQuestions(data.items);
+        }
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      }
+    } catch (error) {
+      console.error('Failed to fetch questions:', error);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
-  const handleFavorite = async (questionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    // [IMPL] 原因：游客点击互动按钮时提示登录
-    if (!user) {
-      requireLogin();
-      return;
-    }
-    const isCurrentlyFavorited = favoritedQuestions.has(questionId);
-    const newFavorites = new Set(favoritedQuestions);
-    if (isCurrentlyFavorited) {
-      newFavorites.delete(questionId);
-    } else {
-      newFavorites.add(questionId);
-    }
-    setFavoritedQuestions(newFavorites);
-    
-    try {
-      await interactionService.favorite({
-        questionId,
-        action: isCurrentlyFavorited ? 'unfavorite' : 'favorite',
-      } as any);
-      toast.success(isCurrentlyFavorited ? TOAST_MESSAGES.unfavorited : TOAST_MESSAGES.favorited);
-    } catch (error: any) {
-      // Revert on error
-      setFavoritedQuestions(favoritedQuestions);
-      console.error('[handleFavorite] Error:', error);
-      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
-    }
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+    fetchQuestions(1, false);
+  }, [filters]);
+
+  // Handle filter changes
+  const handleFilterChange = (newFilters: {
+    subject?: string;
+    topic?: string;
+    search?: string;
+  }) => {
+    setFilters(newFilters);
   };
 
-  const handleTogglePin = (question: Question, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (user?.role !== 'teacher') {
-      toast.error(TOAST_MESSAGES.onlyTeacherCanPin);
-      return;
-    }
-
-    // Note: Backend integration required
-    // See FRONTEND-CODING_STANDARDS.md Section 3.3 for PWA/Optimistic update protocol
-    // Currently implementing optimistic UI update only.
-    // In production, this should make a POST request to /api/questions/:id/pin
-
-    const isPinned = pinnedStates[question.id] ?? question.isPinned;
-
-    if (isPinned) {
-      toast.success(TOAST_MESSAGES.unpinned);
-    } else {
-      toast.success(TOAST_MESSAGES.pinned);
-    }
-
-    setPinnedStates((prev) => ({
-      ...prev,
-      [question.id]: !isPinned,
-    }));
+  // Handle load more
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchQuestions(nextPage, true);
   };
 
-  const handleToggleUnderstanding = async (question: Question, e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    // 仅提问学生本人可以标记理解状态
-    if (!user || user.id !== question.authorId) {
+  // Intersection observer for auto-load
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
       return;
     }
 
-    const current = understandingStates[question.id] ?? question.understandingStatus ?? null;
-    const next: 'understood' | 'not_understood' =
-      current === 'understood' ? 'not_understood' : 'understood';
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && page < totalPages && !isLoadingMore) {
+          handleLoadMore();
+        }
+      },
+      { threshold: 1.0 }
+    );
 
-    try {
-      await questionService.setUnderstandingStatus(question.id, next);
-      setUnderstandingStates((prev) => ({
-        ...prev,
-        [question.id]: next,
-      }));
-    } catch {
-      toast.error('更新理解状态失败，请稍后重试');
-    }
-  };
-
-  // Flatten pages
-  const allQuestions = data?.pages.flatMap((p) => p.items) || [];
-
-  const handleAuthorClick = (question: Question, e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (!user) {
-      toast.error('请先登录');
-      return;
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
     }
 
-    if (user.role === 'teacher' || user.role === 'admin') {
-      navigate(ROUTES.studentHistory(question.authorId));
-      return;
-    }
-
-    if (user.role === 'parent') {
-      // 家长首页暂不直接跳转，避免越权，提示从“孩子提问列表”入口查看
-      toast.error('请在“孩子提问列表”页查看孩子的历史提问');
-    }
-  };
+    return () => observer.disconnect();
+  }, [page, totalPages, isLoadingMore]);
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      {/* 1. Taxonomy Filters */}
+      {/* Filter Section */}
       <QuestionFilter
-        selectedSubject={selectedSubject}
-        setSelectedSubject={setSelectedSubject}
-        selectedTopic={selectedTopic}
-        setSelectedTopic={setSelectedTopic}
+        subject={filters.subject}
+        topic={filters.topic}
+        search={filters.search}
+        onFilterChange={handleFilterChange}
       />
 
-      {/* 2. Question List */}
-      <QuestionList
-        questions={allQuestions}
-        isLoading={isLoading}
-        hasNextPage={!!hasNextPage}
-        isFetchingNextPage={isFetchingNextPage}
-        fetchNextPage={fetchNextPage}
-        onLike={handleLike}
-        onFavorite={handleFavorite}
-        onPin={user?.role === 'teacher' || user?.role === 'admin' ? handleTogglePin : undefined}
-        pinnedStates={pinnedStates}
-        likedQuestions={likedQuestions}
-        favoritedQuestions={favoritedQuestions}
-        understandingStates={understandingStates}
-        onToggleUnderstanding={handleToggleUnderstanding}
-        onAuthorClick={handleAuthorClick}
-      />
+      {/* Questions List */}
+      <div className="space-y-4 min-h-[50vh]">
+        {isLoading ? (
+          // Loading skeleton
+          Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-lg p-4 space-y-3 animate-pulse"
+            >
+              <div className="h-40 bg-gray-200 rounded-lg w-full" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+            </div>
+          ))
+        ) : questions.length === 0 ? (
+          // Empty state
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <Loader2 className="w-8 h-8 text-gray-300" />
+            </div>
+            <p>暂无相关提问</p>
+          </div>
+        ) : (
+          <>
+            {/* Question Cards */}
+            {questions.map((question) => (
+              <QuestionCard key={question.id} question={question} />
+            ))}
 
-      {/* 游客登录引导 */}
-      <AlertDialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>需要登录</AlertDialogTitle>
-            <AlertDialogDescription>
-              该功能需要登录后使用，请登录或注册账号。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate('/login')}>去登录 / 注册</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            {/* Load More / Loading Indicator */}
+            <div
+              ref={observerTarget}
+              className="h-10 flex items-center justify-center"
+            >
+              {isLoadingMore && (
+                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              )}
+              {!isLoadingMore && page >= totalPages && questions.length > 0 && (
+                <p className="text-xs text-gray-400">没有更多了</p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

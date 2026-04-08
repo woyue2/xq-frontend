@@ -36,7 +36,7 @@ export function AdminLayout({ title, subtitle = '好好学习，天天向上', a
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
-            onClick={() => navigate(ROUTES.profile)}
+            onClick={() => navigate(ROUTES.home)}
             className="p-2 hover:bg-gray-100 rounded-full transition active:scale-90"
           >
             <ChevronLeft className="w-6 h-6 text-gray-600" />

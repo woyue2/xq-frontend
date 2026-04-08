@@ -1,34 +1,29 @@
 /**
  * [POS] api/auth.ts
- *   所属：API 路由层 | 角色：认证与用户统一入口（auth + users）
- *   兄弟：core.ts / content.ts / social.ts
+ *   所属：API 路由层 | 角色：认证统一入口
+ *   简化版：仅支持密码登录和 JWT token 验证
  *
  * [INPUT]
- *   - module参数：'auth' | 'users'
- *   - 各模块原始请求参数
+ *   - action=password-login: { phone: string, password: string }
+ *   - ./_helpers            → prisma / JWT_SECRET
  *
  * [OUTPUT]
- *   - 统一路由到 auth 或 users 处理器
+ *   - 登录成功: { code: 200, data: { token: string, user: UserDTO } }
+ *   - 错误: { code: number, message: string, timestamp: number }
  *
  * [PROTOCOL] 变更此文件时同步更新：
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. api/CLAUDE.md 的文件清单
+ *   3. 依赖 _helpers.ts 的 prisma 单例和 JWT_SECRET
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import type { UserDTO } from '../src/types/dto'
+import { prisma, JWT_SECRET } from './_helpers'
 
-// === 内联 Prisma 客户端 ===
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-// === 内联 Auth 工具 ===
-const JWT_SECRET = process.env.JWT_SECRET!
-
+// === 类型定义 ===
 interface AuthUser {
   id: string
   phone: string
@@ -36,121 +31,101 @@ interface AuthUser {
   nickname: string
 }
 
-function generateToken(user: AuthUser): string {
+// === JWT 工具函数 ===
+
+/**
+ * 生成 JWT token
+ * @param user 用户信息
+ * @returns JWT token 字符串
+ */
+export function generateToken(user: AuthUser): string {
   return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' })
 }
 
-// Auth Handler
-async function authHandler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+/**
+ * 验证 JWT token
+ * @param token JWT token 字符串
+ * @returns 解析后的用户信息，验证失败返回 null
+ */
+export function verifyToken(token: string): AuthUser | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as AuthUser
+  } catch (error) {
+    return null
   }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ code: 405, message: '方法不允许', timestamp: Date.now() })
-  }
-
-  // 支持两种路由风格：
-  // 1. /api/auth?action=password-login  (query param)
-  // 2. /api/auth/password-login         (path style, via Vercel rewrite)
-  const urlAction = req.url?.split('?')[0].split('/api/auth/')[1]
-  const action = req.query.action || urlAction
-
-  // POST /auth/login
-  if (action === 'login') {
-    return handleLogin(req, res)
-  }
-
-  // POST /auth/password-login  
-  if (action === 'password-login') {
-    return handleLogin(req, res)
-  }
-
-  // POST /auth/register
-  if (action === 'register') {
-    return handleRegister(req, res)
-  }
-
-  // POST /auth/send-code
-  if (action === 'send-code') {
-    return handleSendCode(req, res)
-  }
-
-  // POST /auth/set-password
-  if (action === 'set-password') {
-    return handleSetPassword(req, res)
-  }
-
-  return res.status(400).json({ code: 400, message: '无效的操作类型', timestamp: Date.now() })
 }
 
-// Users Handler
-async function usersHandler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+/**
+ * 从请求头中提取并验证 token
+ * @param req Vercel 请求对象
+ * @returns 验证成功返回用户信息，失败返回 null
+ */
+export function extractAndVerifyToken(req: VercelRequest): AuthUser | null {
+  const authHeader = req.headers?.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null
   }
-
-  // 这里添加用户管理逻辑
-  return res.status(200).json({ code: 200, message: 'Users API - TODO', timestamp: Date.now() })
+  
+  const token = authHeader.slice(7)
+  return verifyToken(token)
 }
 
-// Auth Functions
-async function handleLogin(req: VercelRequest, res: VercelResponse) {
+// === 密码登录处理 ===
+
+/**
+ * 处理密码登录请求
+ */
+async function handlePasswordLogin(req: VercelRequest, res: VercelResponse) {
   const requestId = Math.random().toString(36).substring(7)
   const startTime = Date.now()
   
   try {
-    console.log(`[Auth Login:${requestId}] Request received:`, {
-      method: req.method,
-      headers: req.headers,
-      body: req.body,
-      query: req.query,
-      url: req.url
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Auth Login:${requestId}] Request received`);
+    }
 
     const { phone, password } = req.body
 
+    // 验证必填字段
     if (!phone || !password) {
-      console.log(`[Auth Login:${requestId}] Missing credentials:`, { phone: !!phone, password: !!password })
-      return res.status(400).json({ code: 400, message: '手机号和密码为必填项', timestamp: Date.now() })
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Auth Login:${requestId}] Missing credentials`);
+      }
+      return res.status(400).json({ 
+        code: 400, 
+        message: '手机号和密码为必填项', 
+        timestamp: Date.now() 
+      })
     }
 
-    // 验证密码长度 - 与前端保持一致，最少8位
-    if (password.length < 8) {
-      console.log(`[Auth Login:${requestId}] Password too short:`, { length: password.length })
-      return res.status(400).json({ code: 400, message: '密码长度至少8位', timestamp: Date.now() })
-    }
-
-    console.log(`[Auth Login:${requestId}] Attempting login for phone:`, phone)
+    // 查询用户
     const user = await prisma.user.findUnique({ where: { phone } })
-    console.log(`[Auth Login:${requestId}] Database query completed:`, { userFound: !!user })
 
     if (!user || !user.passwordHash) {
-      console.log(`[Auth Login:${requestId}] User not found or no password:`, { userFound: !!user, hasPasswordHash: !!user?.passwordHash })
-      return res.status(401).json({ code: 401, message: '手机号或密码错误', timestamp: Date.now() })
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Auth Login:${requestId}] User not found or no password`);
+      }
+      return res.status(401).json({ 
+        code: 401, 
+        message: '手机号或密码错误', 
+        timestamp: Date.now() 
+      })
     }
 
-    console.log(`[Auth Login:${requestId}] User found, comparing passwords...`)
+    // 验证密码
     const isValid = await bcrypt.compare(password, user.passwordHash)
     if (!isValid) {
-      console.log(`[Auth Login:${requestId}] Password comparison failed`)
-      return res.status(401).json({ code: 401, message: '手机号或密码错误', timestamp: Date.now() })
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Auth Login:${requestId}] Password verification failed`);
+      }
+      return res.status(401).json({ 
+        code: 401, 
+        message: '手机号或密码错误', 
+        timestamp: Date.now() 
+      })
     }
 
-    if (!user.isActive) {
-      console.log(`[Auth Login:${requestId}] User is inactive:`, { isActive: user.isActive })
-      return res.status(403).json({ code: 403, message: '账号已被禁用', timestamp: Date.now() })
-    }
-
-    console.log(`[Auth Login:${requestId}] Login successful, generating token...`)
+    // 生成 token
     const token = generateToken({
       id: user.id,
       phone: user.phone,
@@ -159,8 +134,15 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
     })
 
     const duration = Date.now() - startTime
-    console.log(`[Auth Login:${requestId}] Success:`, { userId: user.id, role: user.role, duration: `${duration}ms` })
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Auth Login:${requestId}] Success:`, { 
+        userId: user.id, 
+        role: user.role, 
+        duration: `${duration}ms` 
+      });
+    }
     
+    // 返回成功响应
     return res.json({
       code: 200,
       data: {
@@ -169,239 +151,77 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
           id: user.id,
           phone: user.phone,
           nickname: user.nickname,
-          name: user.name,
-          avatar: user.avatar,
-          role: user.role,
-          grade: user.grade,
-          school: user.school
-        }
+          name: user.name || undefined,
+          avatar: user.avatar || undefined,
+          role: user.role
+        } as UserDTO
       },
       timestamp: Date.now()
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     const duration = Date.now() - startTime
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
     console.error(`[Auth Login:${requestId}] ERROR:`, {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      code: error.code,
+      message: errorMessage,
+      stack: errorStack,
       duration: `${duration}ms`
     })
     return res.status(500).json({ 
       code: 500, 
-      message: '服务器内部错误: ' + (error.message || 'Unknown'), 
-      error: error.message, 
+      message: '服务器内部错误', 
       timestamp: Date.now() 
     })
   }
 }
 
-async function handleRegister(req: VercelRequest, res: VercelResponse) {
-  try {
-    const { phone, password, nickname, name, role, grade, school, inviteCode } = req.body
-
-    if (!phone || !password || !nickname || !role) {
-      return res.status(400).json({
-        code: 400,
-        message: '手机号、密码、昵称和角色为必填项',
-        timestamp: Date.now()
-      })
-    }
-
-    // 验证密码长度 - 与前端保持一致，最少8位
-    if (password.length < 8) {
-      return res.status(400).json({ code: 400, message: '密码长度至少8位', timestamp: Date.now() })
-    }
-
-    // 验证手机号格式
-    const phoneRegex = /^1[3-9]\d{9}$/
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ code: 400, message: '手机号格式不正确', timestamp: Date.now() })
-    }
-
-    // 检查白名单（如果是学生/家长角色）
-    if (role === 'student' || role === 'parent') {
-      const whitelist = await prisma.userWhitelist.findUnique({ where: { phone } })
-      if (!whitelist || whitelist.deletedAt) {
-        return res.status(403).json({ code: 403, message: '该手机号不在白名单中', timestamp: Date.now() })
-      }
-      if (whitelist.validUntil && new Date(whitelist.validUntil) < new Date()) {
-        return res.status(403).json({ code: 403, message: '白名单已过期', timestamp: Date.now() })
-      }
-    }
-
-    // 检查手机号是否已注册
-    const existing = await prisma.user.findUnique({ where: { phone } })
-    if (existing) {
-      return res.status(409).json({ code: 409, message: '该手机号已注册', timestamp: Date.now() })
-    }
-
-    // 创建用户
-    const passwordHash = await bcrypt.hash(password, 10)
-    const user = await prisma.user.create({
-      data: {
-        phone,
-        passwordHash,
-        nickname,
-        name,
-        role,
-        grade,
-        school,
-        isActive: true
-      }
-    })
-
-    // 更新白名单注册状态
-    await prisma.userWhitelist.updateMany({
-      where: { phone },
-      data: { isRegistered: true, registeredAt: new Date(), userId: user.id }
-    })
-
-    const token = generateToken({
-      id: user.id,
-      phone: user.phone,
-      role: user.role,
-      nickname: user.nickname
-    })
-
-    return res.status(201).json({
-      code: 201,
-      data: {
-        token,
-        user: {
-          id: user.id,
-          phone: user.phone,
-          nickname: user.nickname,
-          name: user.name,
-          avatar: user.avatar,
-          role: user.role,
-          grade: user.grade,
-          school: user.school
-        }
-      },
-      timestamp: Date.now()
-    })
-  } catch (error: any) {
-    console.error('[Auth Register]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), error: error.message, timestamp: Date.now() })
-  }
-}
-
-async function handleSendCode(req: VercelRequest, res: VercelResponse) {
-  try {
-    const { phone, type } = req.body
-
-    if (!phone) {
-      return res.status(400).json({ code: 400, message: '手机号为必填项', timestamp: Date.now() })
-    }
-
-    // 验证手机号格式
-    const phoneRegex = /^1[3-9]\d{9}$/
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ code: 400, message: '手机号格式不正确', timestamp: Date.now() })
-    }
-
-    // 生成6位验证码
-    const code = Math.floor(100000 + Math.random() * 900000).toString()
-    
-    // 这里应该调用短信服务发送验证码，暂时返回模拟数据
-    console.log(`[Send Code] 手机号: ${phone}, 验证码: ${code}, 类型: ${type || 'login'}`)
-
-    return res.json({
-      code: 200,
-      data: {
-        success: true,
-        message: '验证码已发送',
-        // 开发环境返回验证码，生产环境不返回
-        ...(process.env.NODE_ENV !== 'production' && { code })
-      },
-      timestamp: Date.now()
-    })
-  } catch (error: any) {
-    console.error('[Auth SendCode]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
-  }
-}
-
-async function handleSetPassword(req: VercelRequest, res: VercelResponse) {
-  try {
-    const { newPassword } = req.body
-
-    if (!newPassword) {
-      return res.status(400).json({ code: 400, message: '新密码为必填项', timestamp: Date.now() })
-    }
-
-    // 验证密码长度 - 与前端保持一致，最少8位
-    if (newPassword.length < 8) {
-      return res.status(400).json({ code: 400, message: '密码长度至少8位', timestamp: Date.now() })
-    }
-
-    // 从 JWT token 获取用户信息
-    const authHeader = req.headers?.authorization
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ code: 401, message: '未登录或token已过期', timestamp: Date.now() })
-    }
-
-    const token = authHeader.slice(7)
-    let user: AuthUser
-    try {
-      user = jwt.verify(token, JWT_SECRET) as any
-    } catch {
-      return res.status(401).json({ code: 401, message: 'token无效', timestamp: Date.now() })
-    }
-
-    // 更新密码
-    const passwordHash = await bcrypt.hash(newPassword, 10)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash }
-    })
-
-    return res.json({
-      code: 200,
-      data: { success: true },
-      message: '密码设置成功',
-      timestamp: Date.now()
-    })
-  } catch (error: any) {
-    console.error('[Auth SetPassword]', error)
-    return res.status(500).json({ code: 500, message: '服务器内部错误: ' + (error.message || 'Unknown'), timestamp: Date.now() })
-  }
-}
-
-// 模块映射
-const handlers: Record<string, Function> = {
-  auth: authHandler,
-  users: usersHandler,
-};
+// === 主处理函数 ===
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // CORS 头
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-request-id')
 
+  // 处理 OPTIONS 预检请求
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(200).end()
+  }
+
+  // 只允许 POST 方法
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      code: 405, 
+      message: '方法不允许', 
+      timestamp: Date.now() 
+    })
   }
 
   try {
-    const { module } = req.query;
-    
-    if (!module || typeof module !== 'string' || !handlers[module]) {
-      return res.status(404).json({ 
-        error: 'Module not found',
-        available: Object.keys(handlers)
-      });
+    // 支持两种路由风格：
+    // 1. /api/auth?action=password-login  (query param)
+    // 2. /api/auth/password-login         (path style)
+    const urlAction = req.url?.split('?')[0].split('/api/auth/')[1]
+    const action = req.query.action || urlAction
+
+    // 只支持 password-login 操作
+    if (action === 'password-login') {
+      return handlePasswordLogin(req, res)
     }
 
-    return await handlers[module](req, res);
+    // 不支持的操作
+    return res.status(400).json({ 
+      code: 400, 
+      message: '无效的操作类型', 
+      timestamp: Date.now() 
+    })
     
-  } catch (error) {
-    console.error('[Auth API Error]', error);
+  } catch (error: unknown) {
+    console.error('[Auth API Error]', error)
     return res.status(500).json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown'
-    });
+      code: 500, 
+      message: '服务器内部错误',
+      timestamp: Date.now() 
+    })
   }
 }

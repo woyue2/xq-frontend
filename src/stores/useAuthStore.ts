@@ -1,7 +1,7 @@
 /**
  * [POS] src/stores/useAuthStore.ts
  *   所属：stores 层 | 角色：登录用户信息 + token 持久化状态
- *   兄弟：useDiagnosticStore.ts
+ *   兄弟：（简化版仅此一个 store）
  *
  * [INPUT]
  *   - zustand              → create

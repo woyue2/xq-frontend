@@ -9,6 +9,7 @@
  *   - @/lib/mock-data        → mockQuestions / mockUsers / mockChildren（Mock 拦截器专用）
  *   - @/stores/useAuthStore  → useAuthStore.getState()（Token 注入）
  *   - @/lib/mock-env         → USE_MOCK 标志
+ *   - @/lib/error-handler    → handleApiError（统一错误处理）
  *
  * [OUTPUT]
  *   - api  → 公共 axios 实例（其他 service 文件唯一依赖入口）
@@ -22,6 +23,7 @@ import { toast } from 'sonner';
 import { mockQuestions, mockUsers, mockChildren } from '@/lib/mock-data';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { USE_MOCK } from '@/lib/mock-env';
+import { handleApiError } from '@/lib/error-handler';
 
 // Vercel Serverless API Routes - 本地开发用代理，生产环境用绝对路径
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
@@ -302,25 +304,8 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    const { status, data } = error.response || {};
-    switch (status) {
-      case 401:
-        // 清除过期状态，但不自动跳转 /login
-        // 游客模式下公开页面不应被强制跳转；需要登录的操作由各页面自行弹提示框引导
-        useAuthStore.getState().logout();
-        break;
-      case 403:
-        toast.error('无权限访问');
-        break;
-      case 429:
-        toast.error('请求过于频繁，请稍后再试');
-        break;
-      case 500:
-        toast.error('服务器繁忙，请稍后再试');
-        break;
-      default:
-        toast.error(data?.message || '网络错误');
-    }
+    // 使用统一错误处理器
+    handleApiError(error);
     return Promise.reject(error);
   },
 );

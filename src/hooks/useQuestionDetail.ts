@@ -381,15 +381,9 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     if (!question) return;
     if (!window.confirm('确定要删除这个问题吗？此操作无法撤销。')) return;
     try {
-      const response = await questionService.delete(question.id);
-      
-      // 验证删除响应
-      if (response) {
-        toast.success('删除成功');
-        navigate(ROUTES.home, { replace: true });
-      } else {
-        toast.error('删除失败：未收到有效响应');
-      }
+      await questionService.delete(question.id);
+      toast.success('删除成功');
+      navigate(ROUTES.home, { replace: true });
     } catch (error: any) {
       toast.error(error.response?.data?.message || '删除失败，请稍后重试');
     }

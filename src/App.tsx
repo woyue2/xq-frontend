@@ -7,7 +7,8 @@
  *   - react-router-dom       → BrowserRouter / Routes / Route / Navigate
  *   - @tanstack/react-query  → QueryClient / QueryClientProvider
  *   - @/layouts/*            → MainLayout / AuthLayout
- *   - @/pages/*              → 所有页面组件
+ *   - @/pages/*              → 简化后的页面组件
+ *   - @/components/RouteGuard → RequireAuth / RequireAdmin
  *
  * [OUTPUT]
  *   - App（路由根组件）
@@ -25,20 +26,8 @@ import { LoginPage } from '@/pages/LoginPage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { AnswerQuestionPage } from '@/pages/AnswerQuestionPage';
-import { ProfilePage } from '@/pages/ProfilePage';
-import { AuditPage } from '@/pages/AuditPage';
-import { AdminManagementPage } from '@/pages/AdminManagementPage';
-import { MyQuestionsPage } from '@/pages/MyQuestionsPage';
-import { StatusListPage } from '@/pages/StatusListPage';
-import { GoodQuestionsPage } from '@/pages/GoodQuestionsPage';
-import { MyAnswersPage } from '@/pages/MyAnswersPage';
-import { MyFavoritesPage } from '@/pages/MyFavoritesPage';
-import { MyLikesPage } from '@/pages/MyLikesPage';
-import { NotificationsPage } from '@/pages/NotificationsPage';
-import { DiagnosticPage } from '@/pages/DiagnosticPage';
-import { ParentQuestionPage } from '@/pages/ParentQuestionPage';
-import { StudentHistoryPage } from '@/pages/StudentHistoryPage';
-import { TestApiPage } from '@/pages/TestApiPage';
+import { AdminSubjectsPage } from '@/pages/admin/AdminSubjectsPage';
+import { RequireAuth, RequireAdmin } from '@/components/RouteGuard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -69,29 +58,65 @@ export function App() {
               <Route path="/login" element={<LoginPage />} />
             </Route>
 
-            {/* Protected Routes (Main Layout) */}
-            {/* [IMPL] 原因：/ 首页允许游客访问（optionalAuth），其余路由仍在 MainLayout 守卫下 */}
+            {/* Main Layout Routes */}
             <Route element={<MainLayout />}>
+              {/* Public routes - accessible to guests */}
               <Route path="/" element={<HomePage />} />
-              <Route path="/create" element={<CreateQuestionPage />} />
-              <Route path="/edit/:id" element={<CreateQuestionPage />} />
               <Route path="/question/:id" element={<QuestionDetailPage />} />
-              <Route path="/answer/:id" element={<AnswerQuestionPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/parent/questions/:childId" element={<ParentQuestionPage />} />
-              <Route path="/student/:studentId/questions" element={<StudentHistoryPage />} />
-              <Route path="/audit" element={<AuditPage />} />
-              <Route path="/admin" element={<AdminManagementPage />} />
-              <Route path="/my-questions" element={<MyQuestionsPage />} />
-              <Route path="/my-questions/status/:status" element={<StatusListPage />} />
-              <Route path="/good-questions" element={<GoodQuestionsPage />} />
-              <Route path="/my-answers" element={<MyAnswersPage />} />
-              <Route path="/my-favorites" element={<MyFavoritesPage />} />
-              <Route path="/my-likes" element={<MyLikesPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/diagnostic" element={<DiagnosticPage />} />
-              <Route path="/test" element={<TestApiPage />} />
-              {/* Fallback */}
+
+              {/* Protected routes - require authentication */}
+              <Route
+                path="/create"
+                element={
+                  <RequireAuth>
+                    <CreateQuestionPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/edit/:id"
+                element={
+                  <RequireAuth>
+                    <CreateQuestionPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/answer/:id"
+                element={
+                  <RequireAuth>
+                    <AnswerQuestionPage />
+                  </RequireAuth>
+                }
+              />
+
+              {/* Admin routes - require admin role */}
+              <Route
+                path="/admin/subjects"
+                element={
+                  <RequireAdmin>
+                    <AdminSubjectsPage />
+                  </RequireAdmin>
+                }
+              />
+
+              {/* Redirect deleted routes to home */}
+              <Route path="/profile" element={<Navigate to="/" replace />} />
+              <Route path="/audit" element={<Navigate to="/" replace />} />
+              <Route path="/admin" element={<Navigate to="/" replace />} />
+              <Route path="/my-questions" element={<Navigate to="/" replace />} />
+              <Route path="/my-questions/status/:status" element={<Navigate to="/" replace />} />
+              <Route path="/good-questions" element={<Navigate to="/" replace />} />
+              <Route path="/my-answers" element={<Navigate to="/" replace />} />
+              <Route path="/my-favorites" element={<Navigate to="/" replace />} />
+              <Route path="/my-likes" element={<Navigate to="/" replace />} />
+              <Route path="/notifications" element={<Navigate to="/" replace />} />
+              <Route path="/diagnostic" element={<Navigate to="/" replace />} />
+              <Route path="/parent/questions/:childId" element={<Navigate to="/" replace />} />
+              <Route path="/student/:studentId/questions" element={<Navigate to="/" replace />} />
+              <Route path="/test" element={<Navigate to="/" replace />} />
+
+              {/* Fallback - catch all other routes */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

@@ -10,13 +10,6 @@ vi.mock('@/stores/useAuthStore', () => ({
   useAuthStore: () => useAuthStoreMock(),
 }));
 
-// Mock notificationService to avoid real network calls in MainLayout header
-vi.mock('@/services/api', () => ({
-  notificationService: {
-    getUnreadCount: vi.fn().mockResolvedValue({ unreadCount: 0 }),
-  },
-}));
-
 describe('MainLayout create button permissions', () => {
   beforeEach(() => {
     useAuthStoreMock.mockReset();

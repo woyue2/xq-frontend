@@ -8,7 +8,6 @@
  *   - react-router-dom         → useNavigate
  *   - sonner                   → toast
  *   - @/services/api           → authService
- *   - @/services/parentService → parentService
  *   - @/stores/useAuthStore    → useAuthStore
  *   - @/lib/mock-env           → USE_MOCK
  *   - @/lib/mock-data          → validInviteCodes
@@ -26,7 +25,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { authService } from '@/services/api';
-import { parentService } from '@/services/parentService';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { USE_MOCK } from '@/lib/mock-env';
 import { validInviteCodes } from '@/lib/mock-data';
@@ -53,19 +51,11 @@ export function useLogin() {
   const [age, setAge] = useState('');
   const [school, setSchool] = useState('');
 
-  const [childName, setChildName] = useState('');
-  const [childPhone, setChildPhone] = useState('');
-  const [childCode, setChildCode] = useState('');
-  const [childSchool, setChildSchool] = useState('');
-  const [childCountdown, setChildCountdown] = useState(0);
-
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const childTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (childTimerRef.current) clearInterval(childTimerRef.current);
     };
   }, []);
 
@@ -117,38 +107,6 @@ export function useLogin() {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-    }
-  };
-
-  const handleGetChildCode = async () => {
-    if (!childPhone || childPhone.length !== 11) {
-      toast.error('请输入正确的孩子手机号');
-      return;
-    }
-
-    setChildCountdown(60);
-    if (childTimerRef.current) clearInterval(childTimerRef.current);
-    childTimerRef.current = setInterval(() => {
-      setChildCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(childTimerRef.current!);
-          childTimerRef.current = null;
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    try {
-      await parentService.sendBindSms(childPhone);
-      toast.success('验证码已发送');
-    } catch {
-      setChildCountdown(0);
-      if (childTimerRef.current) {
-        clearInterval(childTimerRef.current);
-        childTimerRef.current = null;
-      }
-      toast.error('验证码发送失败，请稍后重试');
     }
   };
 
@@ -211,22 +169,6 @@ export function useLogin() {
       }
     }
 
-    if (isParentInvite) {
-      if (!childName) {
-        toast.error('请输入孩子姓名');
-        return;
-      }
-      if (!childPhone || childPhone.length !== 11) {
-        toast.error('请输入正确的孩子手机号');
-        return;
-      }
-      // [DISABLED] 孩子验证码校验已移除，使用固定码兜底
-      // if (!childCode) {
-      //   toast.error('请输入孩子验证码');
-      //   return;
-      // }
-    }
-
     try {
       if (isLogin) {
         if (loginMode === 'password') {
@@ -266,21 +208,6 @@ export function useLogin() {
 
       login(registerResult.user, registerResult.token);
 
-      if (isParentInvite) {
-        try {
-          await parentService.bindChild({
-            childName,
-            phone: childPhone,
-            code: '123456', // [DISABLED] 验证码已隐藏，使用固定码兜底
-            school: childSchool,
-          });
-          toast.success('自动绑定孩子成功');
-        } catch (error) {
-          console.error('自动绑定失败:', error);
-          toast.error('自动绑定孩子失败，请稍后重试');
-        }
-      }
-
       toast.success('注册并登录成功');
       navigate(ROUTES.home);
     } catch (error: unknown) {
@@ -306,9 +233,6 @@ export function useLogin() {
     setInviteCode('');
     setGrade('');
     setAge('');
-    setChildName('');
-    setChildPhone('');
-    setChildCode('');
   };
 
   return {
@@ -338,18 +262,8 @@ export function useLogin() {
     setAge,
     school,
     setSchool,
-    // parent / child fields
-    childName,
-    setChildName,
-    childPhone,
-    setChildPhone,
-    childCode,
-    setChildCode,
-    childSchool,
-    setChildSchool,
     // countdown
     countdown,
-    childCountdown,
     // derived
     isStudentInvite,
     isParentInvite,
@@ -357,7 +271,6 @@ export function useLogin() {
     canSubmit,
     // actions
     handleGetCode,
-    handleGetChildCode,
     handleSubmit,
     switchMode,
   };

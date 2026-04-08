@@ -1,16 +1,13 @@
 /**
  * [POS] src/pages/QuestionDetailPage.tsx
- *   所属：pages 层 | 角色：问题详情页（评论/点赞/收藏/音频播放），路由 `/question/:id`
- *   兄弟：AnswerQuestionPage.tsx / CreateQuestionPage.tsx
+ *   所属：pages 层 | 角色：问题详情页，路由 `/question/:id`
+ *   兄弟：HomePage.tsx / CreateQuestionPage.tsx / AnswerQuestionPage.tsx
  *
  * [INPUT]
- *   - react                  → useEffect / useState
- *   - react-router-dom       → useParams / useNavigate / useLocation / useSearchParams
- *   - @/hooks/useQuestionDetail → useQuestionDetail
- *   - @/stores/useAuthStore  → useAuthStore
- *   - @/lib/share            → buildQuestionShareUrl / copyToClipboardSafe
- *   - @/config/app-constants → ROUTES
- *   - @/components/ui/alert-dialog → AlertDialog（游客登录引导）
+ *   - react                          → useState / useEffect
+ *   - react-router-dom               → useParams / useNavigate
+ *   - @/components/QuestionDetail    → QuestionDetail
+ *   - @/types/dto                    → QuestionDTO / AnswerDTO / CommentDTO
  *
  * [OUTPUT]
  *   - QuestionDetailPage（页面组件）
@@ -19,758 +16,187 @@
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/pages/CLAUDE.md 的文件清单
  */
-import { useEffect, useState } from 'react';
-import {
-  ArrowLeft,
-  Share2,
-  Heart,
-  Star,
-  MessageCircle,
-  Send,
-  Play,
-  Pause,
-  Volume2,
-  Camera,
-  X,
-  MessageSquare,
-  Trash2,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { GoodQuestionBadge } from '@/components/ui/good-question-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import type { DifficultyLevel } from '@/types';
-import { useQuestionDetail } from '@/hooks/useQuestionDetail';
-import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
-import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { cn } from '@/lib/utils';
-import { ImageCarousel } from '@/components/ui/image-carousel';
-import { motion, AnimatePresence } from 'framer-motion';
-import { UI_CONFIG } from '@/config/ui-config';
-import { Pin } from 'lucide-react';
-import { buildQuestionShareUrl, copyToClipboardSafe } from '@/lib/share';
-import { ROUTES } from '@/config/app-constants';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { QuestionDetail } from '@/components/QuestionDetail';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { QuestionDTO, AnswerDTO, CommentDTO } from '@/types/dto';
+
+interface ApiResponse<T> {
+  code: number;
+  data: T;
+  timestamp: number;
+}
 
 export function QuestionDetailPage() {
-  const { id: questionId } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const { user: currentUser } = useAuthStore();
-  const safeQuestionId = questionId || '';
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
-  const {
-    question,
-    isLoadingDetail,
-    answers,
-    isLoadingAnswers,
-    comments,
-    isLoadingComments,
-    newComment,
-    setNewComment,
-    commentImage,
-    setCommentImage,
-    commentImageInputRef,
-    liked,
-    favorited,
-    isPlayingAudio,
-    playbackRate,
-    setPlaybackRate,
-    playingAnswerId,
-    selectedImage,
-    setSelectedImage,
-    showSpeedMenu,
-    setShowSpeedMenu,
-    questionAudioRef,
-    answerAudioRefs,
-    answerCardRefs,
-    highlightAnswerId,
-    handleLike,
-    handleFavorite,
-    handlePlayAudio,
-    handlePlayAnswerAudio,
-    handleAddImage,
-    handleCommentImageFileChange,
-    handleSubmitComment,
-    handleDelete,
-    setTargetAnswerId,
-    setPlayingAnswerId,
-  } = useQuestionDetail(safeQuestionId, () => setShowLoginDialog(true));
+  const [question, setQuestion] = useState<QuestionDTO | null>(null);
+  const [answers, setAnswers] = useState<AnswerDTO[]>([]);
+  const [comments, setComments] = useState<CommentDTO[]>([]);
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(true);
+  const [isLoadingAnswers, setIsLoadingAnswers] = useState(true);
+  const [isLoadingComments, setIsLoadingComments] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 从路由参数/状态中读取目标 answerId，在 answers 加载后触发滚动
+  // Check if user is logged in
+  const token = localStorage.getItem('token');
+  const isLoggedIn = !!token;
+
+  // Fetch all data in parallel
   useEffect(() => {
-    const fromQuery = searchParams.get('answerId');
-    const fromState = (location.state as any)?.answerId as string | undefined;
-    const target = fromQuery || fromState || null;
-    if (target) setTargetAnswerId(target);
-  }, [searchParams, location.state]);
+    if (!id) return;
 
-  if (!question) {
-    // 统一在“加载中 / 未找到”状态下也提供返回按钮，
-    // 便于测试与实际用户都可以轻松返回上一页。
+    const fetchAllData = async () => {
+      setIsLoadingQuestion(true);
+      setIsLoadingAnswers(true);
+      setIsLoadingComments(true);
+      setError(null);
+
+      try {
+        // Fetch all 3 requests in parallel
+        const [questionRes, answersRes, commentsRes] = await Promise.all([
+          fetch(`/api/questions?id=${id}`),
+          fetch(`/api/answers?questionId=${id}`),
+          fetch(`/api/comments?questionId=${id}`)
+        ]);
+
+        // Parse all responses in parallel
+        const [questionResult, answersResult, commentsResult] = await Promise.all([
+          questionRes.json() as Promise<ApiResponse<QuestionDTO>>,
+          answersRes.json() as Promise<ApiResponse<AnswerDTO[]>>,
+          commentsRes.json() as Promise<ApiResponse<CommentDTO[]>>
+        ]);
+
+        // Handle question result
+        if (questionResult.code === 200) {
+          setQuestion(questionResult.data);
+        } else if (questionResult.code === 404) {
+          setError('问题不存在');
+        } else {
+          setError('加载问题失败');
+        }
+
+        // Handle answers result
+        if (answersResult.code === 200) {
+          setAnswers(answersResult.data);
+        }
+
+        // Handle comments result
+        if (commentsResult.code === 200) {
+          setComments(commentsResult.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+        setError('加载数据失败');
+      } finally {
+        setIsLoadingQuestion(false);
+        setIsLoadingAnswers(false);
+        setIsLoadingComments(false);
+      }
+    };
+
+    fetchAllData();
+  }, [id]);
+
+  // Handle answer button click
+  const handleAnswer = () => {
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
+    navigate(`/answer/${id}`);
+  };
+
+  // Handle comment button click
+  const handleComment = () => {
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
+    // Scroll to comment section or show comment input
+    // For now, just a placeholder
+    console.log('Comment button clicked');
+  };
+
+  // Loading state
+  if (isLoadingQuestion) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
-          <button
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-gray-100 rounded-full transition"
-            data-testid="back-button"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div className="flex flex-col items-center flex-1">
-            <h1 className="text-base font-bold text-gray-800">问题详情</h1>
-          </div>
-          <button
-            onClick={() => toast.error('当前无法分享该问题')}
-            className="p-2 hover:bg-gray-100 rounded-full transition"
-          >
-            <Share2 className="w-5 h-5 text-gray-600" />
-          </button>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-xl font-bold">问题详情</h1>
         </div>
-
-        <div className="min-h-screen bg-[#EDEDE9] flex items-center justify-center flex-col gap-4">
-          <p className="text-gray-500">{isLoadingDetail ? '问题加载中...' : '问题不存在'}</p>
-          {!isLoadingDetail && (
-            <button onClick={() => navigate(ROUTES.home)} className="text-blue-500 underline">
-              返回首页
-            </button>
-          )}
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
         </div>
       </div>
     );
   }
 
-  const getDifficultyConfig = (difficulty?: DifficultyLevel) => {
-    const configs = {
-      easy: { label: '简单', className: UI_CONFIG.colors.difficulty.easy },
-      medium: { label: '中等', className: UI_CONFIG.colors.difficulty.medium },
-      hard: { label: '难题', className: UI_CONFIG.colors.difficulty.hard },
-    };
-    return difficulty ? configs[difficulty] : null;
-  };
+  // Error state
+  if (error || !question) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-xl font-bold">问题详情</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <p className="text-gray-500">{error || '问题不存在'}</p>
+          <Button onClick={() => navigate('/')}>返回首页</Button>
+        </div>
+      </div>
+    );
+  }
 
-  const difficultyConfig = getDifficultyConfig(question.difficulty);
-
-  const handleShare = async () => {
-    const shareUrl = buildQuestionShareUrl(question.id);
-    if (!shareUrl) {
-      toast.error('暂未配置分享域名，当前不支持复制分享链接');
-      return;
-    }
-
-    const copied = await copyToClipboardSafe(shareUrl);
-    if (copied) {
-      toast.success('分享链接已复制');
-    } else {
-      // 剪贴板不可用时，退化为直接展示链接，交由用户手动复制
-      toast.success(`分享链接：${shareUrl}`);
-    }
-  };
-
-  const handleAnswer = () => {
-    if (currentUser?.role === 'teacher' || currentUser?.role === 'admin') {
-      navigate(ROUTES.answer(question.id));
-    } else {
-      toast.error('暂无回答权限');
-    }
-  };
-
-  const handleAuthorClick = () => {
-    if (!currentUser) {
-      setShowLoginDialog(true);
-      return;
-    }
-
-    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
-      navigate(ROUTES.studentHistory(question.authorId));
-      return;
-    }
-
-    if (currentUser.role === 'parent') {
-      toast.error('请在“孩子提问列表”页查看孩子的历史提问');
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) {
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      if (hours === 0) {
-        const minutes = Math.floor(diff / (1000 * 60));
-        return `${minutes}分钟前`;
-      }
-      return `${hours}小时前`;
-    } else if (days < 7) {
-      return `${days}天前`;
-    } else {
-      return date.toLocaleDateString('zh-CN');
-    }
-  };
-
-  const isQuestionAuthor = currentUser?.id === question.authorId;
-  const isTeacher = currentUser?.role === 'teacher' || currentUser?.role === 'admin';
-  const hasAnyAnswer = (question.stats.answers ?? 0) > 0;
-  const canDelete = isTeacher || (isQuestionAuthor && !hasAnyAnswer);
-  // 仅老师可以看到并使用“去回答”入口，防止前端 UI 与后端权限语义出现不一致
-  const canAnswer = isTeacher;
+  const isLoading = isLoadingAnswers || isLoadingComments;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="flex flex-col gap-4"
-    >
-      {/* 顶部导航栏 */}
-      <div className="bg-white shadow-sm sticky top-0 z-10 -mx-4 px-4 py-2 flex items-center justify-between">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+    <div className="flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-full transition"
           data-testid="back-button"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </motion.button>
-        <div className="flex flex-col items-center flex-1">
-          <h1 className="text-base font-bold text-gray-800">问题详情</h1>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={handleShare}
-          className="p-2 hover:bg-gray-100 rounded-full transition"
-        >
-          <Share2 className="w-5 h-5 text-gray-600" />
-        </motion.button>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <h1 className="text-xl font-bold">问题详情</h1>
       </div>
 
-      {/* 内容区域 */}
-      <div className="w-full space-y-3 pb-20">
-        {/* 问题内容卡片 */}
-        <div className="bg-white rounded-3xl shadow-sm p-4 space-y-4">
-          {/* 标签行 */}
-          <div className="flex flex-wrap items-center gap-2">
-            {question.isGoodQuestion && <GoodQuestionBadge />}
-            {question.tags?.map((tag: string, index: number) => (
-              <Badge
-                key={index}
-                className="bg-morandi-1 text-gray-700 border-none hover:bg-morandi-2"
-              >
-                {tag}
-              </Badge>
-            ))}
-            {difficultyConfig && (
-              <Badge className={`${difficultyConfig.className} border-none`}>
-                {difficultyConfig.label}
-              </Badge>
-            )}
-          </div>
-
-          {/* 问题标题 */}
-          <h2 className="text-xl font-bold text-gray-800 leading-tight">{question.title}</h2>
-
-          {/* 提问信息 */}
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <button
-              type="button"
-              onClick={handleAuthorClick}
-              className="flex items-center gap-2 hover:text-gray-600"
-            >
-              <Avatar className="w-6 h-6">
-                <AvatarImage
-                  src={
-                    question.authorAvatar ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${question.authorName}`
-                  }
-                />
-                <AvatarFallback className="text-[10px] bg-gray-100">
-                  {question.authorName[0]}
-                </AvatarFallback>
-              </Avatar>
-              <span className="font-medium text-gray-600">{question.authorName}</span>
-            </button>
-            <span>•</span>
-            <span>{formatDate(question.createdAt)}</span>
-          </div>
-
-          {/* 图片展示 */}
-          {question.images && question.images.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {question.images.map((image: string, index: number) => (
-                <div
-                  key={index}
-                  className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity active:scale-[0.98]"
-                  onClick={() => setSelectedImage(image)}
-                >
-                  <ImageWithFallback
-                    src={image}
-                    alt={`图片${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 录音播放区域 */}
-          {question.audioUrl && (
-            <div className="bg-morandi-4 rounded-2xl p-4">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handlePlayAudio}
-                  className="w-12 h-12 bg-morandi-5 hover:bg-morandi-5/80 text-white rounded-full flex items-center justify-center transition shadow-sm active:scale-90 flex-shrink-0"
-                >
-                  {isPlayingAudio ? (
-                    <Pause className="w-5 h-5 fill-white" />
-                  ) : (
-                    <Play className="w-5 h-5 ml-1 fill-white" />
-                  )}
-                </button>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-morandi-5" />
-                      <span className="text-xs font-medium text-morandi-5">语音说明</span>
-                    </div>
-                    {/* Speed Pop-up Trigger */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSpeedMenu(true);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-white/60 hover:bg-white text-morandi-5 rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
-                      data-testid="audio-speed-trigger"
-                    >
-                      倍速 {playbackRate}x
-                    </button>
-                  </div>
-                  <div className="h-1.5 bg-white bg-opacity-50 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full bg-morandi-5 transition-all duration-300 ${isPlayingAudio ? 'w-1/2' : 'w-0'}`}
-                    />
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-morandi-5">00:45</span>
-                <audio ref={questionAudioRef} src={question.audioUrl} className="hidden" />
-              </div>
-            </div>
-          )}
-
-          {/* 问题详情 */}
-          {question.content && (
-            <div className="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed bg-[#EDEDE9] bg-opacity-30 p-4 rounded-2xl">
-              {question.content}
-            </div>
-          )}
-
-          {/* Actions Bar */}
-          <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-6">
-            <div className="flex items-center gap-6">
-              <button
-                data-testid="like-btn"
-                onClick={handleLike}
-                className={cn(
-                  'flex items-center gap-1 transition-colors',
-                  liked ? 'text-pink-500' : 'text-gray-400',
-                )}
-              >
-                <Heart className={cn('w-6 h-6', liked && 'fill-current')} />
-                <span className="text-xs">{question.stats.likes + (liked ? 1 : 0)}</span>
-              </button>
-
-              <button
-                data-testid="favorite-btn"
-                onClick={handleFavorite}
-                className={cn(
-                  'flex items-center gap-1 transition-colors',
-                  favorited ? 'text-amber-400' : 'text-gray-400',
-                )}
-              >
-                <Star className={cn('w-6 h-6', favorited && 'fill-current')} />
-                <span className="text-xs">{question.stats.favorites + (favorited ? 1 : 0)}</span>
-              </button>
-
-              <button className="flex items-center gap-1 text-gray-400">
-                <MessageSquare className="w-6 h-6" />
-                <span className="text-xs">{question.stats.comments}</span>
-              </button>
-
-              <button onClick={handleShare} className="text-gray-400">
-                <Share2 className="w-6 h-6" />
-              </button>
-            </div>
-            {canDelete && (
-              <button
-                onClick={handleDelete}
-                className="text-red-400 hover:text-red-500 transition-colors p-2"
-                title="删除问题"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            )}
-            {canAnswer && (
-              <button
-                onClick={handleAnswer}
-                className="bg-[#D5BDAF] text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm active:scale-95 transition-transform"
-              >
-                去回答
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* 回答列表 */}
-        {answers.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-md font-bold text-gray-800">全部回答</h3>
-              <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-100">
-                {answers.length}个回答
-              </Badge>
-            </div>
-
-            <div className="space-y-6">
-              {answers
-                .filter((a) => a.status === 'approved')
-                .map((answer) => (
-                  <div
-                    key={answer.id}
-                    ref={(el) => {
-                      if (el) {
-                        answerCardRefs.current[answer.id] = el;
-                      }
-                    }}
-                    data-answer-id={answer.id}
-                    className={cn(
-                      'space-y-3 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0 transition-colors',
-                      highlightAnswerId === answer.id ? 'bg-amber-50 border-amber-200' : '',
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Avatar className="w-8 h-8 border border-gray-100">
-                        <AvatarImage src={answer.authorAvatar} />
-                        <AvatarFallback className="bg-gray-50 text-xs">
-                          {answer.authorName[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-gray-700">
-                            {answer.authorName}
-                          </span>
-                          <span className="text-[10px] text-gray-300">
-                            {formatDate(answer.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {answer.images && answer.images.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2">
-                        {answer.images.map((image: string, index: number) => (
-                          <div
-                            key={index}
-                            className="relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:scale-95 transition"
-                            onClick={() => setSelectedImage(image)}
-                          >
-                            <ImageWithFallback
-                              src={image}
-                              alt="answer img"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {answer.audioUrl && (
-                      <div className="bg-morandi-1 bg-opacity-20 rounded-2xl p-3 border border-morandi-1 border-opacity-30">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => handlePlayAnswerAudio(answer.id)}
-                            className="w-10 h-10 bg-morandi-1 text-gray-700 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition"
-                          >
-                            {playingAnswerId === answer.id ? (
-                              <Pause className="w-4 h-4 fill-white" />
-                            ) : (
-                              <Play className="w-4 h-4 ml-0.5 fill-white" />
-                            )}
-                          </button>
-                          <div className="flex-1 h-1 bg-white bg-opacity-50 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full bg-[#A2D2FF] transition-all duration-300 ${playingAnswerId === answer.id ? 'w-1/2' : 'w-0'}`}
-                            />
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowSpeedMenu(true);
-                            }}
-                            className="px-2 py-0.5 bg-white/60 hover:bg-white text-[#1D4ED8] rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border border-white/40"
-                            data-testid={`answer-speed-trigger-${answer.id}`}
-                          >
-                            {playbackRate}x
-                          </button>
-                          <span className="text-[10px] font-bold text-[#1D4ED8]">01:20</span>
-                          <audio
-                            ref={(el) => {
-                              if (el) {
-                                answerAudioRefs.current[answer.id] = el;
-                                el.onended = () => {
-                                  setPlayingAnswerId((prev) => (prev === answer.id ? null : prev));
-                                };
-                              }
-                            }}
-                            src={answer.audioUrl}
-                            className="hidden"
-                            data-testid={`answer-audio-${answer.id}`}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {answer.audioUrls && answer.audioUrls.length > 1 && (
-                      <div className="mt-2 space-y-1">
-                        {answer.audioUrls.map((url, idx) => {
-                          if (idx === 0) return null;
-                          return (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2 text-[11px] text-gray-500"
-                            >
-                              <span className="px-2 py-0.5 bg-gray-100 rounded-full">
-                                补充录音 {idx + 1}
-                              </span>
-                              <audio controls src={url} className="h-7 flex-1" />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div className="text-gray-700 text-sm leading-relaxed">{answer.content}</div>
-
-                    <div className="flex items-center gap-4 pt-1">
-                      <button className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold active:scale-75 transition">
-                        <Heart className="w-3.5 h-3.5" /> {answer.likes}
-                      </button>
-                      <button className="text-[10px] text-blue-400 font-bold">评论</button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* 评论区 */}
-        <div className="bg-white rounded-3xl shadow-sm p-4 mb-4">
-          <div className="space-y-4">
-            <h3 className="text-md font-bold text-gray-800">讨论区</h3>
-
-            {/* 评论列表 */}
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-              {comments.filter((c) => c.status === 'approved').length === 0 ? (
-                <div className="text-center py-10">
-                  <MessageCircle className="w-12 h-12 text-gray-100 mx-auto mb-2" />
-                  <p className="text-xs text-gray-300">暂无评论，来聊聊吧</p>
-                </div>
-              ) : (
-                comments
-                  .filter((c) => c.status === 'approved')
-                  .map((comment) => (
-                    <div
-                      key={comment.id}
-                      className="flex gap-3 p-3 bg-gray-50 bg-opacity-50 rounded-2xl border border-gray-100"
-                    >
-                      <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarImage src={comment.authorAvatar} />
-                        <AvatarFallback className="text-[10px]">
-                          {comment.authorName[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-gray-600">
-                            {comment.authorName}
-                          </span>
-                          <span className="text-[10px] text-gray-300">
-                            {formatDate(comment.createdAt)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-700 leading-relaxed font-medium">
-                          {comment.content}
-                        </p>
-                        {comment.image && (
-                          <div
-                            className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 mt-2 active:scale-95 transition cursor-pointer"
-                            onClick={() => setSelectedImage(comment.image!)}
-                          >
-                            <ImageWithFallback
-                              src={comment.image}
-                              alt="comment img"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
-
-            {/* 评论输入框（提问者和教师可见） */}
-            {(isQuestionAuthor || currentUser?.role === 'teacher' || currentUser?.role === 'admin') && (
-              <div className="space-y-2 pt-2 border-t border-gray-50">
-                {commentImage && (
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-morandi-5">
-                    <ImageWithFallback
-                      src={commentImage}
-                      alt="preview"
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      onClick={() => setCommentImage(null)}
-                      className="absolute top-0.5 right-0.5 bg-black bg-opacity-50 text-white rounded-full p-0.5 active:scale-75 transition"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleAddImage}
-                    className="p-2.5 bg-gray-100 text-gray-500 rounded-2xl hover:bg-gray-200 transition active:scale-90"
-                    data-testid="add-image-btn"
-                  >
-                    <Camera className="w-5 h-5" />
-                  </button>
-                  <input
-                    ref={commentImageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleCommentImageFileChange}
-                  />
-                  <div className="flex-1 relative">
-                    <Input
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="说点什么..."
-                      className="bg-gray-50 border-none rounded-2xl h-10 pr-10 text-xs focus-visible:ring-1 focus-visible:ring-morandi-5"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmitComment();
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={handleSubmitComment}
-                      className="absolute right-2 top-1.5 p-1.5 text-morandi-5 hover:text-morandi-5/80 transition active:scale-75"
-                    >
-                      <Send className="w-4 h-4 fill-current" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Audio Speed Selection Pop-up (Drawer style) */}
-      <AnimatePresence>
-        {showSpeedMenu && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowSpeedMenu(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 pb-10 z-[120] shadow-2xl"
-            >
-              <div className="w-12 h-1.5 bg-gray-100 rounded-full mx-auto mb-6" />
-              <h3 className="text-lg font-bold text-gray-800 mb-6 text-center">选择播放倍速</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => {
-                      setPlaybackRate(rate);
-                      setShowSpeedMenu(false);
-                      toast.success(`倍速已切换为 ${rate}x`);
-                    }}
-                    className={cn(
-                      'flex items-center justify-center h-14 rounded-2xl text-base font-bold transition-all',
-                      playbackRate === rate
-                        ? 'bg-blue-600 text-white shadow-lg scale-[1.02]'
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 active:scale-95',
-                    )}
-                  >
-                    {rate}x {rate === 1.0 && '(正常)'}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setShowSpeedMenu(false)}
-                className="w-full mt-6 h-14 rounded-2xl bg-gray-100 text-gray-500 font-bold active:scale-95 transition-all"
-              >
-                取消
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* 图片预览模态框 (Carousel) */}
-      <ImageCarousel
-        images={question.images || []}
-        initialIndex={question.images?.indexOf(selectedImage || '') || 0}
-        open={!!selectedImage}
-        onClose={() => setSelectedImage(null)}
+      {/* Question Detail Component */}
+      <QuestionDetail
+        question={question}
+        answers={isLoadingAnswers ? [] : answers}
+        comments={isLoadingComments ? [] : comments}
+        isLoggedIn={isLoggedIn}
+        onAnswer={handleAnswer}
+        onComment={handleComment}
       />
 
-      {/* 游客登录引导 */}
-      <AlertDialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>需要登录</AlertDialogTitle>
-            <AlertDialogDescription>
-              该功能需要登录后使用，请登录或注册账号。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate(ROUTES.login)}>
-              去登录 / 注册
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </motion.div>
+      {/* Loading indicator for answers/comments */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+        </div>
+      )}
+    </div>
   );
 }

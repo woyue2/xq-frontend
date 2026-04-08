@@ -21,8 +21,14 @@ components/
 | 文件 | 职责 |
 |---|---|
 | `QuestionCard.tsx` | 问题卡片（列表+详情复用） |
+| `QuestionDetail.tsx` | 问题详情组件（显示完整问题内容、回答列表、评论列表） |
 | `QuestionFilter.tsx` | 问题列表筛选器（学科/话题/状态等） |
 | `QuestionList.tsx` | 问题列表容器（无限滚动 + 骨架屏） |
+| `ImageGallery.tsx` | 图片画廊（显示多张图片，支持点击放大查看） |
+| `ImageUploader.tsx` | 图片上传组件（支持多图上传、客户端验证、进度显示和预览） |
+| `SubjectTopicSelector.tsx` | 科目和考点选择器（级联下拉选择器，用于问题创建和筛选） |
+| `SubjectManager.tsx` | 科目管理组件（管理员用，显示科目列表，支持创建、编辑、删除科目，选中科目查看考点） |
+| `SubjectForm.tsx` | 科目表单组件（创建和编辑科目，包含字段验证和错误处理） |
 
 ## 子目录文件
 

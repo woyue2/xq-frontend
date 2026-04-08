@@ -141,33 +141,9 @@ function normalizeListItem(q: BackendQuestionListItem): Question {
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 export const questionService = {
-  getQuestions: async (params: QuestionListParams = {}): Promise<PaginatedResponse<Question>> => {
-    const backendParams: Record<string, string | number | boolean | undefined> = {};
-    if (params.page !== undefined) backendParams.page = params.page;
-    if (params.pageSize !== undefined) backendParams.pageSize = params.pageSize;
-    if (params.subject !== undefined) backendParams.subject = params.subject;
-    if (params.status !== undefined) backendParams.status = params.status;
-    if (params.isGoodQuestion !== undefined) backendParams.isGoodQuestion = params.isGoodQuestion;
-    if (params.tags !== undefined) backendParams.tags = params.tags.join(',');
-    if (params.search !== undefined) backendParams.search = params.search;
-    if (params.authorId !== undefined) backendParams.authorId = params.authorId;
-
-    const { data } = await api.get<
-      ApiResponse<{
-        list: BackendQuestionListItem[];
-        pagination: { page: number; pageSize: number; total: number; totalPages: number };
-      }>
-    >('/questions', { params: backendParams });
-
-    const { list, pagination } = data.data;
-    return {
-      items: list.map(normalizeListItem),
-      total: pagination.total,
-      page: pagination.page,
-      totalPages: pagination.totalPages,
-    };
-  },
-
+  // Note: getQuestions is not used - HomePage.tsx calls /api/questions directly
+  // Keeping this for potential future use or migration
+  
   getQuestionById: async (id: string) => {
     const { data } = await api.get<ApiResponse<Question>>(`/content?action=questions-get&id=${id}`);
     return data.data;

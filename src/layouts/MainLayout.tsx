@@ -25,12 +25,11 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, X, Bell } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { getCurrentSlogan } from '@/config/ai-text';
-import { notificationService } from '@/services/api';
 import { ROUTES } from '@/config/app-constants';
 import {
   AlertDialog,
@@ -50,7 +49,6 @@ export function MainLayout() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [slogan, setSlogan] = useState(getCurrentSlogan());
-  const [unreadCount, setUnreadCount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   useEffect(() => {
@@ -61,29 +59,6 @@ export function MainLayout() {
 
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user) {
-      setUnreadCount(0);
-      return;
-    }
-
-    notificationService
-      .getUnreadCount()
-      .then(({ unreadCount }) => {
-        if (!cancelled) {
-          setUnreadCount(unreadCount);
-        }
-      })
-      .catch(() => {
-        // 失败由全局拦截器提示，这里忽略
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -134,28 +109,6 @@ export function MainLayout() {
                   >
                     <Search className="w-5 h-5 text-gray-600" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full hover:bg-white/50 active:scale-95 transition-transform relative"
-                    onClick={() => {
-                      // [IMPL] 原因：游客点击时提示登录
-                      if (!user) {
-                        setShowLoginDialog(true);
-                        return;
-                      }
-                      navigate(ROUTES.notifications);
-                    }}
-                    aria-label="notifications"
-                    data-testid="nav-notifications"
-                  >
-                    <Bell className="w-5 h-5 text-gray-600" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </Button>
 
                   <button
                     type="button"
@@ -166,7 +119,7 @@ export function MainLayout() {
                         setShowLoginDialog(true);
                         return;
                       }
-                      navigate(ROUTES.profile);
+                      // 简化后不再有个人中心页面，点击头像不做任何操作
                     }}
                     data-testid="nav-profile"
                     aria-label="profile"

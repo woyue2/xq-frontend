@@ -26,7 +26,7 @@ export const BADGE_LABELS = {
 } as const;
 
 export const TOAST_MESSAGES = {
-  onlyTeacherCanPin: '只有老师可以置顶问题',
+  onlyTeacherCanPin: '只有老师和管理员可以置顶问题',
   pinned: '已置顶',
   unpinned: '已取消置顶',
   liked: '点赞成功',
@@ -42,28 +42,16 @@ export const TIME_LABELS = {
 } as const;
 
 // ─── 路由常量（消除全局硬编码路由字符串）─────────────────────────────────────
+// [IMPL] 简化后只保留核心路由，删除不必要的路由
 export const ROUTES = {
   home: '/',
   login: '/login',
-  profile: '/profile',
   create: '/create',
-  audit: '/audit',
-  admin: '/admin',
-  diagnostic: '/diagnostic',
-  goodQuestions: '/good-questions',
-  myQuestions: '/my-questions',
-  myQuestionsStatus: (status: string) => `/my-questions/status/${status}`,
-  myAnswers: '/my-answers',
-  myLikes: '/my-likes',
-  myFavorites: '/my-favorites',
-  notifications: '/notifications',
-  parentQuestions: '/parent/questions',
+  adminSubjects: '/admin/subjects',
   // 动态路由（函数形式，参数显式传入）
   question: (id: string) => `/question/${id}`,
   answer: (id: string) => `/answer/${id}`,
   editQuestion: (id: string) => `/edit/${id}`,
-  studentHistory: (userId: string) => `/student/${userId}/questions`,
-  parentChild: (childId: string) => `/parent/questions/${childId}`,
   questionWithAnswer: (id: string, answerId: string) =>
     `/question/${id}?answerId=${encodeURIComponent(answerId)}`,
   homeWithSearch: (q: string) => `/?search=${encodeURIComponent(q)}`,

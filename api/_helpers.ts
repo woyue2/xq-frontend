@@ -1,15 +1,54 @@
 /**
- * Shared helper functions for Vercel serverless functions
+ * [POS] api/_helpers.ts
+ *   所属：API 辅助层 | 角色：Serverless Functions 共享工具（Prisma Client 单例、JWT 验证、错误类、AI 审核）
+ *   兄弟：所有 API 文件的依赖基础
+ *
+ * [INPUT]
+ *   - @prisma/client        → PrismaClient
+ *   - jsonwebtoken          → jwt
+ *   - @vercel/node          → VercelRequest
+ *   - process.env           → JWT_SECRET
+ *
+ * [OUTPUT]
+ *   - prisma（Prisma Client 单例，全局复用）
+ *   - JWT_SECRET（JWT 密钥）
+ *   - AuthUser（认证用户接口）
+ *   - getUserFromToken()（从请求中提取用户）
+ *   - authenticateToken()（验证 JWT token）
+ *   - AppError（统一错误类）
+ *   - aiAuditService（AI 内容审核服务）
+ *
+ * [PROTOCOL] 变更此文件时同步更新：
+ *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
+ *   2. api/CLAUDE.md 的文件清单
+ *   3. 所有依赖此文件的 API（auth, questions, answers, comments, subjects）
+ *
+ * [CRITICAL] Prisma Client 单例模式：
+ *   - 所有 API 文件必须从此处 import prisma，不得重复初始化
+ *   - 违反会导致连接池耗尽（Vercel Serverless 限制）
  */
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import type { VercelRequest } from '@vercel/node';
 
-// Prisma Client Singleton
+// Prisma Client Singleton with optimized connection pooling for Serverless
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
+
+// Ensure singleton in development (hot reload)
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
 
 // JWT
 export const JWT_SECRET = process.env.JWT_SECRET!;
@@ -51,7 +90,7 @@ export class AppError extends Error {
     public statusCode: number,
     public code: string,
     message: string,
-    public details?: any,
+    public details?: unknown,
     public errorCode?: number
   ) {
     super(message);

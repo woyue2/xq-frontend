@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  name         String?
+  nickname     String
+  avatar       String?
+  role         String   // 'admin' | 'teacher'
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([phone])
+  @@index([role])
+}
+
+model Question {
+  id           String    @id @default(cuid())
+  title        String    // 最多100字
+  content      String?   // 最多500字
+  subject      String?   // Subject.key
+  tags         String[]  // Topic.value 数组
+  images       String[]  // 图片URL数组，最多3张
+  authorId     String
+  authorName   String
+  authorAvatar String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  commentList  Comment[]
+  answerList   Answer[]
+
+  @@index([subject, createdAt])
+  @@index([createdAt])
+}
+
+model Answer {
+  id           String   @id @default(cuid())
+  questionId   String
+  question     Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content      String
+  images       String[]
+  authorId     String
+  authorName   String
+  authorAvatar String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([questionId, createdAt])
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  questionId   String
+  question     Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content      String
+  image        String?
+  authorId     String
+  authorName   String
+  authorAvatar String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([questionId, createdAt])
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  order       Int      @default(0)
+  enabled     Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topics      Topic[]
+}
+
+model Topic {
+  id         String   @id @default(cuid())
+  subjectKey String
+  value      String
+  label      String
+  order      Int      @default(0)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  subject    Subject  @relation(fields: [subjectKey], references: [key], onDelete: Cascade)
+
+  @@index([subjectKey])
+  @@unique([subjectKey, value])
+}

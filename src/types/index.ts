@@ -126,6 +126,7 @@ export interface Question {
 
   // 时间
   createdAt: string;
+  updatedAt?: string; // Optional for backward compatibility
 
   // 用户交互状态（需要用户上下文）
   isLiked?: boolean;

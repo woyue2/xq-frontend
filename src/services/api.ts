@@ -5,13 +5,8 @@
  *
  * [INPUT]
  *   - ./http                  → api（axios 实例）
- *   - ./auth.service          → authService / userService
+ *   - ./auth.service          → authService
  *   - ./question.service      → questionService
- *   - ./interaction.service   → interactionService / behaviorService
- *   - ./notification.service  → notificationService / configService
- *   - ./admin.service         → adminService / auditService / answerService /
- *                               commentService / profileService / classHoursService
- *   - ./parentService         → parentService
  *
  * [OUTPUT] （全部 re-export，同 [INPUT]）
  *
@@ -23,19 +18,5 @@
  */
 
 export { api } from './http';
-
-export { authService, userService }         from './auth.service';
-export { questionService }                  from './question.service';
-export { interactionService, behaviorService } from './interaction.service';
-export { notificationService, configService }  from './notification.service';
-export {
-    adminService,
-    auditService,
-    answerService,
-    commentService,
-    profileService,
-    classHoursService,
-}                                            from './admin.service';
-
-// parentService 保留在原独立文件，从此处 re-export 统一出口
-export { parentService }                     from './parentService';
+export { authService } from './auth.service';
+export { questionService } from './question.service';
