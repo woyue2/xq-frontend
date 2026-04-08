@@ -1,7 +1,7 @@
 /**
- * [POS] src/pages/AnswerQuestionPage.tsx
- *   所属：pages 层 | 角色：回答问题页，路由 `/answer/:id`
- *   兄弟：QuestionDetailPage.tsx / CreateQuestionPage.tsx
+ * [POS] src/pages/CommentQuestionPage.tsx
+ *   所属：pages 层 | 角色：评论问题页，路由 `/comment/:id`
+ *   兄弟：QuestionDetailPage.tsx / AnswerQuestionPage.tsx
  *
  * [INPUT]
  *   - react                          → useState / useEffect
@@ -15,7 +15,7 @@
  *   - @/types/dto                    → QuestionDTO
  *
  * [OUTPUT]
- *   - AnswerQuestionPage（页面组件，带 SWR 缓存）
+ *   - CommentQuestionPage（页面组件，带 SWR 缓存）
  *
  * [PROTOCOL] 变更此文件时同步更新：
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
@@ -43,13 +43,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-export function AnswerQuestionPage() {
+export function CommentQuestionPage() {
   const navigate = useNavigate();
   const { id: questionId } = useParams<{ id: string }>();
 
   // Form state
   const [content, setContent] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [image, setImage] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
@@ -82,7 +82,7 @@ export function AnswerQuestionPage() {
   }, [questionError, questionId, navigate]);
 
   const handleBack = () => {
-    if (content || images.length > 0) {
+    if (content || image) {
       setShowExitDialog(true);
     } else {
       navigate(`/question/${questionId}`);
@@ -92,7 +92,7 @@ export function AnswerQuestionPage() {
   const handleSubmit = async () => {
     // Validation: content is required
     if (!content.trim()) {
-      toast.error('请输入回答内容');
+      toast.error('请输入评论内容');
       return;
     }
 
@@ -114,10 +114,10 @@ export function AnswerQuestionPage() {
       const payload = {
         questionId,
         content: content.trim(),
-        images: images.length > 0 ? images : undefined
+        image: image || undefined
       };
 
-      const response = await fetch('/api/answers', {
+      const response = await fetch('/api/comments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,17 +129,17 @@ export function AnswerQuestionPage() {
       const data = await response.json();
 
       if (data.code === 201 || data.code === 200) {
-        toast.success('回答已提交');
+        toast.success('评论已提交');
         
-        // Invalidate answers cache to force refresh
-        await mutate(`/api/answers?questionId=${questionId}`);
+        // Invalidate comments cache to force refresh
+        await mutate(`/api/comments?questionId=${questionId}`);
         
         navigate(`/question/${questionId}`);
       } else {
         toast.error(data.message || '提交失败');
       }
     } catch (error) {
-      console.error('Failed to submit answer:', error);
+      console.error('Failed to submit comment:', error);
       toast.error('提交失败，请稍后重试');
     } finally {
       setSubmitting(false);
@@ -167,7 +167,7 @@ export function AnswerQuestionPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl flex-1 text-center">回答问题</h1>
+          <h1 className="text-xl flex-1 text-center">评论问题</h1>
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit}
@@ -182,33 +182,33 @@ export function AnswerQuestionPage() {
       <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
         {/* Question Context */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border-l-4 border-teal-500">
-          <p className="text-sm text-gray-500 mb-2">回答以下问题：</p>
+          <p className="text-sm text-gray-500 mb-2">评论以下问题：</p>
           <h3 className="font-medium">{questionTitle}</h3>
         </div>
 
-        {/* Answer Form */}
+        {/* Comment Form */}
         <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
           {/* Content Input */}
           <div className="space-y-2">
             <Label htmlFor="content">
-              回答内容 <span className="text-red-500">*</span>
+              评论内容 <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="content"
-              placeholder="请输入你的回答"
+              placeholder="请输入你的评论"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[200px] resize-none"
+              className="min-h-[120px] resize-none"
             />
           </div>
 
-          {/* Image Uploader */}
+          {/* Image Uploader (Single Image) */}
           <div className="space-y-2">
-            <Label>上传图片（可选）</Label>
+            <Label>上传图片（可选，最多1张）</Label>
             <ImageUploader
-              maxCount={3}
-              value={images}
-              onChange={setImages}
+              maxCount={1}
+              value={image ? [image] : []}
+              onChange={(images) => setImage(images[0] || '')}
               disabled={submitting}
             />
           </div>
@@ -219,7 +219,7 @@ export function AnswerQuestionPage() {
       <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>是否放弃回答？</AlertDialogTitle>
+            <AlertDialogTitle>是否放弃评论？</AlertDialogTitle>
             <AlertDialogDescription>
               当前编辑的内容将不会被保存
             </AlertDialogDescription>

@@ -286,76 +286,14 @@ export function LoginPage() {
           )}
 
           {/* 家长专属字段（仅注册且使用家长邀请码时显示） */}
+          {/* [DISABLED] 家长注册功能暂时禁用
           {isParentInvite && (
             <div className="space-y-4 border-t pt-4 mt-2">
               <p className="text-sm font-medium text-gray-700">绑定孩子信息</p>
-
-              <div className="space-y-2">
-                <Label htmlFor="childName">孩子姓名 *</Label>
-                <Input
-                  id="childName"
-                  placeholder="请输入孩子姓名"
-                  value={childName}
-                  onChange={(e) => setChildName(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="childSchool">孩子学校</Label>
-                <Input
-                  id="childSchool"
-                  data-testid="childSchool"
-                  placeholder="请输入孩子学校（选填）"
-                  value={childSchool}
-                  onChange={(e) => setChildSchool(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="childPhone">孩子手机号 *</Label>
-                <div className="relative">
-                  <Input
-                    id="childPhone"
-                    type="tel"
-                    placeholder="请输入孩子手机号"
-                    value={childPhone}
-                    onChange={(e) => setChildPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    className="pr-8"
-                  />
-                  {childPhone && (
-                    <button
-                      onClick={() => setChildPhone('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* [DISABLED] 孩子验证码，暂时隐藏，恢复时取消注释
-              <div className="space-y-2">
-                <Label htmlFor="childCode">验证码 *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="childCode"
-                    placeholder="请输入验证码"
-                    value={childCode}
-                    onChange={(e) => setChildCode(e.target.value)}
-                  />
-                  <Button
-                    onClick={handleGetChildCode}
-                    disabled={childCountdown > 0 || !childPhone || childPhone.length !== 11}
-                    variant="outline"
-                    className="whitespace-nowrap"
-                  >
-                    {childCountdown > 0 ? `${childCountdown}秒` : '获取验证码'}
-                  </Button>
-                </div>
-              </div>
-              */}
+              <p className="text-sm text-gray-500">家长注册功能暂时关闭，请联系管理员</p>
             </div>
           )}
+          */}
 
           {/* 提交按钮 */}
           <div className="space-y-3 pt-4">

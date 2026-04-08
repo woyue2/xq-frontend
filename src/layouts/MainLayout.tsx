@@ -25,7 +25,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, LogOut, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -41,6 +41,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function MainLayout() {
   const { user, logout, isActiveMember } = useAuthStore();
@@ -110,25 +118,57 @@ export function MainLayout() {
                     <Search className="w-5 h-5 text-gray-600" />
                   </Button>
 
-                  <button
-                    type="button"
-                    className="relative cursor-pointer active:scale-95 transition-transform focus:outline-none"
-                    onClick={() => {
-                      // [IMPL] 原因：游客点击头像时提示登录
-                      if (!user) {
-                        setShowLoginDialog(true);
-                        return;
-                      }
-                      // 简化后不再有个人中心页面，点击头像不做任何操作
-                    }}
-                    data-testid="nav-profile"
-                    aria-label="profile"
-                  >
-                    <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
-                      <AvatarImage src={user?.avatar} />
-                      <AvatarFallback>{user?.nickname?.[0] || '登录'}</AvatarFallback>
-                    </Avatar>
-                  </button>
+                  {user ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="relative cursor-pointer active:scale-95 transition-transform focus:outline-none"
+                          data-testid="nav-profile"
+                          aria-label="profile"
+                        >
+                          <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
+                            <AvatarImage src={user?.avatar} />
+                            <AvatarFallback>{user?.nickname?.[0] || '用户'}</AvatarFallback>
+                          </Avatar>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel>
+                          <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium">{user.nickname}</p>
+                            <p className="text-xs text-gray-500">{user.phone}</p>
+                          </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {(user.role === 'admin' || user.role === 'teacher') && (
+                          <>
+                            <DropdownMenuItem onClick={() => navigate('/admin/subjects')}>
+                              <Settings className="w-4 h-4 mr-2" />
+                              管理后台
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                          <LogOut className="w-4 h-4 mr-2" />
+                          退出登录
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <button
+                      type="button"
+                      className="relative cursor-pointer active:scale-95 transition-transform focus:outline-none"
+                      onClick={() => setShowLoginDialog(true)}
+                      data-testid="nav-profile"
+                      aria-label="profile"
+                    >
+                      <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
+                        <AvatarFallback>登录</AvatarFallback>
+                      </Avatar>
+                    </button>
+                  )}
                 </div>
               </motion.div>
             ) : (

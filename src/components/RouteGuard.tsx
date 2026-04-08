@@ -39,7 +39,8 @@ export function RequireAuth({ children }: RouteGuardProps) {
 
 /**
  * 需要管理员权限的路由守卫
- * 非管理员用户将被重定向到首页
+ * Admin 和 Teacher 都可以访问管理后台
+ * 其他角色用户将被重定向到首页
  */
 export function RequireAdmin({ children }: RouteGuardProps) {
   const { user, isAuthenticated } = useAuthStore();
@@ -49,8 +50,9 @@ export function RequireAdmin({ children }: RouteGuardProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user?.role !== 'admin') {
-    // 非管理员用户重定向到首页
+  // Admin 和 Teacher 都可以访问管理后台
+  if (user?.role !== 'admin' && user?.role !== 'teacher') {
+    // 非管理员/教师用户重定向到首页
     return <Navigate to="/" replace />;
   }
 

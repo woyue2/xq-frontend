@@ -19,6 +19,8 @@
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SWRConfig } from 'swr';
+import { swrConfig } from '@/lib/swr-config';
 import { MainLayout } from '@/layouts/MainLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { HomePage } from '@/pages/HomePage';
@@ -26,6 +28,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { CreateQuestionPage } from '@/pages/CreateQuestionPage';
 import { QuestionDetailPage } from '@/pages/QuestionDetailPage';
 import { AnswerQuestionPage } from '@/pages/AnswerQuestionPage';
+import { CommentQuestionPage } from '@/pages/CommentQuestionPage';
 import { AdminSubjectsPage } from '@/pages/admin/AdminSubjectsPage';
 import { RequireAuth, RequireAdmin } from '@/components/RouteGuard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -51,77 +54,87 @@ export function App() {
       }
     >
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route element={<AuthLayout />}>
-              <Route path="/login" element={<LoginPage />} />
-            </Route>
+        <SWRConfig value={swrConfig}>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginPage />} />
+              </Route>
 
-            {/* Main Layout Routes */}
-            <Route element={<MainLayout />}>
-              {/* Public routes - accessible to guests */}
-              <Route path="/" element={<HomePage />} />
-              <Route path="/question/:id" element={<QuestionDetailPage />} />
+              {/* Main Layout Routes */}
+              <Route element={<MainLayout />}>
+                {/* Public routes - accessible to guests */}
+                <Route path="/" element={<HomePage />} />
+                <Route path="/question/:id" element={<QuestionDetailPage />} />
 
-              {/* Protected routes - require authentication */}
-              <Route
-                path="/create"
-                element={
-                  <RequireAuth>
-                    <CreateQuestionPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/edit/:id"
-                element={
-                  <RequireAuth>
-                    <CreateQuestionPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/answer/:id"
-                element={
-                  <RequireAuth>
-                    <AnswerQuestionPage />
-                  </RequireAuth>
-                }
-              />
+                {/* Protected routes - require authentication */}
+                <Route
+                  path="/create"
+                  element={
+                    <RequireAuth>
+                      <CreateQuestionPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/edit/:id"
+                  element={
+                    <RequireAuth>
+                      <CreateQuestionPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/answer/:id"
+                  element={
+                    <RequireAuth>
+                      <AnswerQuestionPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/comment/:id"
+                  element={
+                    <RequireAuth>
+                      <CommentQuestionPage />
+                    </RequireAuth>
+                  }
+                />
 
-              {/* Admin routes - require admin role */}
-              <Route
-                path="/admin/subjects"
-                element={
-                  <RequireAdmin>
-                    <AdminSubjectsPage />
-                  </RequireAdmin>
-                }
-              />
+                {/* Admin routes - require admin role */}
+                <Route
+                  path="/admin/subjects"
+                  element={
+                    <RequireAdmin>
+                      <AdminSubjectsPage />
+                    </RequireAdmin>
+                  }
+                />
 
-              {/* Redirect deleted routes to home */}
-              <Route path="/profile" element={<Navigate to="/" replace />} />
-              <Route path="/audit" element={<Navigate to="/" replace />} />
-              <Route path="/admin" element={<Navigate to="/" replace />} />
-              <Route path="/my-questions" element={<Navigate to="/" replace />} />
-              <Route path="/my-questions/status/:status" element={<Navigate to="/" replace />} />
-              <Route path="/good-questions" element={<Navigate to="/" replace />} />
-              <Route path="/my-answers" element={<Navigate to="/" replace />} />
-              <Route path="/my-favorites" element={<Navigate to="/" replace />} />
-              <Route path="/my-likes" element={<Navigate to="/" replace />} />
-              <Route path="/notifications" element={<Navigate to="/" replace />} />
-              <Route path="/diagnostic" element={<Navigate to="/" replace />} />
-              <Route path="/parent/questions/:childId" element={<Navigate to="/" replace />} />
-              <Route path="/student/:studentId/questions" element={<Navigate to="/" replace />} />
-              <Route path="/test" element={<Navigate to="/" replace />} />
+                {/* Redirect deleted routes to home */}
+                <Route path="/profile" element={<Navigate to="/" replace />} />
+                <Route path="/audit" element={<Navigate to="/" replace />} />
+                <Route path="/admin" element={<Navigate to="/" replace />} />
+                <Route path="/my-questions" element={<Navigate to="/" replace />} />
+                <Route path="/my-questions/status/:status" element={<Navigate to="/" replace />} />
+                <Route path="/good-questions" element={<Navigate to="/" replace />} />
+                <Route path="/my-answers" element={<Navigate to="/" replace />} />
+                <Route path="/my-favorites" element={<Navigate to="/" replace />} />
+                <Route path="/my-likes" element={<Navigate to="/" replace />} />
+                <Route path="/notifications" element={<Navigate to="/" replace />} />
+                <Route path="/diagnostic" element={<Navigate to="/" replace />} />
+                <Route path="/parent/questions/:childId" element={<Navigate to="/" replace />} />
+                <Route path="/student/:studentId/questions" element={<Navigate to="/" replace />} />
+                <Route path="/test" element={<Navigate to="/" replace />} />
 
-              {/* Fallback - catch all other routes */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-          <Toaster position="bottom-center" richColors duration={2000} offset={56} />
-        </BrowserRouter>
+                {/* Fallback - catch all other routes */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+            <Toaster position="bottom-center" richColors duration={2000} offset={56} />
+          </BrowserRouter>
+        </SWRConfig>
       </QueryClientProvider>
     </ErrorBoundary>
   );

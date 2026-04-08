@@ -6,14 +6,17 @@
  * [INPUT]
  *   - react                          → useState / useEffect
  *   - react-router-dom               → useNavigate / useParams
+ *   - swr                            → useSWR
+ *   - @/lib/swr-config               → fetcher
  *   - lucide-react                   → ArrowLeft
  *   - @/components/ui/*              → Button / Input / Textarea / Label
  *   - @/components/SubjectTopicSelector → SubjectTopicSelector
  *   - @/components/ImageUploader     → ImageUploader
  *   - sonner                         → toast
+ *   - @/types/dto                    → QuestionDTO
  *
  * [OUTPUT]
- *   - CreateQuestionPage（页面组件）
+ *   - CreateQuestionPage（页面组件，带 SWR 缓存）
  *
  * [PROTOCOL] 变更此文件时同步更新：
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
@@ -21,6 +24,9 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import useSWR, { mutate } from 'swr';
+import { fetcher } from '@/lib/swr-config';
+import type { QuestionDTO } from '@/types/dto';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,52 +60,46 @@ export function CreateQuestionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  // Load existing question data in edit mode
+  // Check if user is logged in
+  const token = localStorage.getItem('token');
+  if (!token && isEditMode) {
+    toast.error('需要登录');
+    navigate('/login');
+  }
+
+  // Fetch question data with SWR in edit mode
+  const { data: question, error: questionError } = useSWR<QuestionDTO>(
+    editId && token ? `/api/questions?id=${editId}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 minute deduplication
+    }
+  );
+
+  // Populate form when question data is loaded
   useEffect(() => {
-    if (!editId) return;
+    if (!question) return;
 
-    const loadQuestion = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          toast.error('需要登录');
-          navigate('/login');
-          return;
-        }
+    setTitle(question.title || '');
+    setContent(question.content || '');
+    setSubject(question.subject || '');
+    setImages(question.images || []);
+    
+    // Extract topic from tags (first tag that's not the subject)
+    if (Array.isArray(question.tags)) {
+      const topicTag = question.tags.find((tag: string) => tag !== question.subject);
+      if (topicTag) setTopic(topicTag);
+    }
+  }, [question]);
 
-        const response = await fetch(`/api/questions?id=${editId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        const data = await response.json();
-
-        if (data.code === 200 && data.data) {
-          const question = data.data;
-          setTitle(question.title || '');
-          setContent(question.content || '');
-          setSubject(question.subject || '');
-          setImages(question.images || []);
-          
-          // Extract topic from tags (first tag that's not the subject)
-          if (Array.isArray(question.tags)) {
-            const topicTag = question.tags.find((tag: string) => tag !== question.subject);
-            if (topicTag) setTopic(topicTag);
-          }
-        } else {
-          toast.error('加载问题失败');
-          navigate('/');
-        }
-      } catch (error) {
-        console.error('Failed to load question:', error);
-        toast.error('加载问题失败');
-        navigate('/');
-      }
-    };
-
-    loadQuestion();
-  }, [editId, navigate]);
+  // Handle error state
+  useEffect(() => {
+    if (questionError && editId) {
+      toast.error('加载问题失败');
+      navigate('/');
+    }
+  }, [questionError, editId, navigate]);
 
   const handleBack = () => {
     if (title || content || images.length > 0) {
@@ -184,6 +184,14 @@ export function CreateQuestionPage() {
 
       if (data.code === 200 || data.code === 201) {
         toast.success(isEditMode ? '问题已更新' : '问题已创建');
+        
+        // Invalidate question cache to force refresh
+        if (isEditMode && editId) {
+          await mutate(`/api/questions?id=${editId}`);
+        }
+        // Also invalidate homepage cache
+        await mutate((key) => typeof key === 'string' && key.startsWith('/api/questions?'));
+        
         navigate(`/question/${data.data.id}`);
       } else {
         toast.error(data.message || '操作失败');

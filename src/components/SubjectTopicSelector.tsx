@@ -4,20 +4,24 @@
  *   兄弟：QuestionCard.tsx / ImageUploader.tsx / QuestionFilter.tsx
  *
  * [INPUT]
- *   - react                          → useState / useEffect
+ *   - react                          → useEffect
+ *   - swr                            → useSWR
+ *   - @/lib/swr-config               → fetcher
  *   - @/components/ui/select         → Select / SelectContent / SelectItem / SelectTrigger / SelectValue
  *   - @/components/ui/label          → Label
  *   - @/types/dto                    → SubjectDTO / TopicDTO
  *   - @/lib/utils                    → cn
  *
  * [OUTPUT]
- *   - SubjectTopicSelector（科目和考点选择器组件）
+ *   - SubjectTopicSelector（科目和考点选择器组件，带 SWR 缓存）
  *
  * [PROTOCOL] 变更此文件时同步更新：
  *   1. 本注释头部（[INPUT]/[OUTPUT] 变化时）
  *   2. src/components/CLAUDE.md 的文件清单
  */
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/swr-config';
 import {
   Select,
   SelectContent,
@@ -38,14 +42,6 @@ export interface SubjectTopicSelectorProps {
   required?: boolean;
 }
 
-// Simple in-memory cache for subjects (they rarely change)
-let subjectsCache: SubjectDTO[] | null = null;
-let subjectsCacheTime: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Topic cache by subject key
-const topicsCache: Map<string, { data: TopicDTO[]; time: number }> = new Map();
-
 export function SubjectTopicSelector({
   subjectValue,
   topicValue,
@@ -54,81 +50,36 @@ export function SubjectTopicSelector({
   className,
   required = false,
 }: SubjectTopicSelectorProps) {
-  const [subjects, setSubjects] = useState<SubjectDTO[]>([]);
-  const [topics, setTopics] = useState<TopicDTO[]>([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(true);
-  const [loadingTopics, setLoadingTopics] = useState(false);
-
-  // Load subjects on mount (with caching)
-  useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        setLoadingSubjects(true);
-        
-        // Check cache first
-        const now = Date.now();
-        if (subjectsCache && (now - subjectsCacheTime) < CACHE_DURATION) {
-          setSubjects(subjectsCache);
-          setLoadingSubjects(false);
-          return;
-        }
-
-        // Fetch from API
-        const response = await fetch('/api/subjects');
-        const data = await response.json();
-        
-        if (data.code === 200) {
-          subjectsCache = data.data;
-          subjectsCacheTime = now;
-          setSubjects(data.data);
-        }
-      } catch (error) {
-        console.error('Failed to load subjects:', error);
-      } finally {
-        setLoadingSubjects(false);
-      }
-    };
-
-    fetchSubjects();
-  }, []);
-
-  // Load topics when subject changes (with caching)
-  useEffect(() => {
-    if (!subjectValue) {
-      setTopics([]);
-      return;
+  // Fetch subjects with SWR (1-minute cache)
+  const { data: subjects = [], isLoading: loadingSubjects } = useSWR<SubjectDTO[]>(
+    '/api/subjects',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 minute (shorter than previous 5 min)
     }
+  );
 
-    const fetchTopics = async () => {
-      try {
-        setLoadingTopics(true);
-        
-        // Check cache first
-        const now = Date.now();
-        const cached = topicsCache.get(subjectValue);
-        if (cached && (now - cached.time) < CACHE_DURATION) {
-          setTopics(cached.data);
-          setLoadingTopics(false);
-          return;
-        }
+  // Fetch topics with SWR when subject is selected (1-minute cache)
+  const { data: topics = [], isLoading: loadingTopics } = useSWR<TopicDTO[]>(
+    subjectValue ? `/api/subjects?key=${subjectValue}&topics=1` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 minute
+    }
+  );
 
-        // Fetch from API
-        const response = await fetch(`/api/subjects?key=${subjectValue}&topics=1`);
-        const data = await response.json();
-        
-        if (data.code === 200) {
-          topicsCache.set(subjectValue, { data: data.data, time: now });
-          setTopics(data.data);
-        }
-      } catch (error) {
-        console.error('Failed to load topics:', error);
-      } finally {
-        setLoadingTopics(false);
+  // Clear topic when subject changes
+  useEffect(() => {
+    if (subjectValue && topicValue) {
+      // Check if current topic belongs to selected subject
+      const topicExists = topics.some(t => t.value === topicValue);
+      if (!topicExists && topics.length > 0) {
+        onTopicChange?.('');
       }
-    };
-
-    fetchTopics();
-  }, [subjectValue]);
+    }
+  }, [subjectValue, topics, topicValue, onTopicChange]);
 
   const handleSubjectChange = (value: string) => {
     onSubjectChange?.(value);

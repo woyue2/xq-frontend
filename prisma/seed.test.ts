@@ -37,29 +37,22 @@ async function seed() {
 
   // Create test users
   const adminPassword = await bcrypt.hash('admin123', 10)
-  const teacherPassword = await bcrypt.hash('teacher123', 10)
 
+  // Admin user (can manage subjects and also post questions/answers)
   const admin = await prisma.user.create({
     data: {
       phone: '13800000001',
-      nickname: 'Test Admin',
-      name: 'Admin User',
+      nickname: '管理员老师',
+      name: 'Admin Teacher',
       role: 'admin',
       passwordHash: adminPassword,
     },
   })
 
-  const teacher = await prisma.user.create({
-    data: {
-      phone: '13800000002',
-      nickname: 'Test Teacher',
-      name: 'Teacher User',
-      role: 'teacher',
-      passwordHash: teacherPassword,
-    },
-  })
-
-  console.log('✅ Created test users')
+  console.log('✅ Created test user (Admin Teacher)')
+  console.log('   Phone: 13800000001')
+  console.log('   Password: admin123')
+  console.log('   Role: admin (can manage subjects + post content)')
 
   // Create subjects
   const mathSubject = await prisma.subject.create({
@@ -125,9 +118,9 @@ async function seed() {
       subject: 'math',
       tags: ['algebra'],
       images: [],
-      authorId: teacher.id,
-      authorName: teacher.nickname,
-      authorAvatar: teacher.avatar,
+      authorId: admin.id,
+      authorName: admin.nickname,
+      authorAvatar: admin.avatar,
     },
   })
 
@@ -165,18 +158,26 @@ async function seed() {
     data: {
       questionId: question1.id,
       content: '这个问题很有价值',
-      authorId: teacher.id,
-      authorName: teacher.nickname,
-      authorAvatar: teacher.avatar,
+      authorId: admin.id,
+      authorName: admin.nickname,
+      authorAvatar: admin.avatar,
     },
   })
 
   console.log('✅ Created sample comments')
 
   console.log('\n🎉 Test database seeded successfully!')
-  console.log('\nTest credentials:')
-  console.log('Admin - Phone: 13800000001, Password: admin123')
-  console.log('Teacher - Phone: 13800000002, Password: teacher123')
+  console.log('\n📝 Test Account:')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('Phone:    13800000001')
+  console.log('Password: admin123')
+  console.log('Role:     admin (管理员老师)')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('\n✨ This account can:')
+  console.log('   • Manage subjects and topics (/admin/subjects)')
+  console.log('   • Create questions and answers')
+  console.log('   • Post comments')
+  console.log('   • View all content')
 }
 
 seed()

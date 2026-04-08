@@ -24,6 +24,7 @@
  *   2. src/components/CLAUDE.md 的文件清单
  */
 import { useState, useEffect } from 'react';
+import { mutate } from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -123,6 +124,9 @@ export function SubjectManager({
         // Remove from list
         setSubjects((prev) => prev.filter((s) => s.id !== subjectToDelete.id));
         
+        // Invalidate SWR cache for subjects
+        await mutate('/api/subjects');
+        
         // Clear selection if deleted subject was selected
         if (selectedSubjectKey === subjectToDelete.key) {
           setSelectedSubjectKey(null);
@@ -170,6 +174,8 @@ export function SubjectManager({
         setSubjects((prev) =>
           prev.map((s) => (s.id === editingSubject.id ? result.data : s))
         );
+        // Invalidate SWR cache for subjects
+        await mutate('/api/subjects');
       } else {
         throw { response: { status: result.code, data: result } };
       }
@@ -189,6 +195,8 @@ export function SubjectManager({
         toast.success('科目创建成功');
         // Add to local state
         setSubjects((prev) => [...prev, result.data].sort((a, b) => a.order - b.order));
+        // Invalidate SWR cache for subjects
+        await mutate('/api/subjects');
       } else {
         throw { response: { status: result.code, data: result } };
       }

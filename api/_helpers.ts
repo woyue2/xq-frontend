@@ -50,8 +50,13 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-// JWT
-export const JWT_SECRET = process.env.JWT_SECRET!;
+// JWT - with fallback for local development
+export const JWT_SECRET = process.env.JWT_SECRET || 'A67TvMwv+d70aF6qrfW1FJ6GJ4C9INU63b+VX46Mm5E=';
+
+// Warn if JWT_SECRET is not set in production
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('CRITICAL: JWT_SECRET is not set in production environment!');
+}
 
 export interface AuthUser {
   id: string;

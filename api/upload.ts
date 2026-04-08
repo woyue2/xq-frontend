@@ -1,6 +1,6 @@
 /**
  * [POS] api/upload.ts
- *   所属：API 路由层 | 角色：图片上传到 Supabase Storage
+ *   所属：API 路由层 | 角色：图片上传到 imgurl.org OSS
  *
  * [INPUT]
  *   - multipart/form-data，字段名 'file'
@@ -15,17 +15,13 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
 import formidable from 'formidable'
 import fs from 'fs'
 import { extractAndVerifyToken } from './auth'
 
-// Supabase 配置
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://fyqlmovtfkfwmklfpvnc.supabase.co'
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5cWxtb3Z0Zmtmd21rbGZwdm5jIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDk2MzcyMCwiZXhwIjoyMDkwNTM5NzIwfQ.k19b4NZr3Xuk2VD7411hCnBmP354YnPKYIbIvkLg17U'
-
-// 创建 Supabase 客户端（使用 service key 以绕过 RLS）
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+// imgurl.org OSS 配置
+const OSS_UPLOAD_BASE_URL = process.env.OSS_UPLOAD_BASE_URL || 'https://www.imgurl.org/api/v3/upload'
+const OSS_UPLOAD_TOKEN = process.env.OSS_UPLOAD_TOKEN || 'sk-GZqa0eF4eTDzZiuze194MyApMF8JmZk6GXoImZInczAsFASxquqmBQgtxEKai'
 
 // 支持的图片格式
 const ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'webp']
@@ -61,6 +57,42 @@ function parseForm(req: VercelRequest): Promise<{ fields: formidable.Fields; fil
 function getFileExtension(filename: string): string {
   const parts = filename.split('.')
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
+}
+
+/**
+ * 上传图片到 imgurl.org OSS
+ */
+async function uploadToOSS(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+  const FormData = (await import('form-data')).default
+  const formData = new FormData()
+  
+  formData.append('file', fileBuffer, {
+    filename: fileName,
+    contentType: mimeType
+  })
+
+  const response = await fetch(OSS_UPLOAD_BASE_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OSS_UPLOAD_TOKEN}`,
+      ...formData.getHeaders()
+    },
+    body: formData as any
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`OSS upload failed: ${response.status} ${errorText}`)
+  }
+
+  const result = await response.json()
+  
+  // imgurl.org V3 API 返回格式: { code: 200, data: { url: "..." } }
+  if (result.code === 200 && result.data?.url) {
+    return result.data.url
+  }
+  
+  throw new Error('OSS upload failed: Invalid response format')
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -102,12 +134,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 解析表单数据
-    let fields: formidable.Fields
     let files: formidable.Files
     
     try {
       const parsed = await parseForm(req)
-      fields = parsed.fields
       files = parsed.files
     } catch (parseError: unknown) {
       const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parse error'
@@ -174,34 +204,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const timestamp = Date.now()
     const randomStr = Math.random().toString(36).substring(2, 8)
     const fileName = `${timestamp}-${randomStr}.${ext}`
-    const filePath = `images/${fileName}`
 
     // 读取文件内容
     const fileBuffer = fs.readFileSync(file.filepath)
 
-    // 上传到 Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('images')
-      .upload(filePath, fileBuffer, {
-        contentType: file.mimetype || `image/${ext}`,
-        upsert: false
-      })
-
-    if (uploadError) {
-      console.error(`[Upload:${requestId}] Supabase upload error:`, uploadError)
+    // 上传到 imgurl.org OSS
+    let publicUrl: string
+    try {
+      publicUrl = await uploadToOSS(fileBuffer, fileName, file.mimetype || `image/${ext}`)
+    } catch (uploadError: unknown) {
+      const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown upload error'
+      console.error(`[Upload:${requestId}] OSS upload error:`, errorMessage)
       return res.status(500).json({
         code: 500,
         message: '图片上传失败',
         timestamp: Date.now()
       })
     }
-
-    // 获取公开访问 URL
-    const { data: urlData } = supabase.storage
-      .from('images')
-      .getPublicUrl(uploadData.path)
-
-    const publicUrl = urlData.publicUrl
 
     // 清理临时文件
     try {

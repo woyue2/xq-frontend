@@ -22,6 +22,7 @@
  *   2. src/components/CLAUDE.md 的文件清单
  */
 import { useState, useEffect } from 'react';
+import { mutate } from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -118,6 +119,8 @@ export function TopicManager({ subjectKey, className }: TopicManagerProps) {
       if (data.code === 200) {
         // Remove from list
         setTopics((prev) => prev.filter((t) => t.id !== topicToDelete.id));
+        // Invalidate SWR cache for topics
+        await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
       } else {
         handleApiError({ response: { status: data.code, data } });
       }
@@ -164,6 +167,8 @@ export function TopicManager({ subjectKey, className }: TopicManagerProps) {
         setTopics((prev) =>
           prev.map((t) => (t.id === editingTopic.id ? result.data : t))
         );
+        // Invalidate SWR cache for topics
+        await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
       } else {
         throw { response: { status: result.code, data: result } };
       }
@@ -183,6 +188,8 @@ export function TopicManager({ subjectKey, className }: TopicManagerProps) {
       if (result.code === 201) {
         // Add to list and sort
         setTopics((prev) => [...prev, result.data].sort((a, b) => a.order - b.order));
+        // Invalidate SWR cache for topics
+        await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
       } else {
         throw { response: { status: result.code, data: result } };
       }
