@@ -23,8 +23,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma, getUserFromToken, AppError } from './_helpers';
-import type { CommentDTO } from '../src/types/dto';
+import { prisma, getUserFromToken, AppError } from './_helpers.js';
+import type { CommentDTO } from '../src/types/dto.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');

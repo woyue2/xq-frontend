@@ -20,8 +20,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import type { UserDTO } from '../src/types/dto'
-import { prisma, JWT_SECRET } from './_helpers'
+import type { UserDTO } from '../src/types/dto.js'
+import { prisma, JWT_SECRET } from './_helpers.js'
 
 // === 类型定义 ===
 interface AuthUser {

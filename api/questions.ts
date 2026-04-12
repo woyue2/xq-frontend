@@ -25,8 +25,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma, getUserFromToken, AppError } from './_helpers';
-import type { QuestionDTO } from '../src/types/dto';
+import { prisma, getUserFromToken, AppError } from './_helpers.js';
+import type { QuestionDTO } from '../src/types/dto.js';
 
 // ===== Type Definitions =====
 

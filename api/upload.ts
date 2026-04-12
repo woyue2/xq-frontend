@@ -17,7 +17,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import formidable from 'formidable'
 import fs from 'fs'
-import { extractAndVerifyToken } from './auth'
+import { extractAndVerifyToken } from './auth.js'
 import FormData from 'form-data'
 import axios from 'axios'
 
