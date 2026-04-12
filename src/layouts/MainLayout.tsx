@@ -215,8 +215,8 @@ export function MainLayout() {
         <Outlet />
       </main>
 
-      {/* 提问入口按钮：仅对非家长且在有效期内的用户显示 */}
-      {user && user.role !== 'parent' && (isActiveMember ?? true) && (
+      {/* 提问入口按钮：仅登录用户可见 */}
+      {user && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <button
             onClick={() => navigate(ROUTES.create)}
