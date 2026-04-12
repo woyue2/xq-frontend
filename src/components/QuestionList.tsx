@@ -123,27 +123,7 @@ export function QuestionList({
           {sortedQuestions.map((question) => (
             <div key={question.id} className="relative" data-testid="question-card">
               <QuestionCard
-                question={question}
-                // onClick prop removed as it is not part of QuestionCardProps
-                isLiked={likedQuestions.has(question.id)}
-                isFavorited={favoritedQuestions.has(question.id)}
-                isPinned={getEffectivePinned(question)}
-                onLike={onLike ? (e: React.MouseEvent) => onLike(question.id, e) : undefined}
-                onFavorite={
-                  onFavorite ? (e: React.MouseEvent) => onFavorite(question.id, e) : undefined
-                }
-                onPin={onPin ? (e: React.MouseEvent) => onPin(question, e) : undefined}
-                understandingStatus={
-                  understandingStates[question.id] ?? question.understandingStatus ?? null
-                }
-                onToggleUnderstanding={
-                  onToggleUnderstanding
-                    ? (e: React.MouseEvent) => onToggleUnderstanding(question, e)
-                    : undefined
-                }
-                onAuthorClick={
-                  onAuthorClick ? (e: React.MouseEvent) => onAuthorClick(question, e) : undefined
-                }
+                question={question as any}
               />
               {showDetailButton && (
                 <div className="absolute top-4 right-4 z-10">

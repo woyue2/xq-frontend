@@ -8,7 +8,7 @@
  *   - 写入类操作：调用 Vercel API（保证事务一致性）
  *
  * [USAGE]
- *   import { questionApi, userApi, interactionApi, realtimeApi } from '@/services/api.supa'
+ *   import { questionApi, userApi, realtimeApi } from '@/services/api.supa'
  *
  *   // 查询 - 直查 Supabase
  *   const questions = await questionApi.list({ subjectId: 'math' })
@@ -23,13 +23,15 @@
  */
 export { default as questionApi } from './question.supa'
 export { default as userApi } from './user.supa'
-export { default as interactionApi } from './interaction.supa'
+// TODO: Re-enable when interaction.supa is available
+// export { default as interactionApi } from './interaction.supa'
 export { default as realtimeApi } from './realtime.supa'
 
 // Re-export types
 export type { Question, CreateQuestionData, ListParams } from './question.supa'
 export type { User, UpdateProfileData } from './user.supa'
-export type { Favorite, Understanding } from './interaction.supa'
+// TODO: Re-enable when interaction.supa is available
+// export type { Favorite, Understanding } from './interaction.supa'
 export type {
   QuestionChangePayload,
   AnswerChangePayload,

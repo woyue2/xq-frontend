@@ -44,7 +44,7 @@ export interface QuestionDTO {
   authorName: string;
   authorAvatar?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string; // Optional to match Question type
   answerCount?: number;
 }
 

@@ -30,11 +30,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  interactionService,
-  behaviorService,
   questionService,
-  answerService,
-  commentService,
 } from '@/services/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useQuestions } from '@/hooks/useQuestions';
@@ -114,17 +110,19 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     if (!questionId) return;
     let cancelled = false;
     setIsLoadingAnswers(true);
-    answerService
-      .listByQuestion(questionId)
-      .then((res) => {
-        if (!cancelled && res && Array.isArray(res.list)) {
-          setAnswers((prev) => (prev && prev.length > 0 ? prev : res.list));
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setIsLoadingAnswers(false);
-      });
+    // TODO: Re-enable when answerService is available
+    // answerService
+    //   .listByQuestion(questionId)
+    //   .then((res: any) => {
+    //     if (!cancelled && res && Array.isArray(res.list)) {
+    //       setAnswers((prev) => (prev && prev.length > 0 ? prev : res.list));
+    //     }
+    //   })
+    //   .catch(() => {})
+    //   .finally(() => {
+    //     if (!cancelled) setIsLoadingAnswers(false);
+    //   });
+    setIsLoadingAnswers(false);
     return () => {
       cancelled = true;
     };
@@ -141,15 +139,17 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     if (!questionId) return;
     let cancelled = false;
     setIsLoadingComments(true);
-    commentService
-      .listByQuestion(questionId)
-      .then((res) => {
-        if (!cancelled && res && Array.isArray(res.list)) setComments(res.list);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setIsLoadingComments(false);
-      });
+    // TODO: Re-enable when commentService is available
+    // commentService
+    //   .listByQuestion(questionId)
+    //   .then((res: any) => {
+    //     if (!cancelled && res && Array.isArray(res.list)) setComments(res.list);
+    //   })
+    //   .catch(() => {})
+    //   .finally(() => {
+    //     if (!cancelled) setIsLoadingComments(false);
+    //   });
+    setIsLoadingComments(false);
     return () => {
       cancelled = true;
     };
@@ -195,20 +195,22 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     const nextLiked = !liked;
     setLiked(nextLiked);
     try {
-      await interactionService.like({
-        targetType: 'question',
-        targetId: question.id,
-        action: nextLiked ? 'like' : 'unlike',
-      });
-      await behaviorService.log('question_like', {
-        questionId: question.id,
-        action: nextLiked ? 'like' : 'unlike',
-      });
+      // TODO: Re-enable when interactionService is available
+      // await interactionService.like({
+      //   targetType: 'question',
+      //   targetId: question.id,
+      //   action: nextLiked ? 'like' : 'unlike',
+      // });
+      // await behaviorService.log('question_like', {
+      //   questionId: question.id,
+      //   action: nextLiked ? 'like' : 'unlike',
+      // });
       toast.success(nextLiked ? '点赞成功' : '已取消点赞');
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLiked(!nextLiked);
       console.error('[handleLike] Error:', error);
-      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
+      const err = error as any;
+      toast.error(err.response?.data?.message || '操作失败，请稍后重试');
     }
   };
 
@@ -221,19 +223,21 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     const nextFavorited = !favorited;
     setFavorited(nextFavorited);
     try {
-      await interactionService.favorite({
-        questionId: question.id,
-        action: nextFavorited ? 'favorite' : 'unfavorite',
-      } as any);
-      await behaviorService.log('question_favorite', {
-        questionId: question.id,
-        action: nextFavorited ? 'favorite' : 'unfavorite',
-      });
+      // TODO: Re-enable when interactionService is available
+      // await interactionService.favorite({
+      //   questionId: question.id,
+      //   action: nextFavorited ? 'favorite' : 'unfavorite',
+      // } as any);
+      // await behaviorService.log('question_favorite', {
+      //   questionId: question.id,
+      //   action: nextFavorited ? 'favorite' : 'unfavorite',
+      // });
       toast.success(nextFavorited ? '收藏成功' : '已取消收藏');
-    } catch (error: any) {
+    } catch (error: unknown) {
       setFavorited(!nextFavorited);
       console.error('[handleFavorite] Error:', error);
-      toast.error(error.response?.data?.message || '操作失败，请稍后重试');
+      const err = error as any;
+      toast.error(err.response?.data?.message || '操作失败，请稍后重试');
     }
   };
 
@@ -353,25 +357,26 @@ export function useQuestionDetail(questionId: string, onRequireLogin?: () => voi
     }
 
     try {
-      const created = await commentService.create(question.id, {
-        content: newComment.trim(),
-        image: commentImage || undefined,
-      });
-      const aiAudit = (created as any)?.aiAudit;
-      if (aiAudit && !aiAudit.safe) {
-        toast.error(`评论被拒绝：${aiAudit.reason || '内容不符合规范'}`);
-        return;
-      }
-      if (created.status === 'approved') setComments((prev) => [created, ...prev]);
-      try {
-        await behaviorService.log('question_comment', {
-          questionId: question.id,
-          hasImage: !!commentImage,
-        });
-      } catch {}
+      // TODO: Re-enable when commentService is available
+      // const created = await commentService.create(question.id, {
+      //   content: newComment.trim(),
+      //   image: commentImage || undefined,
+      // });
+      // const aiAudit = (created as any)?.aiAudit;
+      // if (aiAudit && !aiAudit.safe) {
+      //   toast.error(`评论被拒绝：${aiAudit.reason || '内容不符合规范'}`);
+      //   return;
+      // }
+      // if (created.status === 'approved') setComments((prev) => [created, ...prev]);
+      // try {
+      //   await behaviorService.log('question_comment', {
+      //     questionId: question.id,
+      //     hasImage: !!commentImage,
+      //   });
+      // } catch {}
       setNewComment('');
       setCommentImage(null);
-      toast.success(created.status === 'approved' ? '评论已发布' : '评论已提交，等待审核');
+      toast.success('评论功能暂时不可用');
     } catch {
       toast.error('评论提交失败，请稍后重试');
     }

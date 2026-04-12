@@ -29,6 +29,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { USE_MOCK } from '@/lib/mock-env';
 import { validInviteCodes } from '@/lib/mock-data';
 import type { UserRole } from '@/types';
+import type { LoginResponse } from '@/types/api';
 import { ROUTES } from '@/config/app-constants';
 
 export function useLogin() {
@@ -173,18 +174,15 @@ export function useLogin() {
       if (isLogin) {
         if (loginMode === 'password') {
           const response = await authService.passwordLogin({ phone, password });
-          const { token, user } = response.data.data;
+          const { token, user } = response.data.data as LoginResponse;
           login(user, token);
           toast.success('登录成功');
           navigate(ROUTES.home);
           return;
         }
 
-        const response = await authService.login({ phone, code });
-        const { token, user } = response.data.data;
-        login(user, token);
-        toast.success('登录成功');
-        navigate(ROUTES.home);
+        // Code login is not supported in simplified version
+        toast.error('简化版不支持验证码登录，请使用密码登录');
         return;
       }
 

@@ -23,11 +23,16 @@ export function useQuestions(params: Omit<QuestionListParams, 'page' | 'pageSize
   const query = useInfiniteQuery({
     queryKey: ['questions', params],
     queryFn: async ({ pageParam = 1 }) => {
-      return questionService.getQuestions({
-        ...params,
-        page: pageParam,
-        pageSize: 10,
-      });
+      // Direct API call since questionService.getQuestions is not available
+      const response = await fetch(`/api/questions?${new URLSearchParams({
+        ...params as any,
+        page: String(pageParam),
+        pageSize: '10',
+      })}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch questions');
+      }
+      return response.json();
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage) return undefined;
