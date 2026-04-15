@@ -58,6 +58,17 @@ export function MainLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [slogan, setSlogan] = useState(getCurrentSlogan());
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Track route changes for loading indicator
+  useEffect(() => {
+    setIsNavigating(true);
+    const timer = setTimeout(() => {
+      setIsNavigating(false);
+    }, 300); // Show loading for at least 300ms
+
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
 
   useEffect(() => {
     // Update slogan every minute to check if 5-minute block changed
@@ -86,6 +97,21 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* 全局页面加载指示器 */}
+      <AnimatePresence>
+        {isNavigating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-14 left-0 right-0 h-1 z-50"
+          >
+            <div className="h-full bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-[length:200%_100%] animate-[shimmer_1.5s_ease-in-out_infinite] shadow-lg shadow-blue-500/20" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Glassmorphism Header */}
       <header className="sticky top-0 z-50 w-full border-b border-white/20 bg-white/70 backdrop-blur-md shadow-sm transition-all duration-300">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center relative overflow-hidden">

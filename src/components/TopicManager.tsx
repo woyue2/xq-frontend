@@ -13,6 +13,7 @@
  *   - @/lib/error-handler            → handleApiError
  *   - @/lib/utils                    → cn
  *   - lucide-react                   → Plus / Edit / Trash2
+ *   - sonner                         → toast
  *
  * [OUTPUT]
  *   - TopicManager（考点管理组件）
@@ -26,6 +27,7 @@ import { mutate } from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,54 +147,67 @@ export function TopicManager({ subjectKey, className }: TopicManagerProps) {
   const handleFormSubmit = async (data: TopicFormData) => {
     const token = localStorage.getItem('token');
     
-    if (editingTopic) {
-      // Update existing topic
-      const response = await fetch(`/api/subjects?topicId=${editingTopic.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          label: data.label,
-          order: data.order,
-          enabled: data.enabled,
-        }),
-      });
+    try {
+      if (editingTopic) {
+        // Update existing topic
+        console.log('[TopicManager] Updating topic:', editingTopic.id, data);
+        const response = await fetch(`/api/subjects?topicId=${editingTopic.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            label: data.label,
+            order: data.order,
+            enabled: data.enabled,
+          }),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
+        console.log('[TopicManager] Update response:', result);
 
-      if (result.code === 200) {
-        // Update in list
-        setTopics((prev) =>
-          prev.map((t) => (t.id === editingTopic.id ? result.data : t))
-        );
-        // Invalidate SWR cache for topics
-        await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
+        if (result.code === 200) {
+          toast.success('考点更新成功');
+          // Update in list
+          setTopics((prev) =>
+            prev.map((t) => (t.id === editingTopic.id ? result.data : t))
+          );
+          // Invalidate SWR cache for topics
+          await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
+        } else {
+          toast.error(result.message || '更新失败');
+          throw { response: { status: result.code, data: result } };
+        }
       } else {
-        throw { response: { status: result.code, data: result } };
-      }
-    } else {
-      // Create new topic
-      const response = await fetch('/api/subjects?topics=1', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
+        // Create new topic
+        console.log('[TopicManager] Creating topic:', data);
+        const response = await fetch('/api/subjects?topics=1', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
+        console.log('[TopicManager] Create response:', result);
 
-      if (result.code === 201) {
-        // Add to list and sort
-        setTopics((prev) => [...prev, result.data].sort((a, b) => a.order - b.order));
-        // Invalidate SWR cache for topics
-        await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
-      } else {
-        throw { response: { status: result.code, data: result } };
+        if (result.code === 201) {
+          toast.success('考点创建成功');
+          // Add to list and sort
+          setTopics((prev) => [...prev, result.data].sort((a, b) => a.order - b.order));
+          // Invalidate SWR cache for topics
+          await mutate(`/api/subjects?key=${subjectKey}&topics=1`);
+        } else {
+          toast.error(result.message || '创建失败');
+          throw { response: { status: result.code, data: result } };
+        }
       }
+    } catch (error) {
+      console.error('[TopicManager] Form submit error:', error);
+      throw error;
     }
   };
 

@@ -156,50 +156,61 @@ export function SubjectManager({
   const handleFormSubmit = async (data: SubjectFormData) => {
     const token = localStorage.getItem('token');
 
-    if (editingSubject) {
-      // Update existing subject
-      const response = await fetch(`/api/subjects?id=${editingSubject.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
+    try {
+      if (editingSubject) {
+        // Update existing subject
+        console.log('[SubjectManager] Updating subject:', editingSubject.id, data);
+        const response = await fetch(`/api/subjects?id=${editingSubject.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+        const result = await response.json();
+        console.log('[SubjectManager] Update response:', result);
 
-      if (result.code === 200) {
-        toast.success('科目更新成功');
-        // Update local state
-        setSubjects((prev) =>
-          prev.map((s) => (s.id === editingSubject.id ? result.data : s))
-        );
-        // Invalidate SWR cache for subjects
-        await mutate('/api/subjects');
+        if (result.code === 200) {
+          toast.success('科目更新成功');
+          // Update local state
+          setSubjects((prev) =>
+            prev.map((s) => (s.id === editingSubject.id ? result.data : s))
+          );
+          // Invalidate SWR cache for subjects
+          await mutate('/api/subjects');
+        } else {
+          toast.error(result.message || '更新失败');
+          throw { response: { status: result.code, data: result } };
+        }
       } else {
-        throw { response: { status: result.code, data: result } };
-      }
-    } else {
-      // Create new subject
-      const response = await fetch('/api/subjects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
+        // Create new subject
+        console.log('[SubjectManager] Creating subject:', data);
+        const response = await fetch('/api/subjects', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+        const result = await response.json();
+        console.log('[SubjectManager] Create response:', result);
 
-      if (result.code === 201) {
-        toast.success('科目创建成功');
-        // Add to local state
-        setSubjects((prev) => [...prev, result.data].sort((a, b) => a.order - b.order));
-        // Invalidate SWR cache for subjects
-        await mutate('/api/subjects');
-      } else {
-        throw { response: { status: result.code, data: result } };
+        if (result.code === 201) {
+          toast.success('科目创建成功');
+          // Add to local state
+          setSubjects((prev) => [...prev, result.data].sort((a, b) => a.order - b.order));
+          // Invalidate SWR cache for subjects
+          await mutate('/api/subjects');
+        } else {
+          toast.error(result.message || '创建失败');
+          throw { response: { status: result.code, data: result } };
+        }
       }
+    } catch (error) {
+      console.error('[SubjectManager] Form submit error:', error);
+      throw error;
     }
   };
 

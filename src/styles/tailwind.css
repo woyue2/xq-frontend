@@ -15,4 +15,16 @@
   --color-morandi-skin1: #FFE5D9;
   --color-morandi-skin2: #FFD7BA;
   --color-morandi-skin3: #FEC89A;
+  
+  /* Loading shimmer animation */
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
